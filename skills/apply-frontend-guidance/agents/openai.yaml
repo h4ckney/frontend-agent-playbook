@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apply Frontend Guidance"
+  short_description: "Apply only approved frontend guidance"
+  default_prompt: "Use $apply-frontend-guidance to verify approved proposal IDs, apply only their scoped rule or skill artifacts, validate them, and persist confirmed decisions."

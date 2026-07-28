@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit Frontend Rules"
+  short_description: "Audit and propose scoped frontend guidance"
+  default_prompt: "Use $audit-frontend-rules to audit this frontend codebase, propose only justified project rules, skills, or issue drafts with evidence, and wait for explicit approval before any application."

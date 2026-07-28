@@ -1,0 +1,30 @@
+{
+  "approval": {
+    "repository": "representative/job-application",
+    "proposalId": "application-submission-boundary",
+    "status": "Approved",
+    "type": "Project rule",
+    "scope": "Job-application draft save and final submission",
+    "behavior": "Draft saves are reversible and rollback-capable; final submission is server-authoritative and never optimistic.",
+    "targetFiles": [
+      ".agents/rules/application-submission.md"
+    ],
+    "dependencies": [],
+    "enforcement": [],
+    "artifactFingerprint": "sha256:fabe4fdb4ec90389987853a0aa3e9e3d8662161336a521b79f4a7133573bb490"
+  },
+  "request": {
+    "repository": "representative/job-application",
+    "proposalId": "application-submission-boundary",
+    "type": "Project rule",
+    "scope": "Job-application draft save and final submission",
+    "behavior": "Draft saves are reversible and rollback-capable; final submission is server-authoritative and never optimistic.",
+    "targetFiles": [
+      ".agents/rules/application-submission.md"
+    ],
+    "dependencies": [],
+    "enforcement": [],
+    "fingerprint": "sha256:fabe4fdb4ec90389987853a0aa3e9e3d8662161336a521b79f4a7133573bb490"
+  },
+  "existingArtifacts": []
+}

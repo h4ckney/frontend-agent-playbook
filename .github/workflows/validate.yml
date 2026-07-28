@@ -1,0 +1,38 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  documentation-and-analyzer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate documentation
+        run: node scripts/validate-docs.mjs
+
+      - name: Check analyzer syntax
+        run: |
+          node --check analysis/app.js
+          node --check analysis/analyzer.js
+
+      - name: Test analyzer
+        run: node --test analysis/analyzer.test.mjs
+
+      - name: Test guidance approval gate
+        run: node --test scripts/guidance-approval.test.mjs

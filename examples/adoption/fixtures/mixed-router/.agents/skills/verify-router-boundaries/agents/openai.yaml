@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Router Boundaries"
+  short_description: "Check mixed Next.js router boundaries"
+  default_prompt: "Use $verify-router-boundaries to classify changed routes, apply the matching router conventions, and report cross-tree risks without expanding migration scope."
