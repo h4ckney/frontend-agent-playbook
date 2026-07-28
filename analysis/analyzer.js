@@ -37,7 +37,7 @@ function isAnalyzableFile(file) {
 }
 
 function analyzeRecords(inputRecords) {
-  const records = inputRecords.filter((record) => !looksGenerated(record.content));
+  const records = inputRecords.filter((record) => !isGeneratedRecord(record));
   const paths = records.map((record) => record.path.toLowerCase());
   const source = records.filter((record) => SOURCE_FILE_PATTERN.test(record.path));
   const findings = [];
@@ -239,7 +239,7 @@ function analyzeRecords(inputRecords) {
   return findings;
 }
 
-function createAuditResult(name, findings, fileCount, meta) {
+function createAuditResult(name, findings, fileCount, meta, inputScope = {}) {
   const findingIds = findings.map((finding) => finding.id);
   if (new Set(findingIds).size !== findingIds.length) {
     throw new Error("audit findings require unique stable IDs");
@@ -254,7 +254,13 @@ function createAuditResult(name, findings, fileCount, meta) {
     area,
     count: findings.filter((finding) => finding.area === area).length
   }));
-  return { name, findings, fileCount, meta, summary, areaCounts };
+  const analyzed = Number.isFinite(inputScope.analyzed) ? inputScope.analyzed : fileCount;
+  const selected = Number.isFinite(inputScope.selected) ? inputScope.selected : analyzed;
+  const excluded = Number.isFinite(inputScope.excluded)
+    ? inputScope.excluded
+    : Math.max(0, selected - analyzed);
+  const scope = { selected, analyzed, excluded };
+  return { name, findings, fileCount: analyzed, meta, summary, areaCounts, scope };
 }
 
 function selectUrgentFindings(findings, type = "all") {
@@ -275,7 +281,7 @@ function buildMarkdown(state) {
     testing: "Testing Gaps",
     seo: "SEO Risks",
     "dead-code": "Dead Code Candidates",
-    rules: "Conflicts",
+    rules: "Project Context Findings",
     observability: "Error Handling Or Observability Risks"
   };
   const lines = [
@@ -283,7 +289,11 @@ function buildMarkdown(state) {
     "",
     "> This report uses static heuristics. No finding does not mean safe. Do not use it as quality assurance, security certification, or deployment approval.",
     "",
-    "- Files inspected: " + state.fileCount,
+    "- Files selected: " + state.scope.selected,
+    "- Files inspected: " + state.scope.analyzed,
+    "- Files excluded: " + state.scope.excluded,
+    "- Automated detection areas: framework version and router context, testing, SEO, security, dead-code markers, error handling and observability",
+    "- Manual review remains required: accessibility, performance, forms, state ownership, data fetching, design systems, i18n, and bundle architecture",
     "- Evidence model: observed fact, risk inference, information gap, removal candidate",
     "- Evidence counts: " + Object.keys(evidenceLevels)
       .map((level) => evidenceLevels[level] + " " + state.summary[level])
@@ -387,8 +397,10 @@ function countMatches(content, pattern) {
   return [...content.matchAll(pattern)].length;
 }
 
-function looksGenerated(content) {
-  return /(?:@generated|generated file|do not edit)/i.test(content.split("\n").slice(0, 5).join("\n"));
+function isGeneratedRecord(record) {
+  return /(?:@generated|generated file|do not edit)/i.test(
+    record.content.split("\n").slice(0, 5).join("\n")
+  );
 }
 
 function safeEvidence(finding) {
@@ -407,6 +419,7 @@ const analyzerApi = {
   buildMarkdown,
   createAuditResult,
   evidenceLevels,
+  isGeneratedRecord,
   isAnalyzableFile,
   selectUrgentFindings
 };

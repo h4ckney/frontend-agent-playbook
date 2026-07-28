@@ -159,9 +159,19 @@ test("Markdown contains limitations and paths but no source contents", () => {
     record("tests/storage.test.ts", "export {};"),
     record("e2e/smoke.spec.ts", "export {};")
   ]);
-  const output = buildMarkdown(createAuditResult("fixture", findings, 4, "test"));
+  const output = buildMarkdown(createAuditResult("fixture", findings, 4, "test", {
+    selected: 7,
+    analyzed: 4,
+    excluded: 3
+  }));
 
   assert.match(output, /No finding does not mean safe/);
+  assert.match(output, /Files selected: 7/);
+  assert.match(output, /Files inspected: 4/);
+  assert.match(output, /Files excluded: 3/);
+  assert.match(output, /Automated detection areas: framework version and router context/);
+  assert.match(output, /## Project Context Findings/);
+  assert.match(output, /Manual review remains required: accessibility/);
   assert.match(output, /src\/storage.ts/);
   assert.doesNotMatch(output, new RegExp(secret));
   assert.doesNotMatch(output, /Score:/);
@@ -171,6 +181,17 @@ test("Markdown contains limitations and paths but no source contents", () => {
   assert.match(output, /## Audit Handoff/);
   assert.match(output, /Source finding IDs/);
   assert.match(output, /결함 확정이 아님/);
+});
+
+test("defaults audit scope to inspected files for existing callers", () => {
+  const result = createAuditResult("fixture", [], 4, "test");
+
+  assert.deepEqual(result.scope, {
+    selected: 4,
+    analyzed: 4,
+    excluded: 0
+  });
+  assert.equal(result.fileCount, 4);
 });
 
 test("escapes paths before placing them in the Markdown handoff table", () => {

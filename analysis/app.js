@@ -1,8 +1,10 @@
+(function () {
 const {
   analyzeRecords,
   buildMarkdown,
   createAuditResult,
   evidenceLevels,
+  isGeneratedRecord,
   isAnalyzableFile,
   selectUrgentFindings
 } = globalThis.FrontendAnalyzer;
@@ -47,7 +49,8 @@ let state = createAuditResult(
   "분석 예시",
   sampleFindings,
   24,
-  "폴더를 선택하면 실제 결과로 교체됩니다"
+  "폴더를 선택하면 실제 결과로 교체됩니다",
+  { selected: 24, analyzed: 24, excluded: 0 }
 );
 const input = document.querySelector("#folderInput");
 const toast = document.querySelector("#toast");
@@ -57,13 +60,14 @@ input.addEventListener("change", async (event) => {
   if (!files.length) return;
 
   try {
-    const records = await readFiles(files);
+    const { records, scope } = await readFiles(files);
     const name = files[0].webkitRelativePath.split("/")[0] || "선택한 프로젝트";
     state = createAuditResult(
       name,
       analyzeRecords(records),
       records.length,
-      records.length + "개 텍스트 파일 · 로컬 분석 완료"
+      scope.analyzed + "개 텍스트 파일 분석 · " + scope.excluded + "개 제외",
+      scope
     );
     render();
     notify("분석이 완료되었습니다.");
@@ -95,15 +99,27 @@ document.querySelector("#downloadReport").addEventListener("click", download);
 
 async function readFiles(files) {
   const selected = files.filter(isAnalyzableFile);
-  return Promise.all(selected.map(async (file) => ({
+  const loaded = await Promise.all(selected.map(async (file) => ({
     path: file.webkitRelativePath || file.name,
     content: await file.text()
   })));
+  const records = loaded.filter((record) => !isGeneratedRecord(record));
+  return {
+    records,
+    scope: {
+      selected: files.length,
+      analyzed: records.length,
+      excluded: files.length - records.length
+    }
+  };
 }
 
 function render() {
   document.querySelector("#projectName").textContent = state.name;
   document.querySelector("#projectMeta").textContent = state.meta;
+  document.querySelector("#selectedFileCount").textContent = state.scope.selected;
+  document.querySelector("#analyzedFileCount").textContent = state.scope.analyzed;
+  document.querySelector("#excludedFileCount").textContent = state.scope.excluded;
   document.querySelector("#observedCount").textContent = state.summary.observed;
   document.querySelector("#inferredCount").textContent = state.summary.inferred;
   document.querySelector("#unknownCount").textContent = state.summary.unknown;
@@ -132,7 +148,7 @@ function renderUrgent(filter) {
 
 function renderCoverage() {
   const labels = {
-    rules: "규칙 충돌", testing: "테스트", seo: "SEO",
+    rules: "프로젝트 컨텍스트", testing: "테스트", seo: "SEO",
     security: "보안", "dead-code": "데드코드", observability: "오류 처리"
   };
   const maxCount = Math.max(1, ...state.areaCounts.map((row) => row.count));
@@ -150,7 +166,12 @@ function renderTable() {
         evidenceLevels[finding.evidenceLevel] + '</span></td>' +
       '<td><span class="pill ' + finding.severity + '">' + finding.severity + '</span></td>' +
       '<td><code>' + escapeHtml(finding.id) + '</code></td>' +
-      '<td>' + escapeHtml(finding.area) + '</td><td>' + escapeHtml(finding.title) + '</td>' +
+      '<td>' + escapeHtml(finding.area) + '</td><td class="finding-cell">' +
+        '<strong>' + escapeHtml(finding.title) + '</strong>' +
+        '<details><summary>판정 상세</summary>' +
+          '<div><b>한계</b><p>' + escapeHtml(finding.limitation) + '</p></div>' +
+          '<div><b>권장 조치</b><p>' + escapeHtml(finding.recommendation) + '</p></div>' +
+        '</details></td>' +
       '<td>' + escapeHtml(formatEvidence(finding)) + '</td></tr>'
     ).join("")
     : '<tr><td colspan="6" class="empty">자동 탐지 결과가 없습니다. 수동 검토는 여전히 필요합니다.</td></tr>';
@@ -185,3 +206,4 @@ function notify(message) {
 }
 
 render();
+})();

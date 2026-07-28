@@ -11,12 +11,21 @@
   <header><a class="brand" href="../README.md"><b>FA</b><span><strong>Frontend Audit</strong><small>Agent Playbook</small></span></a><span class="local">● 파일을 전송하지 않음</span></header>
   <main>
     <section class="intro">
-      <div><em>CODEBASE AUDIT</em><h1>프론트엔드 위험을<br>우선순위로 정리합니다</h1><p>규칙 충돌, 긴급 변경 3건, 테스트 공백, SEO, 보안, 데드코드 후보를 브라우저 안에서 분석합니다.</p></div>
+      <div><em>CODEBASE AUDIT</em><h1>프론트엔드 위험을<br>우선순위로 정리합니다</h1><p>버전·라우터 컨텍스트, 긴급 변경 3건, 테스트 공백, SEO, 보안, 데드코드 후보를 브라우저 안에서 분석합니다.</p></div>
       <label for="folderInput">프로젝트 폴더 선택</label><input id="folderInput" type="file" webkitdirectory multiple hidden>
     </section>
     <section class="dashboard" aria-live="polite">
       <div class="limitations" role="note"><strong>정적 휴리스틱 결과입니다.</strong> 미발견은 안전을 의미하지 않으며 품질 보증, 보안 인증 또는 배포 승인에 사용할 수 없습니다.</div>
       <div class="project"><div><em>CURRENT AUDIT</em><h2 id="projectName">분석 예시</h2></div><p id="projectMeta">폴더를 선택하면 실제 결과로 교체됩니다</p></div>
+      <section class="scope" aria-labelledby="scopeTitle">
+        <div><em>ANALYSIS SCOPE</em><h2 id="scopeTitle">분석 범위</h2></div>
+        <dl>
+          <div><dt>선택</dt><dd id="selectedFileCount">24</dd></div>
+          <div><dt>분석</dt><dd id="analyzedFileCount">24</dd></div>
+          <div><dt>제외</dt><dd id="excludedFileCount">0</dd></div>
+        </dl>
+        <div class="scope-copy"><strong>자동 탐지 6개 영역</strong><span>버전·라우터 컨텍스트, 테스트, SEO, 보안, 데드코드 표시, 오류 처리</span><small>접근성, 성능, 폼, 상태 소유권, 데이터 패칭, 디자인 시스템, i18n, 번들 구조는 수동 감사가 필요합니다.</small></div>
+      </section>
       <div class="summary">
         <article class="metric card observed"><i>✓</i><div><b id="observedCount">1</b><span>관찰된 사실</span></div></article>
         <article class="metric card inferred"><i>!</i><div><b id="inferredCount">1</b><span>위험 추론</span></div></article>
@@ -25,7 +34,7 @@
       </div>
       <div class="grid">
         <section class="card panel"><div class="panel-head"><div><em>URGENT RECOMMENDATIONS</em><h2>먼저 바꿀 3가지</h2></div><div class="filters"><button class="active" data-filter="all">전체</button><button data-filter="risk">위험</button><button data-filter="gap">공백</button></div></div><div id="urgentList"></div></section>
-        <aside class="card panel"><em>FINDINGS BY AREA</em><h2>영역별 발견 항목</h2><div id="coverageList" class="coverage"></div></aside>
+        <aside class="card panel"><em>FINDINGS BY AUTOMATED AREA</em><h2>자동 탐지 영역별 발견 항목</h2><div id="coverageList" class="coverage"></div></aside>
       </div>
       <section class="card panel all"><div class="panel-head"><div><em>EVIDENCE</em><h2>전체 발견 항목</h2></div><span id="findingCount" class="count">4건</span></div><div class="table-wrap"><table><thead><tr><th>증거 수준</th><th>우선순위</th><th>Finding ID</th><th>영역</th><th>발견 내용</th><th>근거</th></tr></thead><tbody id="findingsTable"></tbody></table></div></section>
       <section class="card export"><div><em>MARKDOWN REPORT</em><h2>감사 결과 내보내기</h2><p>안정적인 Finding ID로 제안서와 Issue 초안의 근거를 연결할 수 있습니다.</p></div><div><button id="copyReport" class="secondary">보고서 복사</button><button id="downloadReport" class="primary">.md 저장</button></div></section>
