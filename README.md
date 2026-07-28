@@ -1,5 +1,7 @@
 # frontend-agent-playbook
 
+[English](README.md) | [한국어](README.ko.md)
+
 [![Validate](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml/badge.svg)](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
