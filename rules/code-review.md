@@ -21,6 +21,11 @@ Use the shared precedence and applicability classifications in [Rule Governance]
 - React rules: ./react.md
 - Next.js rules: ./nextjs.md
 - TypeScript rules: ./typescript.md
+- Forms and runtime validation rules: ./forms-runtime-validation.md
+- State ownership rules: ./state-ownership.md
+- Design system and styling rules: ./design-system-styling.md
+- Internationalization rules: ./i18n.md
+- Bundle and dependency rules: ./bundle-dependencies.md
 - Security and privacy rules: ./security-privacy.md
 - Data fetching and cache rules: ./data-fetching-cache.md
 - Error handling and observability rules: ./error-handling-observability.md

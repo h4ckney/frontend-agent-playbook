@@ -26,12 +26,15 @@ Use this template when asking an AI coding agent to implement a frontend feature
 - Success state:
 - Accessibility requirements:
 - Performance considerations:
+- Bundle or dependency constraints, if any:
 - SEO considerations, if any:
 
 ## Design And UX Notes
 
-- Existing design patterns to follow:
+- Existing design system, styling stack, tokens, components, and variants to reuse:
+- Approved local styling escape hatch, if required:
 - Responsive behavior:
+- Supported locales, text expansion, and direction requirements, if applicable:
 - Keyboard interaction:
 - Copy/text requirements:
 
@@ -68,6 +71,7 @@ Complete only the entries that affect this feature.
 - Type check command:
 - Lint command:
 - Build command:
+- Visual, locale, and bundle checks when applicable:
 - Manual checks:
 
 ## Completion Criteria

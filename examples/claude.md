@@ -19,6 +19,7 @@ Priority order:
 Before editing:
 - Inspect the relevant files.
 - Identify the framework patterns already used.
+- Start with `rules/governance.md`, then use `skills/audit-frontend-rules/references/rule-routing.md` to load only task-relevant rules.
 - State assumptions only when they affect implementation choices.
 
 When implementing:

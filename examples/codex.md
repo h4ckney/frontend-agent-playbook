@@ -9,7 +9,7 @@ Copy-ready examples for using `frontend-agent-playbook` with Codex.
 ```text
 Use frontend-agent-playbook for frontend work.
 
-Read relevant files before editing. Prefer existing project patterns over new abstractions. Keep changes scoped to the request. For React, Next.js, TypeScript, security, privacy, data fetching, caching, error handling, observability, SEO, performance, and code review decisions, follow the corresponding files in `rules/`.
+Read relevant files before editing. Prefer existing project patterns over new abstractions. Keep changes scoped to the request. Start with `rules/governance.md`, then use `skills/audit-frontend-rules/references/rule-routing.md` to select only task-relevant rules.
 
 Use `rules/governance.md` to resolve conflicts and `rules/testing.md` to select risk-appropriate coverage. Run available verification commands before the final response. If relevant verification cannot run, explain why.
 ```
@@ -20,10 +20,12 @@ Use `rules/governance.md` to resolve conflicts and `rules/testing.md` to select 
 # Frontend Rules
 
 - Inspect existing implementation before changing code.
+- Start with `rules/governance.md` and select the smallest task-specific subset through `skills/audit-frontend-rules/references/rule-routing.md`.
 - Follow `rules/react.md` for component, state, hook, and accessibility decisions.
 - Follow `rules/nextjs.md` for routing, server/client boundaries, metadata, and data fetching.
 - Follow `rules/typescript.md` for type safety and API boundaries.
-- Follow `rules/performance.md` before adding dependencies, assets, or client-side JavaScript.
+- Follow `rules/performance.md` for measured runtime performance risks.
+- Follow `rules/bundle-dependencies.md` before changing production dependencies, client boundaries, code splitting, or bundle budgets.
 - Follow `rules/accessibility.md` for semantics, keyboard interaction, focus, forms, and dynamic UI.
 - Follow `rules/seo.md` for crawlability, metadata, links, and structured data.
 - Follow `rules/testing.md` for unit, component, integration, and E2E coverage decisions.

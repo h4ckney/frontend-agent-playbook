@@ -7,7 +7,7 @@
 
 Production-grade frontend playbook for Claude Code, Codex, and other AI coding agents.
 
-This repository defines practical rules, skills, examples, and templates for React, Next.js, TypeScript, forms, runtime validation, state ownership, security, privacy, data fetching, caching, error handling, observability, accessibility, SEO, performance, testing, dead-code removal, and code review workflows.
+This repository defines practical rules, skills, examples, and templates for React, Next.js, TypeScript, forms, runtime validation, state ownership, design systems, styling, internationalization, bundle and dependency decisions, security, privacy, data fetching, caching, error handling, observability, accessibility, SEO, performance, testing, dead-code removal, and code review workflows.
 
 ![Frontend Audit dashboard showing evidence levels, urgent recommendations, and risk areas](assets/audit-dashboard.png)
 
@@ -24,6 +24,8 @@ Vendor the tagged playbook without activating every rule:
 ```bash
 npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-playbook
 ```
+
+`v0.1.0` is the stable snapshot and does not include guidance added later on `main`. Evaluate current drafts from `main` only when the target repository accepts unreleased guidance, and pin the reviewed commit before production adoption.
 
 Add the smallest entry point to the target repository's `AGENTS.md`:
 
@@ -58,6 +60,9 @@ Available rules:
 - [TypeScript rules](rules/typescript.md)
 - [Forms and runtime validation rules](rules/forms-runtime-validation.md)
 - [State ownership rules](rules/state-ownership.md)
+- [Design system and styling rules](rules/design-system-styling.md)
+- [Internationalization rules](rules/i18n.md)
+- [Bundle and dependency rules](rules/bundle-dependencies.md)
 - [Security and privacy rules](rules/security-privacy.md)
 - [Data fetching and cache rules](rules/data-fetching-cache.md)
 - [Error handling and observability rules](rules/error-handling-observability.md)
@@ -85,7 +90,7 @@ Then use the examples and templates:
 - [Guidance proposal template](templates/guidance-proposal.md)
 - [Audit issue draft template](templates/audit-issue.md)
 
-For an existing codebase, use the [Audit Frontend Rules skill](skills/audit-frontend-rules/SKILL.md) to identify conflicts, exceptions, state-ownership risks, security and privacy risks, data and cache risks, error-handling gaps, removal candidates, and testing gaps before adopting the full rule set.
+For an existing codebase, use the [Audit Frontend Rules skill](skills/audit-frontend-rules/SKILL.md) to identify conflicts, exceptions, state-ownership risks, design-system drift, internationalization gaps, bundle and dependency risks, security and privacy risks, data and cache risks, error-handling gaps, removal candidates, and testing gaps before adopting the full rule set.
 
 After an owner approves named proposal IDs, use [Apply Frontend Guidance](skills/apply-frontend-guidance/SKILL.md) to create only the approved project rules or skills, validate them, and persist the applied decision. Project guidance remains unapplied and issue drafts remain unpublished until separately approved.
 The dependency-free [guidance approval gate](scripts/guidance-approval.mjs) compares supplied approval metadata for repository identity, proposal status, material scope, exact target paths, dependencies, enforcement, content fingerprints, conflicts, and idempotent reruns before application. It does not inspect repository ownership or compute target-file fingerprints; the applying agent must gather and verify those inputs.
@@ -126,6 +131,9 @@ Existing patterns do not justify preserving known correctness, security, or acce
 | TypeScript | Usable draft | Official TypeScript references added |
 | Forms / Runtime Validation | Usable draft | Trust boundaries, schema ownership, server authority, accessible errors, and risk-based testing added |
 | State Ownership | Usable draft | Server, URL, draft, local, shared, optimistic, persisted, and hydrated state boundaries added |
+| Design System / Styling | Usable draft | Existing-system reuse, tokens, variants, responsive behavior, themes, and escape-hatch guidance added |
+| Internationalization | Usable draft | Locale ownership, messages, formatting, direction, layout expansion, hydration, and localized SEO guidance added |
+| Bundle / Dependencies | Usable draft | Runtime boundaries, dependency decisions, code splitting, measured budgets, and loading-failure guidance added |
 | Security / Privacy | Usable draft | Sensitive storage, third-party script, CSP, and auth-boundary guidance added |
 | Data Fetching / Cache | Usable draft | Server-client boundary, freshness, invalidation, and mutation guidance added |
 | Error Handling / Observability | Usable draft | Failure modeling, recovery, telemetry, and instrumentation guidance added |

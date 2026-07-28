@@ -7,7 +7,7 @@
 
 Claude Code, Codex 및 기타 AI 코딩 에이전트를 위한 프로덕션 수준의 프론트엔드 플레이북입니다.
 
-이 저장소는 React, Next.js, TypeScript, 폼, 런타임 검증, 상태 소유권, 보안, 개인정보 보호, 데이터 페칭, 캐싱, 오류 처리, 관측 가능성, 접근성, SEO, 성능, 테스트, 데드코드 제거 및 코드 리뷰 워크플로우를 위한 실용적인 규칙, 스킬, 예시와 템플릿을 제공합니다.
+이 저장소는 React, Next.js, TypeScript, 폼, 런타임 검증, 상태 소유권, 디자인 시스템, 스타일링, 국제화, 번들 및 의존성 판단, 보안, 개인정보 보호, 데이터 페칭, 캐싱, 오류 처리, 관측 가능성, 접근성, SEO, 성능, 테스트, 데드코드 제거 및 코드 리뷰 워크플로우를 위한 실용적인 규칙, 스킬, 예시와 템플릿을 제공합니다.
 
 ![근거 수준, 긴급 권고 및 위험 영역을 표시하는 프론트엔드 감사 대시보드](assets/audit-dashboard.png)
 
@@ -24,6 +24,8 @@ Claude Code, Codex 및 기타 AI 코딩 에이전트를 위한 프로덕션 수�
 ```bash
 npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-playbook
 ```
+
+`v0.1.0`은 안정 snapshot이며 이후 `main`에 추가된 가이드를 포함하지 않습니다. 대상 저장소가 미출시 가이드를 허용할 때만 `main`의 최신 초안을 평가하고, 프로덕션에 도입하기 전에는 검토한 commit을 고정하세요.
 
 대상 저장소의 `AGENTS.md`에 최소 진입점을 추가합니다.
 
@@ -58,6 +60,9 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-p
 - [TypeScript 규칙](rules/typescript.md)
 - [폼 및 런타임 검증 규칙](rules/forms-runtime-validation.md)
 - [상태 소유권 규칙](rules/state-ownership.md)
+- [디자인 시스템 및 스타일링 규칙](rules/design-system-styling.md)
+- [국제화 규칙](rules/i18n.md)
+- [번들 및 의존성 규칙](rules/bundle-dependencies.md)
 - [보안 및 개인정보 보호 규칙](rules/security-privacy.md)
 - [데이터 페칭 및 캐시 규칙](rules/data-fetching-cache.md)
 - [오류 처리 및 관측 가능성 규칙](rules/error-handling-observability.md)
@@ -85,7 +90,7 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-p
 - [가이드 제안 템플릿](templates/guidance-proposal.md)
 - [감사 Issue 초안 템플릿](templates/audit-issue.md)
 
-기존 코드베이스에는 [Audit Frontend Rules 스킬](skills/audit-frontend-rules/SKILL.md)을 사용합니다. 전체 규칙을 도입하기 전에 충돌, 예외, 상태 소유권 위험, 보안 및 개인정보 위험, 데이터와 캐시 위험, 오류 처리 공백, 제거 후보 및 테스트 공백을 확인합니다.
+기존 코드베이스에는 [Audit Frontend Rules 스킬](skills/audit-frontend-rules/SKILL.md)을 사용합니다. 전체 규칙을 도입하기 전에 충돌, 예외, 상태 소유권 위험, 디자인 시스템 불일치, 국제화 공백, 번들 및 의존성 위험, 보안 및 개인정보 위험, 데이터와 캐시 위험, 오류 처리 공백, 제거 후보 및 테스트 공백을 확인합니다.
 
 담당자가 명명된 제안 ID를 승인한 후에는 [Apply Frontend Guidance](skills/apply-frontend-guidance/SKILL.md)를 사용하여 승인된 프로젝트 규칙이나 스킬만 생성하고 검증한 뒤 적용 결정을 기록합니다. 프로젝트 가이드는 승인 전까지 적용되지 않으며 Issue 초안도 별도 승인 전까지 게시되지 않습니다.
 
@@ -128,6 +133,9 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-p
 | TypeScript | 사용 가능한 초안 | 공식 TypeScript 참고 자료 추가 |
 | 폼 / 런타임 검증 | 사용 가능한 초안 | 신뢰경계, 스키마 소유권, 서버 권위, 접근 가능한 오류 및 위험 기반 테스트 추가 |
 | 상태 소유권 | 사용 가능한 초안 | 서버, URL, draft, local, shared, optimistic, persisted, hydrated state 경계 추가 |
+| 디자인 시스템 / 스타일링 | 사용 가능한 초안 | 기존 시스템 재사용, token, variant, responsive behavior, theme 및 escape hatch 지침 추가 |
+| 국제화 | 사용 가능한 초안 | locale 소유권, message, formatting, direction, layout expansion, hydration 및 localized SEO 지침 추가 |
+| 번들 / 의존성 | 사용 가능한 초안 | runtime 경계, 의존성 판단, code splitting, 측정된 budget 및 loading failure 지침 추가 |
 | 보안 / 개인정보 보호 | 사용 가능한 초안 | 민감정보 저장, 제3자 스크립트, CSP 및 인증 경계 지침 추가 |
 | 데이터 페칭 / 캐시 | 사용 가능한 초안 | 서버-클라이언트 경계, freshness, invalidation 및 mutation 지침 추가 |
 | 오류 처리 / 관측 가능성 | 사용 가능한 초안 | 실패 모델링, 복구, telemetry 및 instrumentation 지침 추가 |

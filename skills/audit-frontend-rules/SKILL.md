@@ -61,7 +61,7 @@ Audit shared guidance against project evidence before recommending that it be ap
 
 - Load governance first.
 - Load two to four task-core rules in the normal case.
-- Load forms and runtime validation, state ownership, security, accessibility, SEO, performance, testing, and dead-code rules only when their triggers are present.
+- Load forms and runtime validation, state ownership, design system and styling, internationalization, bundle and dependencies, security, accessibility, SEO, performance, testing, and dead-code rules only when their triggers are present.
 - For mixed-router repositories, route findings by affected tree instead of loading one router model globally.
 - Open only official references required to support a version-sensitive conclusion.
 - Expand the subset when evidence reveals a new material risk; record why it was added.
@@ -105,6 +105,27 @@ Audit shared guidance against project evidence before recommending that it be ap
 - Check provider and store scope, reset triggers, draft preservation, optimistic rollback, account boundaries, and SSR or RSC hydration behavior.
 - Use `../../rules/state-ownership.md` when available and report material duplication, synchronization, lifetime, persistence, or hydration problems as State Ownership Risks.
 
+## Design System And Styling Assessment
+
+- Inspect the existing styling stack, token sources, shared components, variants, themes, breakpoints, escape hatches, and visual-test conventions.
+- Check repeated raw values, visual drift, invalid variant combinations, shared-primitive blast radius, responsive text expansion, focus styling, reduced motion, and forced colors.
+- Distinguish a local style correction from a reusable system decision; do not propose a token, primitive, library, or documentation site without repeated need.
+- Use `../../rules/design-system-styling.md` when available and report material system ownership, visual consistency, responsive, theme, or escape-hatch problems as Design System Or Styling Risks.
+
+## Internationalization Assessment
+
+- Identify supported locales, default and fallback locale, locale precedence, routing strategy, message library, catalog ownership, and formatting tools.
+- Check message composition, placeholders, pluralization, dates, time zones, numbers, currency, document language, direction, text expansion, hydration, and localized URL signals.
+- Distinguish missing product or translation decisions from code defects; do not invent locales, legal copy, fallback behavior, or URL policy.
+- Use `../../rules/i18n.md` when available and report material locale lifecycle, message, formatting, direction, layout, hydration, or localized SEO problems as Internationalization Risks.
+
+## Bundle And Dependency Assessment
+
+- Inspect the package manager, lockfile, bundler, framework boundary, target runtimes, package policy, existing analyzer, budgets, and reproducible production baseline.
+- Check whether changed dependencies, imports, exports, scripts, assets, or client boundaries affect browser, server, edge, worker, build, test, or development output.
+- Require configured build evidence for bundle claims and distinguish transfer size from parse, execution, request, caching, and maintenance cost.
+- Use `../../rules/bundle-dependencies.md` when available, add `../../rules/performance.md` only for measured or user-visible runtime cost, and report material dependency, runtime-boundary, code-splitting, budget, or loading-failure problems as Bundle Or Dependency Risks.
+
 ## Accessibility Assessment
 
 - Inspect semantics, accessible names, keyboard operation, visible focus, form errors, dynamic state, and custom widget behavior in affected workflows.
@@ -137,6 +158,13 @@ Audit shared guidance against project evidence before recommending that it be ap
 - Use `../../rules/seo.md` when available and distinguish verified output from external indexing, ranking, or rich-result outcomes.
 - Report conflicting signals and production-versus-preview configuration risks as SEO Risks.
 
+## Performance Assessment
+
+- Identify the user-visible metric, route, device or runtime assumptions, and reproducible baseline before recommending optimization.
+- Inspect rendering, JavaScript execution, assets, fonts, third-party scripts, network waterfalls, and bundle output only where task or measurement evidence makes them relevant.
+- Use `../../rules/performance.md` when available, add `../../rules/bundle-dependencies.md` only when imports, packages, runtime boundaries, code splitting, or bundle budgets are involved, and distinguish measured regressions from static risk inferences.
+- Report material measured regressions, unbudgeted shipped cost, or missing verification as Performance Risks without inventing universal thresholds.
+
 ## Dead Code Assessment
 
 - Use compiler, linter, bundler, dependency, and coverage output to find candidates, then confirm them with repository and configuration search.
@@ -164,7 +192,7 @@ Always use these core sections:
 ## Proposed Changes
 ```
 
-Add Forms Or Runtime Validation Risks, State Ownership Risks, Security Or Privacy Risks, Data Fetching Or Cache Risks, Error Handling Or Observability Risks, SEO Risks, Dead Code Candidates, Performance Risks, or Accessibility Risks only when that domain was selected or the user requested a full matrix. Record unselected domains under Selected Guidance; do not describe an unassessed domain as having no finding.
+Add Forms Or Runtime Validation Risks, State Ownership Risks, Design System Or Styling Risks, Internationalization Risks, Bundle Or Dependency Risks, Security Or Privacy Risks, Data Fetching Or Cache Risks, Error Handling Or Observability Risks, SEO Risks, Dead Code Candidates, Performance Risks, or Accessibility Risks only when that domain was selected or the user requested a full matrix. Record unselected domains under Selected Guidance; do not describe an unassessed domain as having no finding.
 
 For each urgent recommendation, include evidence, impact, the smallest practical change, and verification. State explicitly when no urgent recommendation or removal candidate exists.
 
