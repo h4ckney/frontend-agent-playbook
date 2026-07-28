@@ -61,7 +61,7 @@ Audit shared guidance against project evidence before recommending that it be ap
 
 - Load governance first.
 - Load two to four task-core rules in the normal case.
-- Load forms and runtime validation, security, accessibility, SEO, performance, testing, and dead-code rules only when their triggers are present.
+- Load forms and runtime validation, state ownership, security, accessibility, SEO, performance, testing, and dead-code rules only when their triggers are present.
 - For mixed-router repositories, route findings by affected tree instead of loading one router model globally.
 - Open only official references required to support a version-sensitive conclusion.
 - Expand the subset when evidence reveals a new material risk; record why it was added.
@@ -97,6 +97,13 @@ Audit shared guidance against project evidence before recommending that it be ap
 - Distinguish client feedback from server-authoritative validation, authorization, and business invariants.
 - Inspect the existing form and schema stack, type inference, coercion, error ownership, value preservation, and accessible recovery before proposing a new dependency.
 - Use `../../rules/forms-runtime-validation.md` when available and report material boundary, validation, or form-recovery problems as Forms Or Runtime Validation Risks.
+
+## State Ownership Assessment
+
+- Classify material values as server, URL, form or draft, local UI, shared client, optimistic, or persisted state and identify their authoritative owners.
+- Inspect duplicate server entities or workflow values across query caches, stores, Context, URL state, forms, and browser persistence.
+- Check provider and store scope, reset triggers, draft preservation, optimistic rollback, account boundaries, and SSR or RSC hydration behavior.
+- Use `../../rules/state-ownership.md` when available and report material duplication, synchronization, lifetime, persistence, or hydration problems as State Ownership Risks.
 
 ## Accessibility Assessment
 
@@ -157,7 +164,7 @@ Always use these core sections:
 ## Proposed Changes
 ```
 
-Add Forms Or Runtime Validation Risks, Security Or Privacy Risks, Data Fetching Or Cache Risks, Error Handling Or Observability Risks, SEO Risks, Dead Code Candidates, Performance Risks, or Accessibility Risks only when that domain was selected or the user requested a full matrix. Record unselected domains under Selected Guidance; do not describe an unassessed domain as having no finding.
+Add Forms Or Runtime Validation Risks, State Ownership Risks, Security Or Privacy Risks, Data Fetching Or Cache Risks, Error Handling Or Observability Risks, SEO Risks, Dead Code Candidates, Performance Risks, or Accessibility Risks only when that domain was selected or the user requested a full matrix. Record unselected domains under Selected Guidance; do not describe an unassessed domain as having no finding.
 
 For each urgent recommendation, include evidence, impact, the smallest practical change, and verification. State explicitly when no urgent recommendation or removal candidate exists.
 

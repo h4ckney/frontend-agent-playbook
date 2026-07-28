@@ -48,6 +48,20 @@ Use this template when asking an AI coding agent to implement a frontend feature
 - Required validation or narrowing:
 - TypeScript types to add or update:
 
+## State Ownership
+
+Complete only the entries that affect this feature.
+
+- Material state values and authoritative owners:
+- URL-owned and navigation-sensitive state:
+- Component-local or shared client state:
+- Server or query-cache state:
+- Form drafts and refetch behavior:
+- Optimistic state, rollback, invalidation, and reconciliation:
+- Persistence, expiry, logout, account-switch, and reset behavior:
+- SSR, RSC, or hydration constraints:
+- Existing state tools to reuse:
+
 ## Verification
 
 - Tests to add or update:

@@ -30,6 +30,7 @@ Choose the smallest useful set, normally two to four files.
 | React component or hook | `react.md`, `typescript.md` |
 | Next.js route, layout, or rendering | `nextjs.md`, then the matching App or Pages sections |
 | Form, schema, or runtime input boundary | `forms-runtime-validation.md`, `typescript.md` |
+| Shared state, store, provider, URL synchronization, persistence, or hydration | `state-ownership.md`, `react.md` |
 | Remote read, mutation, cache, or optimistic UI | `data-fetching-cache.md`, `error-handling-observability.md` |
 | Bug fix or regression | `testing.md`, plus the domain rule for the failure |
 | Code review | `code-review.md`, plus rules for the changed surface |
@@ -44,6 +45,7 @@ Load only when the trigger is present.
 | Auth, storage, HTML insertion, third-party script, payment, or personal data | `security-privacy.md` |
 | Keyboard, form, focus, custom widget, media, or semantic UI | `accessibility.md` |
 | User-controlled URL, storage, network, cross-window, or third-party payload | `forms-runtime-validation.md` |
+| The same entity or workflow value appears in a query cache, URL, form, store, or browser persistence | `state-ownership.md` |
 | Indexable URL, metadata, canonical, redirect, robots, sitemap, or structured data | `seo.md` |
 | Measured slowdown, bundle change, image/font/script addition, or performance acceptance criterion | `performance.md` |
 | Removal, unused dependency, expired flag, or cleanup request | `dead-code.md` |
@@ -66,6 +68,7 @@ Open official version-matched documentation and repository-specific instructions
 - Do not load SEO rules for private or internal routes unless indexing controls are part of the task.
 - Do not load performance rules for every component edit; require a changed cost, measurement, or explicit risk.
 - Do not load forms and runtime validation rules for every internal typed object; require a form task or an untrusted runtime boundary.
+- Do not load state ownership rules for every local state edit; require sharing, synchronization, persistence, hydration, duplication, or lifecycle risk.
 - Do not load dead-code rules for ordinary refactoring unless removal is in scope.
 - Do not load a new test tier solely because testing guidance exists.
 - Do not load every rule to produce a general review. Start from changed files and demonstrated risk.
@@ -84,4 +87,3 @@ Include a compact record in the audit:
 ```
 
 Explain material exclusions, especially when a user might expect a rule to apply.
-
