@@ -1,8 +1,8 @@
-# frontend-agent-playbook Implementation Plan
+# Historical v0.1 Implementation Plan
 
-This document breaks down the remaining v0.1 work items after the initial repository skeleton.
+> Historical record: this plan describes the work that followed the initial v0.1 skeleton. It is not the current roadmap. See [v0.2 Roadmap](./v0.2-roadmap.md) for current status and release gates.
 
-GitHub repository creation and remote push are intentionally excluded from this plan. The current focus is improving the local Markdown content before publishing.
+At the time this plan was written, GitHub repository creation and remote push were intentionally excluded while the local Markdown content was being prepared for publication.
 
 ## 2. Expand Rule Documents
 

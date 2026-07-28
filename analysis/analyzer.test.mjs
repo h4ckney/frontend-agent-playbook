@@ -85,6 +85,21 @@ test("excludes environment, generated, build, binary-like, and oversized files",
   assert.equal(isAnalyzableFile({ name: "app.ts", size: 10 }), true);
 });
 
+test("does not treat metadata documentation as a Next.js metadata implementation", () => {
+  const findings = analyzeRecords([
+    record("package.json", JSON.stringify({
+      dependencies: { next: "14.2.0", react: "18.2.0" },
+      scripts: { test: "vitest" }
+    })),
+    record("README.md", "Use generateMetadata for public routes."),
+    record("pages/index.tsx", "export default function Page() { return null; }"),
+    record("tests/page.test.tsx", "export {};"),
+    record("e2e/smoke.spec.ts", "export {};")
+  ]);
+
+  assert.ok(findings.some((finding) => finding.id === "seo.next-metadata-missing"));
+});
+
 test("marks dead code only as a removal candidate", () => {
   const findings = analyzeRecords([
     record("package.json", JSON.stringify({ scripts: { test: "vitest" } })),

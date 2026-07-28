@@ -8,7 +8,7 @@ Define how AI agents should review frontend changes with a senior-engineer revie
 
 Use a Critical / Standards / Optimization review flow:
 
-1. Critical: block correctness, security, accessibility, data-loss, and user-visible regressions.
+1. Critical: block regressions with demonstrated material impact on correctness, security, accessibility, data loss, or user-visible workflows.
 2. Standards: enforce project conventions, type safety, architecture boundaries, and test expectations.
 3. Optimization: suggest performance, readability, maintainability, and DX improvements after the change is safe.
 
@@ -34,16 +34,16 @@ Use the shared precedence and applicability classifications in [Rule Governance]
 
 ### Critical
 
-Block the change when it introduces or fails to handle:
+Block the change at this gate when it introduces or fails to handle a materially harmful case. Use demonstrated impact to distinguish Critical findings from narrower Standards findings.
 
-- **MUST**: Incorrect user-visible behavior
-- **MUST**: Broken loading, empty, error, or success states
-- **MUST**: Accessibility regressions
-- **MUST**: Unsafe external data handling
-- **MUST**: Security-sensitive mistakes
-- **MUST**: Sensitive data leakage or broken privacy boundaries
-- **MUST**: Data loss or destructive behavior
-- **MUST**: Broken routing, metadata, or SEO-critical rendering
+- **MUST**: Block incorrect user-visible behavior that prevents, corrupts, or materially misrepresents the intended workflow.
+- **MUST**: Block loading, empty, error, or success-state failures that prevent completion, recovery, or correct user decisions.
+- **MUST**: Block accessibility regressions that prevent access to critical content or functionality, trap interaction, or create equivalent material harm.
+- **MUST**: Block unsafe external data handling when it can corrupt important state, cross a trust boundary, or expose users to material risk.
+- **MUST**: Block exploitable security mistakes, authorization bypasses, credential exposure, or equivalent high-impact security regressions.
+- **MUST**: Block sensitive data leakage or broken privacy boundaries with material user or compliance impact.
+- **MUST**: Block data loss, unintended destructive behavior, or unrecoverable corruption.
+- **MUST**: Block routing, metadata, or SEO rendering regressions that break required navigation, indexing intent, or a material public URL contract.
 
 ### Standards
 
@@ -122,4 +122,4 @@ Standards: This API response is typed as `any`, so the UI can read missing field
 
 ## Expansion Notes
 
-Add severity labels, PR review templates, and examples for React, Next.js, TypeScript, accessibility, SEO, performance, and unsafe dead-code removal.
+Add more PR review templates and severity-calibrated examples for React, Next.js, TypeScript, accessibility, SEO, performance, and unsafe dead-code removal.

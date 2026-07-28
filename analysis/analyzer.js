@@ -186,7 +186,7 @@ function analyzeRecords(inputRecords) {
   }
 
   if (nextVersion) {
-    const metadata = records.some((record) => /(?:metadata\s*=|generateMetadata|<Head|next\/head)/.test(record.content));
+    const metadata = source.some((record) => /(?:metadata\s*=|generateMetadata|<Head|next\/head)/.test(record.content));
     const sitemap = paths.some((path) => /(^|\/)sitemap\.(?:xml|js|ts)$/.test(path));
     const robots = paths.some((path) => /(^|\/)robots\.(?:txt|js|ts)$/.test(path));
     if (!metadata) findings.push(missingConfig("seo.next-metadata-missing", "high", "Next.js 메타데이터 구성을 찾지 못함", "인덱싱 대상 페이지의 title, description, canonical을 렌더링 결과로 확인합니다."));

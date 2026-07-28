@@ -20,7 +20,7 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer project 
 
 ## Core Rules
 
-- **MUST**: Treat security and privacy regressions as Critical review issues.
+- **MUST**: Classify security and privacy regressions by demonstrated impact. Treat credential exposure, authorization bypass, exploitable injection, material personal-data leakage, or equivalent high-impact regressions as Critical review issues.
 - **MUST**: Do not expose secrets, tokens, private keys, or privileged internal identifiers to client bundles.
 - **MUST**: Collect, render, transmit, and persist only the data required for the user-visible workflow.
 - **MUST**: Treat all client input, URL state, storage, and cross-window messages as untrusted.
@@ -30,7 +30,7 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer project 
 ## Authentication And Session Rules
 
 - **SHOULD**: Prefer server-managed sessions or other backend-approved auth flows over browser-managed token handling.
-- **MUST**: Do not store session identifiers, refresh tokens, or other sensitive credentials in `localStorage`.
+- **MUST**: Do not store session identifiers, refresh tokens, or other sensitive credentials in JavaScript-accessible browser storage, including `localStorage` and `sessionStorage`.
 - **MUST**: If cookies are used for sensitive session state, prefer backend-managed `HttpOnly`, `Secure`, and appropriate `SameSite` settings.
 - **MUST**: Do not weaken auth UX by exposing sensitive account state in unauthenticated pages, client logs, or URL parameters.
 - **MUST**: Re-auth, confirmation, or explicit intent checks should remain in place for destructive or high-risk actions when the product requires them.
@@ -39,7 +39,7 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer project 
 
 - **MUST**: Do not persist sensitive user data in browser storage unless the product requirement, threat model, and retention need are explicit.
 - **SHOULD**: Prefer in-memory state when persistence is unnecessary.
-- **SHOULD**: Prefer `sessionStorage` over `localStorage` when tab-scoped persistence is sufficient and approved.
+- **SHOULD**: For approved non-sensitive values, prefer `sessionStorage` over `localStorage` when tab-scoped persistence is sufficient.
 - **MUST**: Clear cached sensitive data when sign-out, account switch, or permission downgrade occurs.
 - **MUST**: Do not duplicate the same sensitive payload across multiple client caches without a concrete need.
 
@@ -88,7 +88,7 @@ Do not claim authorization, privacy compliance, or CSP effectiveness without che
 ## AI Agent Checklist
 
 - Did I expose any secret, token, credential, or internal-only field to the client?
-- Did I store sensitive data in `localStorage`, URLs, logs, or analytics payloads?
+- Did I store sensitive data in JavaScript-accessible browser storage, URLs, logs, or analytics payloads?
 - Did I add raw HTML rendering, code evaluation, or cross-window messaging?
 - Did I add or widen third-party scripts, embeds, or cross-origin requests?
 - Did I preserve existing cookie, CSP, and server-enforced auth boundaries?

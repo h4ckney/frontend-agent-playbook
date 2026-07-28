@@ -85,7 +85,7 @@ For each material state value, identify its authoritative owner, writers, reader
 
 - **SHOULD**: Persist only values with a deliberate cross-reload or cross-session requirement.
 - **MUST**: Treat browser storage and rehydrated state as untrusted runtime input.
-- **MUST**: Do not persist secrets, credentials, raw authentication tokens, or unnecessarily sensitive data in client storage.
+- **MUST**: Do not persist secrets, credentials, raw authentication tokens, or unnecessarily sensitive data in JavaScript-accessible client storage.
 - **SHOULD**: Define schema version, migration or fallback, expiry, logout reset, and account-switch behavior for persisted state.
 - **SHOULD**: Do not persist an entire query cache or global store by default; select the smallest values that need persistence.
 - **SHOULD**: Use [Security and Privacy](./security-privacy.md) when persistence includes identity, personal data, payment, or third-party content.

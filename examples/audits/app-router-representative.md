@@ -29,7 +29,7 @@ Fixture evidence:
 ## Selected Guidance
 
 - Always: governance
-- Loaded: React, Next.js App Router, TypeScript, data fetching/cache, error handling/observability, SEO, testing, and code review
+- Loaded: React, Next.js App Router, TypeScript, state ownership, data fetching/cache, error handling/observability, SEO, testing, and code review
 - Conditional inspection: security/privacy for checkout and payment boundaries
 - Excluded: Pages Router rules and dead-code guidance
 - Not assessed: measured performance and bundle behavior
@@ -37,7 +37,7 @@ Fixture evidence:
 
 ## Existing Rules and Skills
 
-- Keep governance, React, TypeScript, accessibility, security/privacy, data/cache, error handling, SEO, testing, and code-review guidance.
+- Keep governance, React, TypeScript, state ownership, accessibility, security/privacy, data/cache, error handling, SEO, testing, and code-review guidance.
 - Apply only App Router sections of the Next.js rules.
 - Apply RSC guidance because the framework and route tree confirm supported integration.
 - Keep Pages Router guidance available for other projects, but disable it for this fixture.

@@ -110,7 +110,7 @@ Audit shared guidance against project evidence before recommending that it be ap
 - Inspect semantics, accessible names, keyboard operation, visible focus, form errors, dynamic state, and custom widget behavior in affected workflows.
 - Use the project's accessibility target and `../../rules/accessibility.md` when available; do not infer legal compliance from generic rules.
 - Treat automated checks as partial evidence and identify manual keyboard, focus, or assistive-technology verification that remains.
-- Classify demonstrated accessibility regressions as Critical review findings.
+- Classify demonstrated accessibility regressions by user impact. Use Critical only when a regression blocks critical content or functionality, traps interaction, creates a serious safety risk, or has equivalent material impact.
 
 ## Security And Privacy Assessment
 

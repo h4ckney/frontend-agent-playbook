@@ -18,11 +18,11 @@ The feature edits and saves a job-application draft, then submits it as a separa
 ## Selected Guidance
 
 - Always loaded: `rules/governance.md`
-- Task core: `rules/react.md`, `rules/typescript.md`, `rules/forms-runtime-validation.md`, `rules/data-fetching-cache.md`, `rules/error-handling-observability.md`
+- Task core: `rules/react.md`, `rules/typescript.md`, `rules/forms-runtime-validation.md`, `rules/state-ownership.md`, `rules/data-fetching-cache.md`, `rules/error-handling-observability.md`
 - Risk triggered: `rules/accessibility.md`, `rules/testing.md`
 - Excluded: SEO, performance, dead-code, and router migration guidance because this task does not change public indexing, measured performance, removal scope, or route ownership
 
-The five-file task core is an explicit exception to the normal two-to-four-file target because this cross-boundary workflow combines React interaction, runtime validation, remote mutation, cache ownership, and operational recovery.
+The six-file task core is an explicit exception to the normal two-to-four-file target because this representative cross-boundary workflow combines React interaction, runtime validation, draft and server-state ownership, remote mutation, cache reconciliation, and operational recovery. Ordinary feature tasks should still load only the subset supported by their actual boundaries.
 
 ## Audit Handoff
 
