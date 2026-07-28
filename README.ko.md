@@ -22,10 +22,10 @@ Claude Code, Codex 및 기타 AI 코딩 에이전트를 위한 프로덕션 수�
 모든 규칙을 활성화하지 않고 태그가 지정된 플레이북을 가져옵니다.
 
 ```bash
-npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-playbook
+npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-playbook
 ```
 
-`v0.1.0`은 안정 snapshot이며 이후 `main`에 추가된 가이드를 포함하지 않습니다. 대상 저장소가 미출시 가이드를 허용할 때만 `main`의 최신 초안을 평가하고, 프로덕션에 도입하기 전에는 검토한 commit을 고정하세요.
+`v0.1.1`은 현재 안정 snapshot이며 commit `0970f8c`를 가리킵니다. 감사 결과 UI 명확성 개선 commit `697d53f`는 릴리스 이후 `main`에 추가되어 `v0.1.1`에는 포함되지 않습니다. 대상 저장소가 미출시 작업을 허용할 때만 `main`을 평가하고, 프로덕션에 도입하기 전에는 검토한 commit을 고정하세요.
 
 대상 저장소의 `AGENTS.md`에 최소 진입점을 추가합니다.
 
@@ -161,7 +161,7 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-p
 - 심각도 레이블을 포함한 리뷰 예시 추가
 - 추가 App Router 또는 mixed-router 실제 저장소에서 감사 스킬 forward-test
 - 구현, 리뷰, SEO 및 데드코드 작업에서 규칙 라우팅 forward-test
-- 문서화된 release gate를 충족한 후에만 다음 안정 버전 태그 생성
+- 감사 결과 UI 작업을 조금 더 모아 검증한 뒤 `v0.1.2` 태그 생성. 현재 `main`은 `v0.1.2`가 아님
 
 ## 검증
 
@@ -179,9 +179,9 @@ node --test scripts/guidance-approval.test.mjs
 
 ## 버전
 
-현재 안정 버전: `v0.1.0`
+현재 안정 버전: [`v0.1.1`](https://github.com/h4ckney/frontend-agent-playbook/releases/tag/v0.1.1), commit `0970f8c` 기준
 
-`main` 브랜치에는 아직 태그가 지정된 릴리스에 포함되지 않은 가이드가 있을 수 있습니다.
+`main` 브랜치에는 릴리스 이후 추가된 감사 결과 UI 명확성 개선 commit `697d53f`가 포함되어 있습니다. UI 작업을 조금 더 모아 검증하고 `v0.1.2`로 태그하기 전까지는 미출시 상태로 유지합니다.
 
 ## 라이선스
 

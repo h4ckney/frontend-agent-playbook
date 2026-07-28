@@ -22,10 +22,10 @@ This repository defines practical rules, skills, examples, and templates for Rea
 Vendor the tagged playbook without activating every rule:
 
 ```bash
-npx degit h4ckney/frontend-agent-playbook#v0.1.0 .agents/vendor/frontend-agent-playbook
+npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-playbook
 ```
 
-`v0.1.0` is the stable snapshot and does not include guidance added later on `main`. Evaluate current drafts from `main` only when the target repository accepts unreleased guidance, and pin the reviewed commit before production adoption.
+`v0.1.1` is the current stable snapshot and points to commit `0970f8c`. The audit-result UI clarity update in commit `697d53f` was added to `main` after that release and is not part of `v0.1.1`. Evaluate unreleased work from `main` only when the target repository accepts it, and pin the reviewed commit before production adoption.
 
 Add the smallest entry point to the target repository's `AGENTS.md`:
 
@@ -159,7 +159,7 @@ Existing patterns do not justify preserving known correctness, security, or acce
 - Add review examples with severity labels.
 - Forward-test the audit skill against an additional live App Router or mixed-router repository.
 - Forward-test rule routing against implementation, review, SEO, and dead-code tasks.
-- Tag the next stable release only after its documented release gate is satisfied.
+- Batch and validate additional audit-result UI work before tagging `v0.1.2`; the current `main` branch is not `v0.1.2`.
 
 ## Validation
 
@@ -177,9 +177,9 @@ The documentation script checks local Markdown links, unresolved TODO markers, r
 
 ## Version
 
-Current stable release: `v0.1.0`
+Current stable release: [`v0.1.1`](https://github.com/h4ckney/frontend-agent-playbook/releases/tag/v0.1.1), pointing to commit `0970f8c`.
 
-The `main` branch may include guidance that has not been included in a tagged release yet.
+The `main` branch includes the post-release audit-result UI clarity update from commit `697d53f`. It will remain unreleased until more UI work is batched, validated, and tagged as `v0.1.2`.
 
 ## License
 
