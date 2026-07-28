@@ -38,6 +38,13 @@ Use this template when asking an AI coding agent to implement a frontend feature
 ## Data And Types
 
 - API response shape:
+- Untrusted runtime inputs and validating owner:
+- Existing form or runtime schema tool to reuse:
+- Client-side validation and feedback:
+- Server-authoritative validation, authentication, authorization, ownership, rate limiting, and business invariants:
+- Normalization or coercion:
+- Field-level, form-level, authorization, and operational error contract:
+- Unverified server or third-party assumptions:
 - Required validation or narrowing:
 - TypeScript types to add or update:
 

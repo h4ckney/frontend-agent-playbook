@@ -5,7 +5,7 @@
 
 Production-grade frontend playbook for Claude Code, Codex, and other AI coding agents.
 
-This repository defines practical rules, skills, examples, and templates for React, Next.js, TypeScript, security, privacy, data fetching, caching, error handling, observability, accessibility, SEO, performance, testing, dead-code removal, and code review workflows.
+This repository defines practical rules, skills, examples, and templates for React, Next.js, TypeScript, forms, runtime validation, security, privacy, data fetching, caching, error handling, observability, accessibility, SEO, performance, testing, dead-code removal, and code review workflows.
 
 ![Frontend Audit dashboard showing evidence levels, urgent recommendations, and risk areas](assets/audit-dashboard.png)
 
@@ -54,6 +54,7 @@ Available rules:
 - [React rules](rules/react.md)
 - [Next.js rules](rules/nextjs.md)
 - [TypeScript rules](rules/typescript.md)
+- [Forms and runtime validation rules](rules/forms-runtime-validation.md)
 - [Security and privacy rules](rules/security-privacy.md)
 - [Data fetching and cache rules](rules/data-fetching-cache.md)
 - [Error handling and observability rules](rules/error-handling-observability.md)
@@ -120,6 +121,7 @@ Existing patterns do not justify preserving known correctness, security, or acce
 | React | Usable draft | Official references and agent checklist added |
 | Next.js | Usable draft | Official references and agent checklist added |
 | TypeScript | Usable draft | Official TypeScript references added |
+| Forms / Runtime Validation | Usable draft | Trust boundaries, schema ownership, server authority, accessible errors, and risk-based testing added |
 | Security / Privacy | Usable draft | Sensitive storage, third-party script, CSP, and auth-boundary guidance added |
 | Data Fetching / Cache | Usable draft | Server-client boundary, freshness, invalidation, and mutation guidance added |
 | Error Handling / Observability | Usable draft | Failure modeling, recovery, telemetry, and instrumentation guidance added |
@@ -145,7 +147,7 @@ Existing patterns do not justify preserving known correctness, security, or acce
 - Add review examples with severity labels.
 - Forward-test the audit skill against an additional live App Router or mixed-router repository.
 - Forward-test rule routing against implementation, review, SEO, and dead-code tasks.
-- Add version tags after the GitHub repository structure stabilizes.
+- Tag the next stable release only after its documented release gate is satisfied.
 
 ## Validation
 
@@ -163,7 +165,9 @@ The documentation script checks local Markdown links, unresolved TODO markers, r
 
 ## Version
 
-Current version: `v0.1.0`
+Current stable release: `v0.1.0`
+
+The `main` branch may include guidance that has not been included in a tagged release yet.
 
 ## License
 

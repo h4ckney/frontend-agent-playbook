@@ -18,9 +18,11 @@ The feature edits and saves a job-application draft, then submits it as a separa
 ## Selected Guidance
 
 - Always loaded: `rules/governance.md`
-- Task core: `rules/react.md`, `rules/typescript.md`, `rules/data-fetching-cache.md`
-- Risk triggered: `rules/accessibility.md`, `rules/error-handling-observability.md`, `rules/testing.md`
+- Task core: `rules/react.md`, `rules/typescript.md`, `rules/forms-runtime-validation.md`, `rules/data-fetching-cache.md`, `rules/error-handling-observability.md`
+- Risk triggered: `rules/accessibility.md`, `rules/testing.md`
 - Excluded: SEO, performance, dead-code, and router migration guidance because this task does not change public indexing, measured performance, removal scope, or route ownership
+
+The five-file task core is an explicit exception to the normal two-to-four-file target because this cross-boundary workflow combines React interaction, runtime validation, remote mutation, cache ownership, and operational recovery.
 
 ## Audit Handoff
 
@@ -43,6 +45,8 @@ Repeated validation-boundary drift justifies one scoped project rule. A new proj
 ## Implementation Shape
 
 Use one shared schema for client feedback and request typing, while treating server validation as authoritative:
+
+Zod is reused because it is already installed. This workflow does not justify introducing a second validator or making Zod mandatory for other repositories.
 
 ```ts
 const applicationDraftSchema = z.object({
