@@ -167,9 +167,10 @@ Audit shared guidance against project evidence before recommending that it be ap
 ## SEO Assessment
 
 - Classify affected URLs by indexing intent and environment before reviewing metadata or crawl behavior.
+- Treat search optimization as not applicable for internal/private-only products unless public exposure or indexing controls are part of the task. Keep access control and unintended external exposure in security or deployment review.
 - Check rendered content, status codes, internal links, canonical, robots directives, sitemap membership, structured data, and URL move or removal behavior.
 - Use `../../rules/seo.md` when available and distinguish verified output from external indexing, ranking, or rich-result outcomes.
-- Report conflicting signals and production-versus-preview configuration risks as SEO Risks.
+- Report missing metadata, sitemap, or structured data only for public indexable scope. Report conflicting signals and production-versus-preview configuration risks as SEO Risks.
 
 ## Performance Assessment
 

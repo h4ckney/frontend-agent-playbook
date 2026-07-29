@@ -121,7 +121,7 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 대시보드 Markdown 내보내기에는 안정적인 finding ID와 Audit Handoff 표가 포함됩니다. 추적성을 위해 해당 ID를 제안서와 Issue 초안에 전달하되, 결함의 증거나 쓰기 승인으로 간주하지 마세요.
 
-빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트 폴더를 선택합니다. 대시보드는 관찰된 사실, 위험 추론, 정보 부족 및 제거 후보를 구분하고 같은 원인의 finding을 위험 cluster로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
+빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트의 검색 노출 범위를 선택한 뒤 폴더를 지정합니다. 대시보드는 관찰된 사실, 위험 추론, 정보 부족 및 제거 후보를 구분하고, SEO는 관련 있는 공개 범위에만 적용하며, 같은 원인의 finding을 위험 cluster로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
 
 ## 저장소 구조
 
@@ -166,7 +166,7 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 | 오류 처리 / 관측 가능성 | 사용 가능한 초안 | 실패 모델링, 복구, telemetry 및 instrumentation 지침 추가 |
 | 성능 | 사용 가능한 초안 | web.dev, MDN 및 Next.js 참고 자료 추가 |
 | 접근성 | 사용 가능한 초안 | WCAG 2.2 및 WAI-ARIA APG 지침 추가 |
-| SEO | 사용 가능한 초안 | 인덱싱 의도, canonical, robots, sitemap, structured data 및 URL lifecycle 지침 추가 |
+| SEO | 사용 가능한 초안 | 공개/내부 적용 gate, 인덱싱 의도, canonical, robots, sitemap, structured data 및 URL lifecycle 지침 추가 |
 | 테스트 | 사용 가능한 초안 | 위험 기반 unit, component, integration 및 E2E 지침 추가 |
 | 데드코드 | 사용 가능한 초안 | 근거 기반 코드, 의존성, asset, style 및 flag 제거 지침 추가 |
 | 코드 리뷰 | 사용 가능한 초안 | Critical / Standards / Optimization gate 추가 |

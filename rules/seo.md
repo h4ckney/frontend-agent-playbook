@@ -8,6 +8,14 @@ Define how AI agents should preserve crawlability, indexability, canonical consi
 
 Use the shared precedence in [Rule Governance](./governance.md). Confirm the product's indexing intent, target search engines, locales, framework version, and deployment environment before applying SEO guidance.
 
+## Applicability
+
+- **MUST**: Determine whether affected routes are public and indexable, public but intentionally non-indexable, mixed, or internal/private before applying this rule.
+- **SHOULD**: Apply search metadata, sitemap, canonical, structured-data, and search-appearance guidance only to public routes whose discovery or search presentation matters.
+- **MAY**: Mark search optimization as not applicable for authenticated, network-restricted, or otherwise internal-only products with no intended organic discovery.
+- **MUST**: Keep authentication, authorization, network exposure, sensitive-data handling, and accidental public access under security and deployment review even when search optimization is not applicable.
+- **MUST**: Do not report missing metadata, sitemap, or structured data as a defect until public indexing intent is established.
+
 ## References
 
 - Google Search Essentials: https://developers.google.com/search/docs/essentials
@@ -26,7 +34,7 @@ Use the shared precedence in [Rule Governance](./governance.md). Confirm the pro
 ## Indexing Intent
 
 - **SHOULD**: Classify affected pages as indexable, intentionally non-indexable, duplicate, redirected, removed, or environment-only before changing SEO behavior.
-- **SHOULD**: Keep staging, preview, account, internal search, and private pages out of search only through the mechanism approved by the project and hosting architecture.
+- **SHOULD**: Keep staging, preview, account, internal search, and private pages out of search through the mechanism approved by the project and hosting architecture when they are publicly reachable.
 - **MUST**: Do not change `noindex`, robots rules, authentication, or canonical behavior without confirming ownership and intent.
 - **MUST**: Do not claim that a page is indexed or removed based only on source markup; indexing is controlled by crawlers and search-engine processing.
 

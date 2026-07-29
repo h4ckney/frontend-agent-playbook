@@ -7,6 +7,7 @@ const {
   decisionLabels,
   evidenceLevels,
   isGeneratedRecord,
+  seoScopeLabels,
   selectFilesWithinBudget,
   selectPriorityCandidates
 } = globalThis.FrontendAnalyzer;
@@ -26,21 +27,21 @@ const sampleRecords = [
   { path: "tests/content.test.tsx", content: "export {};" },
   { path: "e2e/smoke.spec.ts", content: "export {};" }
 ];
-const sampleFindings = analyzeRecords(sampleRecords);
 const sampleBytes = sampleRecords.reduce(
   (sum, record) => sum + new Blob([record.content]).size,
   0
 );
-
-let state = createAuditResult(
-  "분석 예시",
-  sampleFindings,
-  4,
-  "폴더를 선택하면 실제 결과로 교체됩니다",
-  { selected: 4, analyzed: 4, excluded: 0, analyzedBytes: sampleBytes }
-);
+let selectedSeoScope = "unknown";
+let currentAudit = {
+  name: "분석 예시",
+  records: sampleRecords,
+  meta: "폴더를 선택하면 실제 결과로 교체됩니다",
+  scope: { selected: 4, analyzed: 4, excluded: 0, analyzedBytes: sampleBytes }
+};
+let state = createState();
 const input = document.querySelector("#folderInput");
 const toast = document.querySelector("#toast");
+const seoScopeInputs = document.querySelectorAll("[name=seoScope]");
 
 input.addEventListener("change", async (event) => {
   const files = Array.from(event.target.files);
@@ -49,13 +50,13 @@ input.addEventListener("change", async (event) => {
   try {
     const { records, scope } = await readFiles(files);
     const name = files[0].webkitRelativePath.split("/")[0] || "선택한 프로젝트";
-    state = createAuditResult(
+    currentAudit = {
       name,
-      analyzeRecords(records),
-      records.length,
-      scope.analyzed + "개 텍스트 파일 분석 · " + scope.excluded + "개 제외",
+      records,
+      meta: scope.analyzed + "개 텍스트 파일 분석 · " + scope.excluded + "개 제외",
       scope
-    );
+    };
+    state = createState();
     render();
     notify(scope.partial ? "일부 입력을 제외한 부분 분석이 완료되었습니다." : "분석이 완료되었습니다.");
   } catch (error) {
@@ -63,6 +64,15 @@ input.addEventListener("change", async (event) => {
     notify("분석 중 오류가 발생했습니다.");
   }
   input.value = "";
+});
+
+seoScopeInputs.forEach((control) => {
+  control.addEventListener("change", () => {
+    if (!control.checked) return;
+    selectedSeoScope = control.value;
+    state = createState();
+    render();
+  });
 });
 
 document.querySelectorAll("[data-filter]").forEach((button) => {
@@ -83,6 +93,17 @@ document.querySelector("#copyReport").addEventListener("click", async () => {
   }
 });
 document.querySelector("#downloadReport").addEventListener("click", download);
+
+function createState() {
+  return createAuditResult(
+    currentAudit.name,
+    analyzeRecords(currentAudit.records, { seoScope: selectedSeoScope }),
+    currentAudit.records.length,
+    currentAudit.meta,
+    currentAudit.scope,
+    { seoScope: selectedSeoScope }
+  );
+}
 
 async function readFiles(files) {
   const selection = selectFilesWithinBudget(files);
@@ -150,6 +171,7 @@ function render() {
   document.querySelector("#candidateCount").textContent = state.summary.candidate;
   document.querySelector("#findingCount").textContent = state.findings.length + "건";
   document.querySelector("#scopeExclusions").textContent = formatScope(state.scope);
+  document.querySelector("#seoScopeStatus").textContent = formatSeoStatus(state.context.seoScope);
   renderPriority("all");
   renderCoverage();
   renderTable();
@@ -180,10 +202,26 @@ function renderCoverage() {
   };
   const maxCount = Math.max(1, ...state.areaCounts.map((row) => row.count));
   document.querySelector("#coverageList").innerHTML = state.areaCounts.map((row) =>
-    '<div class="coverage-row"><span>' + labels[row.area] + '</span>' +
+    '<div class="coverage-row" data-status="' + row.status + '"><span>' + labels[row.area] + '</span>' +
     '<div class="bar"><i style="width:' + (row.count / maxCount * 100) + '%"></i></div>' +
-    '<span>' + row.count + '</span></div>'
+    '<span>' + formatAreaCount(row) + '</span></div>'
   ).join("");
+}
+
+function formatAreaCount(row) {
+  if (row.status === "not-applicable") return "제외";
+  if (row.status === "conditional" && row.count === 0) return "조건부";
+  return row.count;
+}
+
+function formatSeoStatus(seoScope) {
+  const status = {
+    unknown: "인덱싱 의도만 확인",
+    public: "공개 URL 기준 적용",
+    mixed: "공개 URL에만 조건부 적용",
+    internal: "검색 최적화 제외"
+  };
+  return "SEO: " + status[seoScope] + " · " + seoScopeLabels[seoScope];
 }
 
 function renderTable() {

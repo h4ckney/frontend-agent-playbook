@@ -124,9 +124,72 @@ test("does not treat metadata documentation as a Next.js metadata implementation
     record("pages/index.tsx", "export default function Page() { return null; }"),
     record("tests/page.test.tsx", "export {};"),
     record("e2e/smoke.spec.ts", "export {};")
-  ]);
+  ], { seoScope: "public" });
 
   assert.ok(findings.some((finding) => finding.id === "seo.next-metadata-missing"));
+});
+
+test("does not report search optimization gaps for an internal-only project", () => {
+  const findings = analyzeRecords([
+    record("package.json", JSON.stringify({
+      dependencies: { next: "14.2.0", react: "18.2.0" },
+      scripts: { test: "vitest" }
+    })),
+    record("pages/admin.tsx", "export default function Admin() { return null; }"),
+    record("tests/admin.test.tsx", "export {};"),
+    record("e2e/admin.spec.ts", "export {};")
+  ], { seoScope: "internal" });
+
+  assert.equal(findings.some((finding) => finding.area === "seo"), false);
+});
+
+test("reports only indexing intent when search exposure is unknown", () => {
+  const findings = analyzeRecords([
+    record("package.json", JSON.stringify({
+      dependencies: { next: "14.2.0", react: "18.2.0" },
+      scripts: { test: "vitest" }
+    })),
+    record("pages/index.tsx", "export default function Page() { return null; }"),
+    record("tests/page.test.tsx", "export {};"),
+    record("e2e/smoke.spec.ts", "export {};")
+  ]);
+  const seoFindings = findings.filter((finding) => finding.area === "seo");
+
+  assert.deepEqual(seoFindings.map((finding) => finding.id), ["seo.indexing-intent-unknown"]);
+  assert.equal(seoFindings[0].evidenceLevel, "unknown");
+  assert.equal(seoFindings[0].decision, "information-gap");
+});
+
+test("marks SEO as conditional for mixed public and internal scope", () => {
+  const findings = analyzeRecords([
+    record("package.json", JSON.stringify({
+      dependencies: { next: "14.2.0", react: "18.2.0" },
+      scripts: { test: "vitest" }
+    })),
+    record("pages/index.tsx", "export default function Page() { return null; }"),
+    record("tests/page.test.tsx", "export {};"),
+    record("e2e/smoke.spec.ts", "export {};")
+  ], { seoScope: "mixed" });
+  const metadata = findings.find((finding) => finding.id === "seo.next-metadata-missing");
+  const result = createAuditResult("fixture", findings, 4, "test", {}, { seoScope: "mixed" });
+
+  assert.equal(metadata.severity, "medium");
+  assert.equal(result.areaCounts.find((row) => row.area === "seo").status, "conditional");
+});
+
+test("infers public SEO context when callers omit result context", () => {
+  const findings = analyzeRecords([
+    record("package.json", JSON.stringify({
+      dependencies: { next: "14.2.0", react: "18.2.0" },
+      scripts: { test: "vitest" }
+    })),
+    record("pages/index.tsx", "export default function Page() { return null; }"),
+    record("tests/page.test.tsx", "export {};"),
+    record("e2e/smoke.spec.ts", "export {};")
+  ], { seoScope: "public" });
+  const result = createAuditResult("fixture", findings, 4, "test");
+
+  assert.deepEqual(result.context, { seoScope: "public" });
 });
 
 test("marks dead code only as a removal candidate", () => {
@@ -225,6 +288,8 @@ test("Markdown contains limitations and paths but no source contents", () => {
   assert.match(output, /Files excluded: 3/);
   assert.match(output, /Bytes inspected: 0/);
   assert.match(output, /Analysis completeness: within configured/);
+  assert.match(output, /Search exposure scope: 미확인/);
+  assert.match(output, /SEO applicability: undetermined/);
   assert.match(output, /Automated detection areas: framework version and router context/);
   assert.match(output, /## Priority Review Candidates/);
   assert.match(output, /Why it may matter:/);
@@ -255,6 +320,16 @@ test("defaults audit scope to inspected files for existing callers", () => {
     partial: false
   });
   assert.equal(result.fileCount, 4);
+  assert.deepEqual(result.context, { seoScope: "unknown" });
+});
+
+test("documents internal SEO exclusion in Markdown", () => {
+  const state = createAuditResult("internal-tool", [], 0, "test", {}, { seoScope: "internal" });
+  const output = buildMarkdown(state);
+
+  assert.match(output, /Search exposure scope: 내부·비공개 전용/);
+  assert.match(output, /SEO applicability: not applicable/);
+  assert.match(output, /Not assessed: this project was classified as internal\/private only/);
 });
 
 test("escapes paths before placing them in the Markdown handoff table", () => {

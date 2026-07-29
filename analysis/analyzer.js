@@ -34,6 +34,12 @@ const decisionLabels = {
   observe: "관찰",
   "information-gap": "정보 부족"
 };
+const seoScopeLabels = {
+  unknown: "미확인",
+  public: "공개·검색 노출",
+  mixed: "공개·내부 혼합",
+  internal: "내부·비공개 전용"
+};
 const riskNarratives = {
   "rules.package-json-invalid": {
     clusterId: "context.package-integrity",
@@ -155,6 +161,16 @@ const riskNarratives = {
     verification: "production과 preview host의 실제 robots 응답과 meta robots를 확인합니다.",
     decision: "verify-first"
   },
+  "seo.indexing-intent-unknown": {
+    clusterId: "seo.indexing-intent",
+    clusterTitle: "검색 노출 범위 확인",
+    whyRisky: "공개 URL이 있는지 모르면 metadata·sitemap 부재를 결함으로 판단할 수도, 필요한 검색 노출 검증을 누락할 수도 없습니다.",
+    possibleImpact: "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다.",
+    riskFactors: "공개·내부 route가 섞여 있거나 배포 환경과 인증 경계가 문서화되지 않은 경우",
+    mitigatingControls: "제품 소유자가 검색 노출 대상 URL과 내부 전용 경계를 명시한 경우",
+    verification: "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다.",
+    decision: "information-gap"
+  },
   "dead-code.marked-removal-candidate": {
     clusterId: "dead-code.removal-candidates",
     clusterTitle: "표시된 제거 후보 검증",
@@ -233,8 +249,9 @@ function selectFilesWithinBudget(files) {
   };
 }
 
-function analyzeRecords(inputRecords) {
+function analyzeRecords(inputRecords, options = {}) {
   const records = inputRecords.filter((record) => !isGeneratedRecord(record));
+  const seoScope = seoScopeLabels[options.seoScope] ? options.seoScope : "unknown";
   const paths = records.map((record) => record.path.toLowerCase());
   const source = records.filter((record) => SOURCE_FILE_PATTERN.test(record.path));
   const findings = [];
@@ -382,13 +399,25 @@ function analyzeRecords(inputRecords) {
     }));
   }
 
-  if (nextVersion) {
+  if (nextVersion && (seoScope === "public" || seoScope === "mixed")) {
     const metadata = source.some((record) => /(?:metadata\s*=|generateMetadata|<Head|next\/head)/.test(record.content));
     const sitemap = paths.some((path) => /(^|\/)sitemap\.(?:xml|js|ts)$/.test(path));
     const robots = paths.some((path) => /(^|\/)robots\.(?:txt|js|ts)$/.test(path));
-    if (!metadata) findings.push(missingConfig("seo.next-metadata-missing", "high", "Next.js 메타데이터 구성을 찾지 못함", "인덱싱 대상 페이지의 title, description, canonical을 렌더링 결과로 확인합니다."));
-    if (!sitemap) findings.push(missingConfig("seo.sitemap-missing", "medium", "sitemap 구성을 찾지 못함", "공개 인덱싱 URL이 있다면 해당 URL만 포함하는 sitemap을 제공합니다."));
+    const conditional = seoScope === "mixed";
+    if (!metadata) findings.push(missingConfig("seo.next-metadata-missing", conditional ? "medium" : "high", "Next.js 메타데이터 구성을 찾지 못함", "인덱싱 대상 페이지의 title, description, canonical을 렌더링 결과로 확인합니다."));
+    if (!sitemap) findings.push(missingConfig("seo.sitemap-missing", conditional ? "low" : "medium", "sitemap 구성을 찾지 못함", "공개 인덱싱 URL이 있다면 해당 URL만 포함하는 sitemap을 제공합니다."));
     if (!robots) findings.push(missingConfig("seo.robots-missing", "low", "robots 구성을 찾지 못함", "프로덕션과 프리뷰 환경의 크롤링 의도를 분리해 명시합니다."));
+  } else if (nextVersion && seoScope === "unknown") {
+    findings.push(finding({
+      id: "seo.indexing-intent-unknown",
+      severity: "low",
+      area: "seo",
+      type: "gap",
+      evidenceLevel: "unknown",
+      title: "프로젝트의 검색 노출 범위가 지정되지 않음",
+      evidence: ["사용자 입력: 검색 노출 범위 미확인"],
+      recommendation: "공개 검색 유입이 필요한 URL이 있는지 확인한 뒤 SEO 감사를 적용하거나 제외합니다."
+    }));
   }
 
   const deadCandidates = records.filter((record) => /TODO:?\s*(?:remove|delete)|@deprecated/i.test(record.content));
@@ -436,7 +465,7 @@ function analyzeRecords(inputRecords) {
   return findings;
 }
 
-function createAuditResult(name, findings, fileCount, meta, inputScope = {}) {
+function createAuditResult(name, findings, fileCount, meta, inputScope = {}, inputContext = {}) {
   const findingIds = findings.map((finding) => finding.id);
   if (new Set(findingIds).size !== findingIds.length) {
     throw new Error("audit findings require unique stable IDs");
@@ -447,10 +476,24 @@ function createAuditResult(name, findings, fileCount, meta, inputScope = {}) {
     return counts;
   }, {});
   const areas = ["rules", "testing", "seo", "security", "dead-code", "observability"];
-  const areaCounts = areas.map((area) => ({
-    area,
-    count: findings.filter((finding) => finding.area === area).length
-  }));
+  const hasPublicSeoFindings = findings.some((item) =>
+    item.area === "seo" && item.id !== "seo.indexing-intent-unknown"
+  );
+  const seoScope = seoScopeLabels[inputContext.seoScope]
+    ? inputContext.seoScope
+    : hasPublicSeoFindings
+      ? "public"
+      : "unknown";
+  const areaCounts = areas.map((area) => {
+    let status = "active";
+    if (area === "seo" && seoScope === "internal") status = "not-applicable";
+    if (area === "seo" && (seoScope === "unknown" || seoScope === "mixed")) status = "conditional";
+    return {
+      area,
+      count: findings.filter((finding) => finding.area === area).length,
+      status
+    };
+  });
   const analyzed = Number.isFinite(inputScope.analyzed) ? inputScope.analyzed : fileCount;
   const selected = Number.isFinite(inputScope.selected) ? inputScope.selected : analyzed;
   const excluded = Number.isFinite(inputScope.excluded)
@@ -465,7 +508,8 @@ function createAuditResult(name, findings, fileCount, meta, inputScope = {}) {
     partial: Boolean(inputScope.partial)
   };
   const riskClusters = createRiskClusters(findings);
-  return { name, findings, riskClusters, fileCount: analyzed, meta, summary, areaCounts, scope };
+  const context = { seoScope };
+  return { name, findings, riskClusters, fileCount: analyzed, meta, summary, areaCounts, scope, context };
 }
 
 function createRiskClusters(findings) {
@@ -526,6 +570,7 @@ function selectPriorityCandidates(findings, type = "all") {
 
 function buildMarkdown(state) {
   const priorityCandidates = selectPriorityCandidates(state.findings);
+  const seoScope = state.context?.seoScope || "unknown";
   const sections = {
     security: "Security Or Privacy Risks",
     testing: "Testing Gaps",
@@ -545,7 +590,19 @@ function buildMarkdown(state) {
     "- Bytes inspected: " + state.scope.analyzedBytes,
     "- Exclusions by reason: " + formatExcludedReasons(state.scope.excludedByReason),
     "- Analysis completeness: " + (state.scope.partial ? "partial; input limits or read failures affected coverage" : "within configured static-analysis limits"),
-    "- Automated detection areas: framework version and router context, testing, SEO, security, dead-code markers, error handling and observability",
+    "- Search exposure scope: " + seoScopeLabels[seoScope],
+    "- SEO applicability: " + (
+      seoScope === "internal"
+        ? "not applicable to search optimization; access control and unintended exposure remain security and deployment concerns"
+        : seoScope === "unknown"
+          ? "undetermined; only indexing intent is reported until scope is confirmed"
+          : seoScope === "mixed"
+            ? "conditional; findings apply only to public, indexable URLs"
+            : "applicable to public, indexable URLs"
+    ),
+    "- Automated detection areas: framework version and router context, testing, "
+      + (seoScope === "internal" ? "SEO excluded by context, " : "context-aware SEO, ")
+      + "security, dead-code markers, error handling and observability",
     "- Manual review remains required: accessibility, performance, forms, state ownership, data fetching, design systems, i18n, and bundle architecture",
     "- Evidence model: observed fact, risk inference, information gap, removal candidate",
     "- Evidence counts: " + Object.keys(evidenceLevels)
@@ -578,7 +635,11 @@ function buildMarkdown(state) {
   for (const [area, heading] of Object.entries(sections)) {
     const rows = state.findings.filter((finding) => finding.area === area);
     lines.push("## " + heading, "");
-    if (!rows.length) lines.push("No automated finding. Manual review remains required.", "");
+    if (area === "seo" && seoScope === "internal") {
+      lines.push("Not assessed: this project was classified as internal/private only. Search optimization is not required; verify access control and unintended external exposure under security and deployment review.", "");
+    } else if (!rows.length) {
+      lines.push("No automated finding. Manual review remains required.", "");
+    }
     rows.forEach((finding) => {
       lines.push(
         "- **[" + finding.severity.toUpperCase() + "] " + finding.title + "**",
@@ -713,6 +774,7 @@ const analyzerApi = {
   fileExclusionReason,
   isGeneratedRecord,
   isAnalyzableFile,
+  seoScopeLabels,
   selectFilesWithinBudget,
   selectPriorityCandidates
 };

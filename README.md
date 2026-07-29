@@ -119,7 +119,7 @@ After an owner approves named proposal IDs, use [Apply Frontend Guidance](skills
 The dependency-free [guidance approval gate](scripts/guidance-approval.mjs) compares supplied approval metadata for repository identity, proposal status, material scope, exact target paths, dependencies, enforcement, content fingerprints, conflicts, and idempotent reruns before application. It does not inspect repository ownership or compute target-file fingerprints; the applying agent must gather and verify those inputs.
 Dashboard Markdown exports include stable finding IDs and an Audit Handoff table. Carry those IDs into proposals and Issue drafts for traceability, but do not treat them as defect proof or write approval.
 
-For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html) and select a project folder. It separates observed facts, risk inferences, information gaps, and removal candidates, groups findings with the same root cause into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
+For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html), choose the project's search-exposure scope, and select a project folder. It separates observed facts, risk inferences, information gaps, and removal candidates, applies SEO checks only to relevant public scope, groups findings with the same root cause into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
 
 ## Repository Structure
 
@@ -164,7 +164,7 @@ Existing patterns do not justify preserving known correctness, security, or acce
 | Error Handling / Observability | Usable draft | Failure modeling, recovery, telemetry, and instrumentation guidance added |
 | Performance | Usable draft | web.dev, MDN, and Next.js references added |
 | Accessibility | Usable draft | WCAG 2.2 and WAI-ARIA APG guidance added |
-| SEO | Usable draft | Indexing intent, canonical, robots, sitemap, structured data, and URL lifecycle guidance added |
+| SEO | Usable draft | Public/internal applicability gate, indexing intent, canonical, robots, sitemap, structured data, and URL lifecycle guidance added |
 | Testing | Usable draft | Risk-based unit, component, integration, and E2E guidance added |
 | Dead Code | Usable draft | Evidence-based code, dependency, asset, style, and flag removal guidance added |
 | Code Review | Usable draft | Critical / Standards / Optimization gates added |

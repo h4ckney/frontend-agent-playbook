@@ -17,6 +17,17 @@
     <section class="dashboard" aria-live="polite">
       <div class="limitations" role="note"><strong>정적 휴리스틱 결과입니다.</strong> 미발견은 안전을 의미하지 않으며 품질 보증, 보안 인증 또는 배포 승인에 사용할 수 없습니다.</div>
       <div class="project"><div><em>CURRENT AUDIT</em><h2 id="projectName">분석 예시</h2></div><p id="projectMeta">폴더를 선택하면 실제 결과로 교체됩니다</p></div>
+      <section class="audit-context" aria-labelledby="contextTitle">
+        <div><em>PROJECT CONTEXT</em><h2 id="contextTitle">검색 노출 범위</h2></div>
+        <fieldset class="segmented">
+          <legend class="sr-only">프로젝트 검색 노출 범위</legend>
+          <label><input type="radio" name="seoScope" value="unknown" checked><span>미확인</span></label>
+          <label><input type="radio" name="seoScope" value="public"><span>검색 공개</span></label>
+          <label><input type="radio" name="seoScope" value="mixed"><span>혼합</span></label>
+          <label><input type="radio" name="seoScope" value="internal"><span>내부 전용</span></label>
+        </fieldset>
+        <p id="seoScopeStatus" class="context-status">SEO: 인덱싱 의도만 확인</p>
+      </section>
       <section class="scope" aria-labelledby="scopeTitle">
         <div><em>ANALYSIS SCOPE</em><h2 id="scopeTitle">분석 범위</h2></div>
         <dl>
@@ -24,7 +35,7 @@
           <div><dt>분석</dt><dd id="analyzedFileCount">24</dd></div>
           <div><dt>제외</dt><dd id="excludedFileCount">0</dd></div>
         </dl>
-        <div class="scope-copy"><strong>자동 탐지 6개 영역</strong><span>버전·라우터 컨텍스트, 테스트, SEO, 보안, 데드코드 표시, 오류 처리</span><small>접근성, 성능, 폼, 상태 소유권, 데이터 패칭, 디자인 시스템, i18n, 번들 구조는 수동 감사가 필요합니다.</small><small id="scopeExclusions">181 B 분석</small></div>
+        <div class="scope-copy"><strong>자동 탐지 6개 영역</strong><span>버전·라우터 컨텍스트, 테스트, 조건부 SEO, 보안, 데드코드 표시, 오류 처리</span><small>접근성, 성능, 폼, 상태 소유권, 데이터 패칭, 디자인 시스템, i18n, 번들 구조는 수동 감사가 필요합니다.</small><small id="scopeExclusions">181 B 분석</small></div>
       </section>
       <div class="summary">
         <article class="metric card observed"><i>✓</i><div><b id="observedCount">1</b><span>관찰된 사실</span></div></article>
