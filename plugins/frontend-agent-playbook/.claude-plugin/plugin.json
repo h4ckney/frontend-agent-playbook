@@ -1,0 +1,19 @@
+{
+  "name": "frontend-agent-playbook",
+  "description": "Version-aware frontend audit and approved-guidance workflows for AI coding agents.",
+  "author": {
+    "name": "h4ckney",
+    "url": "https://github.com/h4ckney"
+  },
+  "homepage": "https://github.com/h4ckney/frontend-agent-playbook",
+  "repository": "https://github.com/h4ckney/frontend-agent-playbook",
+  "license": "MIT",
+  "keywords": [
+    "frontend",
+    "react",
+    "nextjs",
+    "typescript",
+    "code-review"
+  ],
+  "skills": "./skills/"
+}

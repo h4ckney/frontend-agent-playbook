@@ -5,11 +5,11 @@
 [![Validate](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml/badge.svg)](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Claude Code, Codex 및 기타 AI 코딩 에이전트를 위한 프로덕션 수준의 프론트엔드 플레이북입니다.
+Claude Code, Codex 및 기타 AI 코딩 에이전트를 위한 프로덕션 지향 프론트엔드 플레이북입니다.
 
 이 저장소는 React, Next.js, TypeScript, 폼, 런타임 검증, 상태 소유권, 디자인 시스템, 스타일링, 국제화, 번들 및 의존성 판단, 보안, 개인정보 보호, 데이터 페칭, 캐싱, 오류 처리, 관측 가능성, 접근성, SEO, 성능, 테스트, 데드코드 제거 및 코드 리뷰 워크플로우를 위한 실용적인 규칙, 스킬, 예시와 템플릿을 제공합니다.
 
-![근거 수준, 긴급 권고 및 위험 영역을 표시하는 프론트엔드 감사 대시보드](assets/audit-dashboard.png)
+![근거 수준, 우선 검토 후보 및 위험 영역을 표시하는 프론트엔드 감사 대시보드](assets/audit-dashboard.png)
 
 ## 단순한 규칙 목록과 무엇이 다른가요?
 
@@ -25,7 +25,7 @@ Claude Code, Codex 및 기타 AI 코딩 에이전트를 위한 프로덕션 수�
 npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-playbook
 ```
 
-`v0.1.1`은 현재 안정 snapshot이며 commit `0970f8c`를 가리킵니다. 감사 결과 UI 명확성 개선 commit `697d53f`는 릴리스 이후 `main`에 추가되어 `v0.1.1`에는 포함되지 않습니다. 대상 저장소가 미출시 작업을 허용할 때만 `main`을 평가하고, 프로덕션에 도입하기 전에는 검토한 commit을 고정하세요.
+`v0.1.1`은 현재 안정 snapshot이며 commit `0970f8c`를 가리킵니다. commit `697d53f`부터 시작한 후속 작업은 `main`에만 있으며 `v0.1.1`에는 포함되지 않습니다. 대상 저장소가 미출시 작업을 허용할 때만 `main`을 평가하고, 프로덕션에 도입하기 전에는 검토한 commit을 고정하세요.
 
 대상 저장소의 `AGENTS.md`에 최소 진입점을 추가합니다.
 
@@ -40,6 +40,27 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 ```
 
 이 명령은 플레이북을 참고 자료로 복사합니다. 가져온 모든 규칙을 자동으로 활성화하지 않으며 프로젝트별 지침을 대체하지 않습니다.
+
+### 마켓플레이스 프리뷰
+
+저장소에는 로컬 마켓플레이스 테스트용 미출시 프리뷰가 있습니다. Codex manifest는 `0.1.2-dev.0`을 사용하고 Claude Code manifest는 Git 기반 프리뷰 업데이트가 commit을 따르도록 고정 version을 의도적으로 생략합니다. 라우팅된 감사 및 승인 후 적용 스킬과 필요한 규칙, 템플릿, 스크립트, 마이그레이션 플레이북을 묶습니다. 플러그인을 설치해도 모든 규칙이 자동 활성화되지는 않습니다.
+
+Claude Code:
+
+```text
+/plugin marketplace add h4ckney/frontend-agent-playbook
+/plugin install frontend-agent-playbook@frontend-agent-playbook
+/reload-plugins
+```
+
+Codex:
+
+```bash
+codex plugin marketplace add h4ckney/frontend-agent-playbook --ref main
+codex plugin add frontend-agent-playbook@frontend-agent-playbook
+```
+
+Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디렉터리에서 스모크 테스트했습니다. Claude Code 패키지는 공식 문서의 marketplace schema를 기준으로 구성했지만 이 머신에는 Claude Code CLI가 없어 실제 설치는 검증하지 못했습니다. `main`은 로컬 프리뷰에만 사용하고 package가 포함된 release tag가 나온 뒤 검토한 tag에서 설치하세요. 이 프리뷰를 공개 마켓플레이스 릴리스로 설명하지 마세요.
 
 ## 이 저장소의 목적
 
@@ -73,6 +94,8 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 - [데드코드 제거 규칙](rules/dead-code.md)
 - [코드 리뷰 규칙](rules/code-review.md)
 - [강제 수단 매핑](docs/enforcement-mapping.md)
+- [Pages Router에서 App Router로의 마이그레이션 플레이북](playbooks/pages-to-app-router.md)
+- [React 18에서 React 19로의 마이그레이션 플레이북](playbooks/react-18-to-19.md)
 
 예시와 템플릿:
 
@@ -98,7 +121,7 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 
 대시보드 Markdown 내보내기에는 안정적인 finding ID와 Audit Handoff 표가 포함됩니다. 추적성을 위해 해당 ID를 제안서와 Issue 초안에 전달하되, 결함의 증거나 쓰기 승인으로 간주하지 마세요.
 
-빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트 폴더를 선택합니다. 대시보드는 관찰된 사실, 위험 추론, 정보 부족 및 제거 후보를 구분하고 결과를 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
+빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트 폴더를 선택합니다. 대시보드는 관찰된 사실, 위험 추론, 정보 부족 및 제거 후보를 구분하고 같은 원인의 finding을 위험 cluster로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
 
 ## 저장소 구조
 
@@ -109,6 +132,8 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 - `docs/`: 계획 및 프로젝트 문서
 - `scripts/`: 외부 의존성이 없는 저장소 검증 명령
 - `analysis/`: 외부 의존성이 없는 로컬 감사 대시보드 및 Markdown 보고서 생성기
+- `playbooks/`: 별도 승인된 framework 및 runtime 마이그레이션 절차
+- `plugins/`: Claude Code와 Codex marketplace catalog가 사용하는 동기화된 설치 패키지
 
 ## 출처 우선순위
 
@@ -149,7 +174,9 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 | 가이드 적용 | 메타데이터 게이트 및 대표 시나리오 검증 초안 | 승인 변경, 거절, 충돌, fingerprint 및 멱등 재실행 테스트 추가. 저장소 검사는 에이전트 책임 |
 | 규칙 라우팅 | 사용 가능한 초안 | 거버넌스 우선 작업 및 위험 라우팅 추가 |
 | 강제 수단 매핑 | 사용 가능한 초안 | compiler, lint, CI 및 수동 리뷰 경계 문서화 |
-| 감사 대시보드 | 사용 가능한 초안 | 안정적인 finding ID, handoff 제한, 로컬 검사 및 Markdown 내보내기 추가 |
+| 감사 대시보드 | 사용 가능한 초안 | 입력 budget, 부분 분석 고지, 위험 cluster, 영향 설명, 안정적인 ID, browser smoke test 및 Markdown 내보내기 추가 |
+| 마켓플레이스 패키지 | Codex 로컬 검증 프리뷰 | Claude Code와 Codex catalog 추가. 이 머신에서 Claude Code 설치는 미검증 |
+| 마이그레이션 플레이북 | 사용 가능한 초안 | 점진적 Pages-to-App 및 React 18-to-19 gate, 검증, rollback, SEO, RSC, Compiler 경계 추가. 실제 migration 검증은 미완료 |
 | 예시 | 사용 가능한 초안 | 에이전트 프롬프트, 감사, 가이드 도입 forward-test 및 프로덕션 적용 워크플로우 추가 |
 | 템플릿 | 사용 가능한 초안 | 요청, 결정, 가이드 제안 및 Issue 초안 형식 추가 |
 
@@ -161,7 +188,9 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 - 심각도 레이블을 포함한 리뷰 예시 추가
 - 추가 App Router 또는 mixed-router 실제 저장소에서 감사 스킬 forward-test
 - 구현, 리뷰, SEO 및 데드코드 작업에서 규칙 라우팅 forward-test
-- 감사 결과 UI 작업을 조금 더 모아 검증한 뒤 `v0.1.2` 태그 생성. 현재 `main`은 `v0.1.2`가 아님
+- Claude Code에서 marketplace package 설치 테스트
+- 대표 저장소에서 두 migration playbook forward-test 후 production 검증 표현 판단
+- 적대 검증을 마친 dashboard, plugin 및 migration 변경을 `v0.1.2`로 릴리스할지 결정. 현재 `main`은 `v0.1.2`가 아님
 
 ## 검증
 
@@ -169,19 +198,19 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 
 ```bash
 node scripts/validate-docs.mjs
+node scripts/sync-plugin-package.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
-node --test analysis/analyzer.test.mjs
-node --test scripts/guidance-approval.test.mjs
+node --test analysis/analyzer.test.mjs analysis/browser-smoke.test.mjs scripts/guidance-approval.test.mjs
 ```
 
-문서 검증 스크립트는 로컬 Markdown 링크, 해결되지 않은 TODO 표시, 필수 규칙 및 워크플로우 섹션, 스킬 frontmatter와 스킬 UI 메타데이터 참조를 확인합니다. GitHub Actions는 pull request와 `main` push에서 동일한 문서, analyzer 및 approval gate 검사를 실행합니다.
+문서 검증 스크립트는 로컬 Markdown 링크, 해결되지 않은 TODO 표시, 필수 규칙 및 워크플로우 섹션, 스킬 frontmatter와 스킬 UI 메타데이터 참조를 확인합니다. Package sync 검사는 설치용 plugin copy가 canonical source와 달라지는 것을 막습니다. GitHub Actions는 pull request와 `main` push에서 동일한 문서, package, analyzer, browser smoke 및 approval gate 검사를 실행합니다.
 
 ## 버전
 
 현재 안정 버전: [`v0.1.1`](https://github.com/h4ckney/frontend-agent-playbook/releases/tag/v0.1.1), commit `0970f8c` 기준
 
-`main` 브랜치에는 릴리스 이후 추가된 감사 결과 UI 명확성 개선 commit `697d53f`가 포함되어 있습니다. UI 작업을 조금 더 모아 검증하고 `v0.1.2`로 태그하기 전까지는 미출시 상태로 유지합니다.
+`main` 브랜치에는 감사 결과 UI commit `697d53f`부터 시작한 입력 budget, 위험 cluster, plugin package 및 migration playbook 후속 작업이 포함되어 있습니다. 전체 변경은 로컬 검증을 마쳤지만 `v0.1.2` release 결정과 tag 전까지는 미출시 상태입니다.
 
 ## 라이선스
 

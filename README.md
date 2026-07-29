@@ -5,11 +5,11 @@
 [![Validate](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml/badge.svg)](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Production-grade frontend playbook for Claude Code, Codex, and other AI coding agents.
+Production-oriented frontend playbook for Claude Code, Codex, and other AI coding agents.
 
 This repository defines practical rules, skills, examples, and templates for React, Next.js, TypeScript, forms, runtime validation, state ownership, design systems, styling, internationalization, bundle and dependency decisions, security, privacy, data fetching, caching, error handling, observability, accessibility, SEO, performance, testing, dead-code removal, and code review workflows.
 
-![Frontend Audit dashboard showing evidence levels, urgent recommendations, and risk areas](assets/audit-dashboard.png)
+![Frontend Audit dashboard showing evidence levels, priority review candidates, and risk areas](assets/audit-dashboard.png)
 
 ## Why Not Just Another Rules List?
 
@@ -25,7 +25,7 @@ Vendor the tagged playbook without activating every rule:
 npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-playbook
 ```
 
-`v0.1.1` is the current stable snapshot and points to commit `0970f8c`. The audit-result UI clarity update in commit `697d53f` was added to `main` after that release and is not part of `v0.1.1`. Evaluate unreleased work from `main` only when the target repository accepts it, and pin the reviewed commit before production adoption.
+`v0.1.1` is the current stable snapshot and points to commit `0970f8c`. Post-release work starting with commit `697d53f` is available only on `main` and is not part of `v0.1.1`. Evaluate unreleased work from `main` only when the target repository accepts it, and pin the reviewed commit before production adoption.
 
 Add the smallest entry point to the target repository's `AGENTS.md`:
 
@@ -40,6 +40,27 @@ Add the smallest entry point to the target repository's `AGENTS.md`:
 ```
 
 This copies the playbook as reference material. It does not make every vendored rule active and does not replace project-specific instructions.
+
+### Marketplace Preview
+
+The repository now contains an unreleased marketplace preview for local testing. The Codex manifest uses `0.1.2-dev.0`; the Claude Code manifest intentionally omits a fixed version so Git-based preview updates follow commits. The package includes the routed audit and approved-application skills with their rules, templates, scripts, and migration playbooks. Installing the plugin does not make every rule active.
+
+Claude Code:
+
+```text
+/plugin marketplace add h4ckney/frontend-agent-playbook
+/plugin install frontend-agent-playbook@frontend-agent-playbook
+/reload-plugins
+```
+
+Codex:
+
+```bash
+codex plugin marketplace add h4ckney/frontend-agent-playbook --ref main
+codex plugin add frontend-agent-playbook@frontend-agent-playbook
+```
+
+The Codex local marketplace add and install path has been smoke-tested in an isolated configuration directory. Claude Code packaging is structured from its documented marketplace schema but has not been installed on this machine because the Claude Code CLI is unavailable. Use `main` only for local preview, then install from a reviewed release tag once one includes the package. Do not present this preview as a public marketplace release.
 
 ## What This Is
 
@@ -73,6 +94,8 @@ Available rules:
 - [Dead-code removal rules](rules/dead-code.md)
 - [Code review rules](rules/code-review.md)
 - [Enforcement mapping](docs/enforcement-mapping.md)
+- [Pages Router to App Router migration playbook](playbooks/pages-to-app-router.md)
+- [React 18 to React 19 migration playbook](playbooks/react-18-to-19.md)
 
 Then use the examples and templates:
 
@@ -96,7 +119,7 @@ After an owner approves named proposal IDs, use [Apply Frontend Guidance](skills
 The dependency-free [guidance approval gate](scripts/guidance-approval.mjs) compares supplied approval metadata for repository identity, proposal status, material scope, exact target paths, dependencies, enforcement, content fingerprints, conflicts, and idempotent reruns before application. It does not inspect repository ownership or compute target-file fingerprints; the applying agent must gather and verify those inputs.
 Dashboard Markdown exports include stable finding IDs and an Audit Handoff table. Carry those IDs into proposals and Issue drafts for traceability, but do not treat them as defect proof or write approval.
 
-For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html) and select a project folder. It separates observed facts, risk inferences, information gaps, and removal candidates, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
+For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html) and select a project folder. It separates observed facts, risk inferences, information gaps, and removal candidates, groups findings with the same root cause into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
 
 ## Repository Structure
 
@@ -107,6 +130,8 @@ For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html)
 - `docs/`: Planning and project documentation
 - `scripts/`: Dependency-free repository validation commands
 - `analysis/`: Dependency-free local audit dashboard and Markdown report generator
+- `playbooks/`: Separately approved framework and runtime migration procedures
+- `plugins/`: Synchronized installable package used by the Claude Code and Codex marketplace catalogs
 
 ## Source Priorities
 
@@ -147,7 +172,9 @@ Existing patterns do not justify preserving known correctness, security, or acce
 | Guidance Application | Metadata-gated and representative-tested draft | Approval drift, rejection, conflict, fingerprint, and idempotent rerun tests added; repository inspection remains agent-owned |
 | Rule Routing | Usable draft | Governance-first task and risk routing added |
 | Enforcement Mapping | Usable draft | Compiler, lint, CI, and manual-review boundaries documented |
-| Audit Dashboard | Usable draft | Stable finding IDs, handoff limitations, local scan, and Markdown export added |
+| Audit Dashboard | Usable draft | Input budgets, partial-analysis disclosure, risk clusters, impact narratives, stable IDs, browser smoke test, and Markdown export added |
+| Marketplace Package | Codex-local-tested preview | Claude Code and Codex catalogs added; Claude Code install remains unverified on this machine |
+| Migration Playbooks | Usable draft | Incremental Pages-to-App and React 18-to-19 gates, verification, rollback, SEO, RSC, and Compiler boundaries added; live migration validation remains pending |
 | Examples | Usable draft | Agent prompts, audits, guidance adoption forward-test, and production application workflow added |
 | Templates | Usable draft | Request, decision, guidance proposal, and issue draft formats added |
 
@@ -159,7 +186,9 @@ Existing patterns do not justify preserving known correctness, security, or acce
 - Add review examples with severity labels.
 - Forward-test the audit skill against an additional live App Router or mixed-router repository.
 - Forward-test rule routing against implementation, review, SEO, and dead-code tasks.
-- Batch and validate additional audit-result UI work before tagging `v0.1.2`; the current `main` branch is not `v0.1.2`.
+- Install-test the marketplace package with Claude Code.
+- Forward-test both migration playbooks against representative repositories before calling them production-validated.
+- Decide whether to release the adversarially reviewed dashboard, plugin, and migration work as `v0.1.2`; the current `main` branch is not `v0.1.2`.
 
 ## Validation
 
@@ -167,19 +196,19 @@ Run the dependency-free validation commands before committing changes:
 
 ```bash
 node scripts/validate-docs.mjs
+node scripts/sync-plugin-package.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
-node --test analysis/analyzer.test.mjs
-node --test scripts/guidance-approval.test.mjs
+node --test analysis/analyzer.test.mjs analysis/browser-smoke.test.mjs scripts/guidance-approval.test.mjs
 ```
 
-The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, and skill UI metadata references. GitHub Actions runs the same documentation, analyzer, and approval-gate checks for pull requests and pushes to `main`.
+The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, and skill UI metadata references. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, and approval-gate checks for pull requests and pushes to `main`.
 
 ## Version
 
 Current stable release: [`v0.1.1`](https://github.com/h4ckney/frontend-agent-playbook/releases/tag/v0.1.1), pointing to commit `0970f8c`.
 
-The `main` branch includes the post-release audit-result UI clarity update from commit `697d53f`. It will remain unreleased until more UI work is batched, validated, and tagged as `v0.1.2`.
+The `main` branch includes post-release work starting with audit-result UI commit `697d53f`, followed by input-budget, risk-cluster, plugin-packaging, and migration-playbook changes. The combined work has local validation but remains unreleased pending the `v0.1.2` release decision and tag.
 
 ## License
 

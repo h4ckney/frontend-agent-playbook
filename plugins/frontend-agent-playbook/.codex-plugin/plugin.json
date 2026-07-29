@@ -1,0 +1,38 @@
+{
+  "name": "frontend-agent-playbook",
+  "version": "0.1.2-dev.0",
+  "description": "Version-aware frontend audit and approved-guidance workflows for AI coding agents.",
+  "author": {
+    "name": "h4ckney",
+    "url": "https://github.com/h4ckney"
+  },
+  "homepage": "https://github.com/h4ckney/frontend-agent-playbook",
+  "repository": "https://github.com/h4ckney/frontend-agent-playbook",
+  "license": "MIT",
+  "keywords": [
+    "frontend",
+    "react",
+    "nextjs",
+    "typescript",
+    "code-review"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Frontend Agent Playbook",
+    "shortDescription": "Audit frontend guidance before applying it.",
+    "longDescription": "Audit React, Next.js, and TypeScript repositories with version-aware rules, risk synthesis, and an explicit approval gate before project guidance is written.",
+    "developerName": "h4ckney",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/h4ckney/frontend-agent-playbook",
+    "defaultPrompt": [
+      "Audit this frontend repository and propose up to three evidence-backed priorities.",
+      "Check whether these frontend rules conflict with the current codebase.",
+      "Apply only the approved frontend guidance proposal."
+    ],
+    "brandColor": "#317D60"
+  }
+}
