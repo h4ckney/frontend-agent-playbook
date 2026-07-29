@@ -94,6 +94,7 @@ Available rules:
 - [Dead-code removal rules](rules/dead-code.md)
 - [Code review rules](rules/code-review.md)
 - [Enforcement mapping](docs/enforcement-mapping.md)
+- [Analyzer v0.2 design](docs/analyzer-v0.2-design.md)
 - [Pages Router to App Router migration playbook](playbooks/pages-to-app-router.md)
 - [React 18 to React 19 migration playbook](playbooks/react-18-to-19.md)
 

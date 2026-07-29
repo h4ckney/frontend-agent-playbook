@@ -94,6 +94,7 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 - [데드코드 제거 규칙](rules/dead-code.md)
 - [코드 리뷰 규칙](rules/code-review.md)
 - [강제 수단 매핑](docs/enforcement-mapping.md)
+- [Analyzer v0.2 설계](docs/analyzer-v0.2-design.md)
 - [Pages Router에서 App Router로의 마이그레이션 플레이북](playbooks/pages-to-app-router.md)
 - [React 18에서 React 19로의 마이그레이션 플레이북](playbooks/react-18-to-19.md)
 
