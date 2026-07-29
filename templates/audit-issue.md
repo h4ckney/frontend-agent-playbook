@@ -18,6 +18,11 @@ Use a concise, action-oriented title that does not state an inference or informa
 
 Describe the affected user, product, security, operational, or maintenance outcome. Explain why this belongs in the backlog instead of an immediate direct fix.
 
+- Affected user or system:
+- Affected journey or operation:
+- Plausible impact:
+- Why this priority is justified:
+
 ## Evidence
 
 | Evidence status | Evidence | Scope | Limitation |
@@ -26,6 +31,13 @@ Describe the affected user, product, security, operational, or maintenance outco
 
 Use minimal paths and configuration references. Do not include environment values, secrets, personal data, private payloads, or full source excerpts.
 Retain stable finding IDs from the dashboard or repository-aware audit. IDs provide traceability only and do not prove a defect or authorize publication.
+
+## Risk Conditions And Controls
+
+- Conditions that increase likelihood or impact:
+- Existing controls that may reduce likelihood or impact:
+- Cheapest next verification:
+- Evidence still needed:
 
 ## Scope
 

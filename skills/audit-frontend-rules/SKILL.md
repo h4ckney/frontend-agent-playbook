@@ -18,10 +18,11 @@ Audit shared guidance against project evidence before recommending that it be ap
 7. Identify contradictions, obsolete APIs, unjustified absolutes, duplicate instructions, and changes that would introduce disproportionate complexity.
 8. Assess only risk domains supported by the task or repository evidence. Load their rule files on demand.
 9. Assess unit, component, integration, and E2E gaps according to risk and the existing toolchain.
-10. Recommend zero to three urgent changes. Do not fill the list when fewer issues are urgent.
-11. Propose zero or more guidance artifacts using `../../templates/guidance-proposal.md`. Include `No artifact needed` when an existing rule or direct fix is sufficient.
-12. Draft follow-up issues only for accepted or explicitly requested work using `../../templates/audit-issue.md` when available. Do not publish them.
-13. Propose decision-file additions, updates, or removals using `../../templates/frontend-rules-decisions.md`. Write them only when the user requested persistence or approved repository changes.
+10. Synthesize related findings by root cause and user journey. Convert dashboard priority candidates into urgent recommendations only after repository evidence supports the impact and timing.
+11. Recommend zero to three urgent changes. Do not fill the list when fewer issues are urgent.
+12. Propose zero or more guidance artifacts using `../../templates/guidance-proposal.md`. Include `No artifact needed` when an existing rule or direct fix is sufficient.
+13. Draft follow-up issues only for accepted or explicitly requested work using `../../templates/audit-issue.md` when available. Do not publish them.
+14. Propose decision-file additions, updates, or removals using `../../templates/frontend-rules-decisions.md`. Write them only when the user requested persistence or approved repository changes.
 
 ## Guidance Proposals
 
@@ -72,6 +73,7 @@ Audit shared guidance against project evidence before recommending that it be ap
 - Identify the React version and framework-managed RSC integration. Distinguish RSC, SSR, and client rendering instead of inferring support from React semver alone.
 - Map required TypeScript syntax and inference features to the installed compiler version. Recommend a compatible upgrade before proposing complex workarounds for missing literal-preserving features.
 - Inspect React Hooks ESLint configuration. Do not report Effect dependency preferences as findings without an enabled rule or demonstrated synchronization bug.
+- Treat Pages-to-App Router and React 18-to-19 work as separately approved migrations. When in scope and available, load `../../playbooks/pages-to-app-router.md` or `../../playbooks/react-18-to-19.md`; never infer migration approval from ordinary feature work.
 
 ## Evidence Rules
 
@@ -82,6 +84,17 @@ Audit shared guidance against project evidence before recommending that it be ap
 - Mark deletion candidates; do not delete or disable shared rules or skills without explicit approval.
 - Prefer a project-specific exception over weakening a generally useful shared rule.
 - Do not propose a new library, abstraction, or test tier without identifying the risk it addresses.
+
+## Risk Synthesis
+
+- Treat dashboard output as static triage evidence. `Priority Review Candidate` does not mean confirmed defect, urgent work, security vulnerability, or release blocker.
+- Group findings that share one root cause, trust boundary, owner, or user journey. Do not inflate priority by counting the same cause once per file or rule.
+- For each material cluster, state the observed fact, conditional risk hypothesis, possible user or system impact, risk-increasing conditions, existing controls that could lower risk, and the cheapest next verification.
+- Trace the affected user journey and blast radius before assigning urgency. Name the user, operation, data, route, or operational process that can fail.
+- Separate likelihood from impact. Missing evidence raises an information gap; it does not prove high likelihood.
+- Prefer a verification step over a fix when trust boundaries, runtime behavior, ownership, or deployment controls remain unknown.
+- Mark an item urgent only when evidence supports both material impact and a reason it should precede normal backlog work.
+- Keep urgent recommendations at zero to three after clustering. The dashboard may show up to three static candidates even when the repository-aware audit has zero urgent recommendations.
 
 ## Testing Assessment
 
@@ -194,6 +207,6 @@ Always use these core sections:
 
 Add Forms Or Runtime Validation Risks, State Ownership Risks, Design System Or Styling Risks, Internationalization Risks, Bundle Or Dependency Risks, Security Or Privacy Risks, Data Fetching Or Cache Risks, Error Handling Or Observability Risks, SEO Risks, Dead Code Candidates, Performance Risks, or Accessibility Risks only when that domain was selected or the user requested a full matrix. Record unselected domains under Selected Guidance; do not describe an unassessed domain as having no finding.
 
-For each urgent recommendation, include evidence, impact, the smallest practical change, and verification. State explicitly when no urgent recommendation or removal candidate exists.
+For each urgent recommendation, include source cluster and finding IDs, observed fact, risk hypothesis, affected journey, plausible impact, risk-increasing conditions, mitigating controls, the reason for urgency, the smallest practical change, and verification. State explicitly when no urgent recommendation or removal candidate exists.
 
 Issue Drafts may be omitted when no follow-up work was accepted or requested. Guidance Proposals must still state when no new artifact is justified.

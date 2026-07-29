@@ -17,7 +17,7 @@ Create only the project guidance that an owner explicitly approved. Read [Applic
 - Validation and recheck requirements
 
 If any required input is missing, remain read-only and request the missing decision. When only path-proposal permission exists, propose exact files and stop for file-level approval. Do not infer approval from an audit recommendation, accepted urgent finding, or existing draft.
-When this playbook's scripts are available, inspect the target repository, compute SHA-256 fingerprints from the reviewed content and current artifacts, model those facts as JSON, and run `node scripts/guidance-approval.mjs <approval-request.json>` before writing. The script compares supplied metadata; it does not establish ownership, inspect files, or grant approval. Treat a blocked result as a stop condition and `noop` as a successful idempotent rerun.
+When this playbook's scripts are available, inspect the target repository, compute SHA-256 fingerprints from the reviewed content and current artifacts, model those facts as JSON, and run `node <playbook-root>/scripts/guidance-approval.mjs <approval-request.json>` before writing. Resolve `<playbook-root>` from the vendored or installed plugin location; do not assume the target repository contains this script. The script compares supplied metadata; it does not establish ownership, inspect files, or grant approval. Treat a blocked result as a stop condition and `noop` as a successful idempotent rerun.
 
 ## Workflow
 

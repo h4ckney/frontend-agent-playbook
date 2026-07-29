@@ -38,6 +38,8 @@ Choose the smallest useful set, normally two to four files.
 | Bug fix or regression | `testing.md`, plus the domain rule for the failure |
 | Code review | `code-review.md`, plus rules for the changed surface |
 | Type boundary or compiler change | `typescript.md` |
+| Pages Router to App Router migration | `nextjs.md`, `playbooks/pages-to-app-router.md` |
+| React 18 to React 19 migration | `react.md`, `typescript.md`, `playbooks/react-18-to-19.md` |
 
 ### Tier 2: Risk Triggered
 
@@ -81,6 +83,7 @@ Open official version-matched documentation and repository-specific instructions
 - Do not load dead-code rules for ordinary refactoring unless removal is in scope.
 - Do not load a new test tier solely because testing guidance exists.
 - Do not load every rule to produce a general review. Start from changed files and demonstrated risk.
+- Do not load or apply a migration playbook during an unrelated feature, bug fix, SEO correction, or dependency update.
 
 ## Selection Record
 

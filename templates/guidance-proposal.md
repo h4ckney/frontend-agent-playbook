@@ -16,6 +16,10 @@ Use one copy of this template for each material proposal. A proposal is not appr
 - Evidence:
 - Affected scope:
 - User or product impact:
+- Risk-increasing conditions:
+- Existing controls:
+- Cheapest next verification:
+- Urgency reason, or why this is not urgent:
 
 ## Existing Coverage
 
