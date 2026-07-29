@@ -6,9 +6,12 @@ const require = createRequire(import.meta.url);
 const {
   analyzeRecords,
   buildMarkdown,
+  createRiskClusters,
   createAuditResult,
+  fileExclusionReason,
   isAnalyzableFile,
-  selectUrgentFindings
+  selectFilesWithinBudget,
+  selectPriorityCandidates
 } = require("./analyzer.js");
 
 function record(path, content) {
@@ -83,6 +86,32 @@ test("excludes environment, generated, build, binary-like, and oversized files",
   assert.equal(isAnalyzableFile({ name: "image.png", size: 10 }), false);
   assert.equal(isAnalyzableFile({ name: "large.ts", size: 500_001 }), false);
   assert.equal(isAnalyzableFile({ name: "app.ts", size: 10 }), true);
+  assert.equal(fileExclusionReason({ name: ".env", size: 10 }), "environment");
+  assert.equal(fileExclusionReason({ name: "image.png", size: 10 }), "unsupported-type");
+});
+
+test("caps file count before reading and marks the result partial", () => {
+  const files = Array.from({ length: 4_001 }, (_, index) => ({
+    name: "file-" + index + ".ts",
+    size: 1
+  }));
+  const selection = selectFilesWithinBudget(files);
+
+  assert.equal(selection.accepted.length, 4_000);
+  assert.equal(selection.excludedByReason["input-budget"], 1);
+  assert.equal(selection.budgetExceeded, true);
+  assert.equal(selection.coverageIncomplete, true);
+});
+
+test("marks oversized source exclusion as incomplete coverage", () => {
+  const selection = selectFilesWithinBudget([
+    { name: "large.ts", size: 500_001 },
+    { name: "small.ts", size: 10 }
+  ]);
+
+  assert.equal(selection.accepted.length, 1);
+  assert.equal(selection.excludedByReason.oversized, 1);
+  assert.equal(selection.coverageIncomplete, true);
 });
 
 test("does not treat metadata documentation as a Next.js metadata implementation", () => {
@@ -111,7 +140,7 @@ test("marks dead code only as a removal candidate", () => {
 
   assert.equal(deadCode.evidenceLevel, "candidate");
   assert.match(deadCode.recommendation, /삭제 승인이 아닙니다/);
-  assert.deepEqual(selectUrgentFindings(findings), []);
+  assert.deepEqual(selectPriorityCandidates(findings), []);
 });
 
 test("uses stable grouped finding IDs across paths and occurrence counts", () => {
@@ -134,6 +163,31 @@ test("uses stable grouped finding IDs across paths and occurrence counts", () =>
 
   assert.deepEqual(firstIds, secondIds);
   assert.equal(new Set(first.map((finding) => finding.id)).size, first.length);
+});
+
+test("groups related findings into one priority candidate with impact context", () => {
+  const findings = analyzeRecords([
+    record("package.json", JSON.stringify({ scripts: { test: "vitest" } })),
+    record("src/content.tsx", "<div dangerouslySetInnerHTML={{ __html: value }} />"),
+    record("tests/content.test.tsx", "export {};"),
+    record("e2e/smoke.spec.ts", "export {};")
+  ]);
+  const clusters = createRiskClusters(findings);
+  const htmlCluster = clusters.find((cluster) => cluster.id === "security.html-rendering-boundary");
+  const candidates = selectPriorityCandidates(findings);
+
+  assert.ok(htmlCluster);
+  assert.deepEqual(htmlCluster.findingIds, [
+    "security.html-sink-boundary",
+    "security.html-trust-boundary-unknown"
+  ]);
+  assert.match(htmlCluster.whyRisky, /DOM/);
+  assert.match(htmlCluster.possibleImpact, /사용자/);
+  assert.match(htmlCluster.verification, /입력 경로/);
+  assert.equal(candidates.filter((candidate) => candidate.id === htmlCluster.id).length, 1);
+  assert.equal(selectPriorityCandidates(findings, "gap").some(
+    (candidate) => candidate.id === htmlCluster.id
+  ), true);
 });
 
 test("rejects duplicate finding IDs in one audit result", () => {
@@ -169,7 +223,13 @@ test("Markdown contains limitations and paths but no source contents", () => {
   assert.match(output, /Files selected: 7/);
   assert.match(output, /Files inspected: 4/);
   assert.match(output, /Files excluded: 3/);
+  assert.match(output, /Bytes inspected: 0/);
+  assert.match(output, /Analysis completeness: within configured/);
   assert.match(output, /Automated detection areas: framework version and router context/);
+  assert.match(output, /## Priority Review Candidates/);
+  assert.match(output, /Why it may matter:/);
+  assert.match(output, /Possible impact:/);
+  assert.match(output, /Cheapest next verification:/);
   assert.match(output, /## Project Context Findings/);
   assert.match(output, /Manual review remains required: accessibility/);
   assert.match(output, /src\/storage.ts/);
@@ -189,7 +249,10 @@ test("defaults audit scope to inspected files for existing callers", () => {
   assert.deepEqual(result.scope, {
     selected: 4,
     analyzed: 4,
-    excluded: 0
+    excluded: 0,
+    analyzedBytes: 0,
+    excludedByReason: {},
+    partial: false
   });
   assert.equal(result.fileCount, 4);
 });
@@ -205,4 +268,18 @@ test("escapes paths before placing them in the Markdown handoff table", () => {
   const handoff = output.slice(output.indexOf("## Audit Handoff"));
 
   assert.match(handoff, /src\/weird\\\|name\.ts/);
+});
+
+test("prevents project names and evidence paths from injecting Markdown sections", () => {
+  const findings = analyzeRecords([
+    record("package.json", JSON.stringify({ scripts: { test: "vitest" } })),
+    record("src/\n## Injected/file.ts", 'localStorage.setItem("token", value)'),
+    record("tests/storage.test.ts", "export {};"),
+    record("e2e/smoke.spec.ts", "export {};")
+  ]);
+  const output = buildMarkdown(createAuditResult("fixture\n## Injected", findings, 4, "test"));
+
+  assert.doesNotMatch(output, /\n## Injected/);
+  assert.match(output, /fixture ## Injected/);
+  assert.match(output, /src\/ ## Injected\/file\.ts/);
 });

@@ -9,7 +9,12 @@ const SKIPPED_SEGMENTS = [
 const GENERATED_FILE_PATTERN = /(^|\/)(?:__generated__|generated)(\/|$)|\.(?:generated|gen)\.[^.]+$/i;
 const ENV_FILE_PATTERN = /(^|\/)\.env(?:\..+)?$/i;
 const SOURCE_FILE_PATTERN = /\.(?:js|jsx|ts|tsx|mjs|cjs)$/i;
-const MAX_FILE_SIZE = 500_000;
+const analysisLimits = Object.freeze({
+  maxFileSize: 500_000,
+  maxFileCount: 4_000,
+  maxTotalBytes: 25_000_000,
+  readConcurrency: 8
+});
 
 const evidenceLevels = {
   observed: "관찰된 사실",
@@ -23,17 +28,209 @@ const evidenceLimitations = {
   unknown: "정적 분석 범위 밖의 설정, 데이터 출처 또는 런타임 확인이 필요함",
   candidate: "참조와 부작용 검증 전에는 삭제할 수 없음"
 };
+const decisionLabels = {
+  "act-now": "즉시 조치",
+  "verify-first": "먼저 검증",
+  observe: "관찰",
+  "information-gap": "정보 부족"
+};
+const riskNarratives = {
+  "rules.package-json-invalid": {
+    clusterId: "context.package-integrity",
+    clusterTitle: "프로젝트 패키지 정보 복구",
+    whyRisky: "패키지 정보를 읽지 못하면 프레임워크 버전과 사용 가능한 검증 명령을 잘못 판단할 수 있습니다.",
+    possibleImpact: "잘못된 버전 규칙 적용, 설치·빌드 실패 또는 감사 범위 누락으로 이어질 수 있습니다.",
+    riskFactors: "실제 package.json 구문 오류이거나 이 파일이 활성 workspace package인 경우",
+    mitigatingControls: "다른 유효한 workspace package가 분석 대상이고 손상된 파일이 비활성 fixture인 경우",
+    verification: "해당 파일을 JSON parser와 프로젝트 package manager로 확인합니다.",
+    decision: "act-now"
+  },
+  "security.html-sink-boundary": {
+    clusterId: "security.html-rendering-boundary",
+    clusterTitle: "HTML 렌더링 신뢰경계 확인",
+    whyRisky: "정제되지 않은 외부 HTML이 애플리케이션 origin에서 DOM으로 해석되면 공격자 제어 마크업이 실행 문맥에 들어올 수 있습니다.",
+    possibleImpact: "사용자 화면 변조, 사용자 권한으로의 요청 유도 또는 브라우저에서 접근 가능한 데이터 노출 가능성이 있습니다.",
+    riskFactors: "사용자·광고·외부 CMS 입력, 서버 정제 계약 부재, CSP 또는 Trusted Types 부재",
+    mitigatingControls: "고정된 신뢰 콘텐츠, 검증된 서버 정제, 단일 SafeHtml 경계, 효과적인 CSP 또는 Trusted Types",
+    verification: "대표 입력 경로를 출처부터 sink까지 추적하고 악성 마크업 fixture와 응답 보안 헤더를 확인합니다.",
+    decision: "verify-first"
+  },
+  "security.html-trust-boundary-unknown": {
+    clusterId: "security.html-rendering-boundary",
+    clusterTitle: "HTML 렌더링 신뢰경계 확인",
+    whyRisky: "입력 출처와 서버 정제 여부를 모르면 HTML sink의 실제 노출도를 판단할 수 없습니다.",
+    possibleImpact: "위험한 경로를 안전하다고 넘기거나 신뢰된 콘텐츠까지 불필요하게 긴급 수정할 수 있습니다.",
+    riskFactors: "제3자·사용자 입력 여부와 backend contract가 문서화되지 않은 경우",
+    mitigatingControls: "소유자가 확인한 신뢰경계와 반복 가능한 정제 검증이 있는 경우",
+    verification: "콘텐츠 소유자, backend contract와 대표 runtime payload의 정제 상태를 확인합니다.",
+    decision: "information-gap"
+  },
+  "security.browser-auth-storage": {
+    clusterId: "security.browser-auth-storage",
+    clusterTitle: "브라우저 인증정보 저장 경계 확인",
+    whyRisky: "JavaScript가 읽을 수 있는 장기 인증정보는 같은 origin에서 실행된 악성 코드나 XSS에 노출될 수 있습니다.",
+    possibleImpact: "세션 탈취, 사용자 사칭 또는 인증정보 재사용 가능성이 있습니다.",
+    riskFactors: "실제 access·refresh token 저장, 긴 만료, 광범위한 script 실행 권한",
+    mitigatingControls: "UI 상태용 이름만 유사한 값, 짧은 수명, 서버 관리 세션과 제한된 cookie 정책",
+    verification: "저장되는 실제 값의 의미와 수명, 소비 지점, 로그아웃·계정 전환 동작을 확인합니다.",
+    decision: "verify-first"
+  },
+  "security.postmessage-wildcard-origin": {
+    clusterId: "security.cross-window-origin",
+    clusterTitle: "교차 window 메시지 origin 제한",
+    whyRisky: "와일드카드 대상은 의도하지 않은 window가 메시지를 받을 가능성을 넓힙니다.",
+    possibleImpact: "메시지에 포함된 상태나 식별자가 다른 origin으로 전달될 수 있습니다.",
+    riskFactors: "민감한 payload, opener·iframe 교체 가능성, 수신 측 origin 검증 부재",
+    mitigatingControls: "비민감 broadcast와 수신 측의 엄격한 origin·schema 검증",
+    verification: "발신 payload와 대상 window lifecycle을 확인하고 송수신 양쪽 origin 검증을 테스트합니다.",
+    decision: "verify-first"
+  },
+  "rules.mixed-next-router": {
+    clusterId: "context.router-model",
+    clusterTitle: "혼합 Router 운영 경계 확인",
+    whyRisky: "App Router와 Pages Router는 metadata, data fetching, cache와 rendering 규칙이 다릅니다.",
+    possibleImpact: "한 route tree의 규칙을 다른 tree에 적용해 동작·SEO·cache 회귀를 만들 수 있습니다.",
+    riskFactors: "공유 모듈이 두 tree의 server/client 가정을 섞거나 migration ownership이 없는 경우",
+    mitigatingControls: "route tree별 소유권, 테스트와 명시된 migration 경계",
+    verification: "변경 대상 URL을 route tree에 매핑하고 해당 tree의 build·rendering·metadata 동작을 확인합니다.",
+    decision: "verify-first"
+  },
+  "rules.pre-react-18-version-branch": {
+    clusterId: "context.react-version",
+    clusterTitle: "React 버전별 규칙 분기",
+    whyRisky: "새 렌더링 모델과 API를 이전 React 환경에 적용하면 지원되지 않는 동작을 전제할 수 있습니다.",
+    possibleImpact: "빌드 실패, hydration 차이 또는 불필요한 마이그레이션이 발생할 수 있습니다.",
+    riskFactors: "framework integration 확인 없이 RSC·concurrent API를 권고하는 경우",
+    mitigatingControls: "현재 렌더링 모델을 유지하고 호환되는 규칙 subset만 선택한 경우",
+    verification: "React와 renderer 버전, framework integration, 실제 root API를 확인합니다.",
+    decision: "verify-first"
+  },
+  "testing.test-foundation-missing": {
+    clusterId: "testing.regression-safety-net",
+    clusterTitle: "회귀 검증 기반 확인",
+    whyRisky: "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
+    possibleImpact: "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다.",
+    riskFactors: "빈번한 변경, 복잡한 상태 전이, 성숙한 CI 대비 test command 부재",
+    mitigatingControls: "상위 workspace나 외부 CI에서 검증하며 선택 폴더만으로는 보이지 않는 경우",
+    verification: "workspace root, CI와 실제 변경 경로의 test command 및 최근 실행 결과를 확인합니다.",
+    decision: "verify-first"
+  },
+  "testing.e2e-path-missing": {
+    clusterId: "testing.critical-journeys",
+    clusterTitle: "고위험 사용자 여정 검증",
+    whyRisky: "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 routing, auth, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+    possibleImpact: "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다.",
+    riskFactors: "고위험 다단계 여정이 존재하고 대체 integration 또는 synthetic 검증도 없는 경우",
+    mitigatingControls: "해당 제품에 고위험 여정이 없거나 다른 계층의 반복 가능한 전체 경로 검증이 있는 경우",
+    verification: "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다.",
+    decision: "verify-first"
+  },
+  "seo.next-metadata-missing": {
+    clusterId: "seo.indexability-baseline",
+    clusterTitle: "공개 URL의 검색 노출 계약 확인",
+    whyRisky: "렌더링된 metadata를 찾지 못하면 검색 엔진과 공유 미리보기가 페이지 의도를 일관되게 해석하지 못할 수 있습니다.",
+    possibleImpact: "잘못된 title·canonical, 중복 URL 또는 검색 노출 저하 가능성이 있습니다.",
+    riskFactors: "공개 indexable route이며 metadata가 runtime 외부에서 주입되지 않는 경우",
+    mitigatingControls: "비공개 route, upstream rendering 또는 별도 검증된 metadata 계층",
+    verification: "대표 공개 URL의 최종 HTML에서 title, description, canonical과 status를 확인합니다.",
+    decision: "verify-first"
+  },
+  "seo.sitemap-missing": {
+    clusterId: "seo.indexability-baseline",
+    clusterTitle: "공개 URL의 검색 노출 계약 확인",
+    whyRisky: "대규모 또는 깊은 공개 URL은 sitemap 부재 시 발견과 갱신 신호가 약해질 수 있습니다.",
+    possibleImpact: "일부 공개 URL의 발견 또는 갱신이 지연될 수 있습니다.",
+    riskFactors: "동적·대규모 URL, 내부 링크가 약한 페이지, 잦은 URL 변경",
+    mitigatingControls: "작고 강하게 연결된 사이트이거나 외부 sitemap 서비스가 있는 경우",
+    verification: "공개 URL inventory와 실제 배포된 sitemap 위치·내용을 확인합니다.",
+    decision: "verify-first"
+  },
+  "seo.robots-missing": {
+    clusterId: "seo.indexability-baseline",
+    clusterTitle: "공개 URL의 검색 노출 계약 확인",
+    whyRisky: "환경별 crawling 의도가 명시되지 않으면 preview 또는 제한 URL이 예상과 다르게 노출될 수 있습니다.",
+    possibleImpact: "불필요한 crawling, preview 노출 또는 운영 URL의 차단 가능성이 있습니다.",
+    riskFactors: "preview·production host가 분리되고 별도 edge 설정이 확인되지 않은 경우",
+    mitigatingControls: "플랫폼이나 edge 계층에서 검증된 robots 정책을 제공하는 경우",
+    verification: "production과 preview host의 실제 robots 응답과 meta robots를 확인합니다.",
+    decision: "verify-first"
+  },
+  "dead-code.marked-removal-candidate": {
+    clusterId: "dead-code.removal-candidates",
+    clusterTitle: "표시된 제거 후보 검증",
+    whyRisky: "오래된 코드 표시는 유지보수 비용 신호지만 실제 참조와 부작용을 증명하지 않습니다.",
+    possibleImpact: "방치하면 탐색 비용이 늘고, 성급히 삭제하면 동적 경로나 공개 API가 깨질 수 있습니다.",
+    riskFactors: "만료된 flag·adapter이며 owner와 runtime 사용이 확인되지 않는 경우",
+    mitigatingControls: "호환성 계약이나 예정된 migration 때문에 의도적으로 유지되는 경우",
+    verification: "정적·동적 참조, export, side effect, telemetry와 owner를 확인합니다.",
+    decision: "observe"
+  },
+  "observability.console-only-catch": {
+    clusterId: "observability.error-recovery",
+    clusterTitle: "오류 복구와 진단 경로 확인",
+    whyRisky: "console 출력만으로 끝나는 오류는 사용자 복구 상태와 운영 진단에 연결되지 않을 수 있습니다.",
+    possibleImpact: "사용자는 실패 이유나 재시도 경로를 잃고 운영자는 반복 장애를 추적하지 못할 수 있습니다.",
+    riskFactors: "중요 mutation·결제·인증 경로이며 상위 error boundary나 logger가 없는 경우",
+    mitigatingControls: "상위 계층이 오류를 처리하고 기존 telemetry가 자동 수집하는 경우",
+    verification: "호출 계층의 error boundary, 사용자 상태, logger와 alert 연결을 확인합니다.",
+    decision: "verify-first"
+  },
+  "rules.framework-version-unknown": {
+    clusterId: "context.framework-version",
+    clusterTitle: "프레임워크 컨텍스트 확보",
+    whyRisky: "버전과 실행 모델을 모르면 적용 가능한 규칙과 API를 신뢰성 있게 선택할 수 없습니다.",
+    possibleImpact: "잘못된 router·RSC·TypeScript 가정을 바탕으로 과도하거나 호환되지 않는 권고가 나올 수 있습니다.",
+    riskFactors: "모노레포 하위 폴더만 선택했거나 package 정보가 별도 위치에 있는 경우",
+    mitigatingControls: "사용자가 버전과 실행 모델을 별도 근거로 제공한 경우",
+    verification: "활성 workspace package와 lockfile, framework config를 포함해 다시 선택합니다.",
+    decision: "information-gap"
+  }
+};
 
-function isAnalyzableFile(file) {
+function fileExclusionReason(file) {
   const path = "/" + (file.webkitRelativePath || file.path || file.name || "");
   const name = file.name || path.split("/").pop() || "";
   const extension = name.includes(".") ? name.split(".").pop().toLowerCase() : "";
 
-  return file.size <= MAX_FILE_SIZE
-    && TEXT_EXTENSIONS.has(extension)
-    && !ENV_FILE_PATTERN.test(path)
-    && !GENERATED_FILE_PATTERN.test(path)
-    && !SKIPPED_SEGMENTS.some((segment) => path.includes(segment));
+  if (ENV_FILE_PATTERN.test(path)) return "environment";
+  if (GENERATED_FILE_PATTERN.test(path)) return "generated";
+  if (SKIPPED_SEGMENTS.some((segment) => path.includes(segment))) return "excluded-path";
+  if (!TEXT_EXTENSIONS.has(extension)) return "unsupported-type";
+  if (file.size > analysisLimits.maxFileSize) return "oversized";
+  return null;
+}
+
+function isAnalyzableFile(file) {
+  return fileExclusionReason(file) === null;
+}
+
+function selectFilesWithinBudget(files) {
+  const accepted = [];
+  const excludedByReason = {};
+  let acceptedBytes = 0;
+
+  for (const file of files) {
+    let reason = fileExclusionReason(file);
+    if (!reason && accepted.length >= analysisLimits.maxFileCount) reason = "input-budget";
+    if (!reason && acceptedBytes + file.size > analysisLimits.maxTotalBytes) reason = "input-budget";
+
+    if (reason) {
+      excludedByReason[reason] = (excludedByReason[reason] || 0) + 1;
+      continue;
+    }
+    accepted.push(file);
+    acceptedBytes += file.size;
+  }
+
+  return {
+    accepted,
+    acceptedBytes,
+    excludedByReason,
+    budgetExceeded: Boolean(excludedByReason["input-budget"]),
+    coverageIncomplete: Boolean(
+      excludedByReason["input-budget"] || excludedByReason.oversized
+    )
+  };
 }
 
 function analyzeRecords(inputRecords) {
@@ -259,23 +456,76 @@ function createAuditResult(name, findings, fileCount, meta, inputScope = {}) {
   const excluded = Number.isFinite(inputScope.excluded)
     ? inputScope.excluded
     : Math.max(0, selected - analyzed);
-  const scope = { selected, analyzed, excluded };
-  return { name, findings, fileCount: analyzed, meta, summary, areaCounts, scope };
+  const scope = {
+    selected,
+    analyzed,
+    excluded,
+    analyzedBytes: inputScope.analyzedBytes || 0,
+    excludedByReason: { ...(inputScope.excludedByReason || {}) },
+    partial: Boolean(inputScope.partial)
+  };
+  const riskClusters = createRiskClusters(findings);
+  return { name, findings, riskClusters, fileCount: analyzed, meta, summary, areaCounts, scope };
 }
 
-function selectUrgentFindings(findings, type = "all") {
-  const order = ["critical", "high"];
-  return findings
-    .filter((finding) => finding.evidenceLevel !== "candidate")
-    .filter((finding) => order.includes(finding.severity))
-    .filter((finding) => type === "all" || finding.type === type)
+function createRiskClusters(findings) {
+  const severityOrder = ["critical", "high", "medium", "low"];
+  const groups = new Map();
+
+  for (const item of findings) {
+    if (!groups.has(item.clusterId)) groups.set(item.clusterId, []);
+    groups.get(item.clusterId).push(item);
+  }
+
+  return [...groups.entries()].map(([id, rows]) => {
+    const primary = rows.slice().sort(
+      (a, b) => severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity)
+    )[0];
+    const decisions = rows.map((row) => row.decision);
+    const decision = decisions.includes("act-now")
+      ? "act-now"
+      : decisions.includes("verify-first")
+        ? "verify-first"
+        : decisions.includes("information-gap")
+          ? "information-gap"
+          : "observe";
+
+    return {
+      id,
+      title: primary.clusterTitle,
+      severity: primary.severity,
+      type: rows.some((row) => row.type === "risk") ? "risk" : "gap",
+      types: [...new Set(rows.map((row) => row.type))],
+      decision,
+      whyRisky: primary.whyRisky,
+      possibleImpact: primary.possibleImpact,
+      riskFactors: uniqueText(rows.map((row) => row.riskFactors)),
+      mitigatingControls: uniqueText(rows.map((row) => row.mitigatingControls)),
+      verification: uniqueText(rows.map((row) => row.verification)),
+      recommendation: uniqueText(rows.map((row) => row.recommendation)),
+      findingIds: rows.map((row) => row.id),
+      evidence: [...new Set(rows.flatMap((row) => row.evidence))].slice(0, 5),
+      occurrenceCount: Math.max(...rows.map((row) => row.occurrenceCount))
+    };
+  });
+}
+
+function selectPriorityCandidates(findings, type = "all") {
+  const decisionOrder = ["act-now", "verify-first"];
+  const severityOrder = ["critical", "high", "medium", "low"];
+  return createRiskClusters(findings)
+    .filter((cluster) => decisionOrder.includes(cluster.decision))
+    .filter((cluster) => type === "all" || cluster.types.includes(type))
     .slice()
-    .sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity))
+    .sort((a, b) => {
+      const decisionDifference = decisionOrder.indexOf(a.decision) - decisionOrder.indexOf(b.decision);
+      return decisionDifference || severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity);
+    })
     .slice(0, 3);
 }
 
 function buildMarkdown(state) {
-  const urgent = selectUrgentFindings(state.findings);
+  const priorityCandidates = selectPriorityCandidates(state.findings);
   const sections = {
     security: "Security Or Privacy Risks",
     testing: "Testing Gaps",
@@ -285,13 +535,16 @@ function buildMarkdown(state) {
     observability: "Error Handling Or Observability Risks"
   };
   const lines = [
-    "# Frontend Audit: " + state.name,
+    "# Frontend Audit: " + safeMarkdownText(state.name),
     "",
     "> This report uses static heuristics. No finding does not mean safe. Do not use it as quality assurance, security certification, or deployment approval.",
     "",
     "- Files selected: " + state.scope.selected,
     "- Files inspected: " + state.scope.analyzed,
     "- Files excluded: " + state.scope.excluded,
+    "- Bytes inspected: " + state.scope.analyzedBytes,
+    "- Exclusions by reason: " + formatExcludedReasons(state.scope.excludedByReason),
+    "- Analysis completeness: " + (state.scope.partial ? "partial; input limits or read failures affected coverage" : "within configured static-analysis limits"),
     "- Automated detection areas: framework version and router context, testing, SEO, security, dead-code markers, error handling and observability",
     "- Manual review remains required: accessibility, performance, forms, state ownership, data fetching, design systems, i18n, and bundle architecture",
     "- Evidence model: observed fact, risk inference, information gap, removal candidate",
@@ -300,18 +553,24 @@ function buildMarkdown(state) {
       .join(", "),
     "- Privacy: source contents and environment values are not included",
     "",
-    "## Urgent Recommendations",
+    "## Priority Review Candidates",
     ""
   ];
 
-  if (!urgent.length) lines.push("No urgent recommendation was detected. Manual review remains required.", "");
-  urgent.forEach((finding, index) => {
+  if (!priorityCandidates.length) lines.push("No priority candidate was detected. Manual review remains required.", "");
+  priorityCandidates.forEach((cluster, index) => {
     lines.push(
-      (index + 1) + ". **[" + finding.severity.toUpperCase() + "] " + finding.title + "**",
-      "   - Finding ID: `" + finding.id + "`",
-      "   - Evidence level: " + evidenceLevels[finding.evidenceLevel],
-      "   - Evidence: " + safeEvidence(finding),
-      "   - Change: " + finding.recommendation,
+      (index + 1) + ". **[" + decisionLabels[cluster.decision] + "] " + cluster.title + "**",
+      "   - Risk cluster ID: `" + cluster.id + "`",
+      "   - Source finding IDs: " + cluster.findingIds.map((id) => "`" + id + "`").join(", "),
+      "   - Why it may matter: " + cluster.whyRisky,
+      "   - Possible impact: " + cluster.possibleImpact,
+      "   - Risk-increasing conditions: " + cluster.riskFactors,
+      "   - Existing controls that could lower risk: " + cluster.mitigatingControls,
+      "   - Cheapest next verification: " + cluster.verification,
+      "   - Evidence paths: " + safeEvidence(cluster),
+      "   - Candidate action: " + cluster.recommendation,
+      "   - Boundary: This is a static review candidate, not a confirmed urgent defect.",
       ""
     );
   });
@@ -326,6 +585,13 @@ function buildMarkdown(state) {
         "  - Finding ID: `" + finding.id + "`",
         "  - Evidence level: " + evidenceLevels[finding.evidenceLevel],
         "  - Evidence: " + safeEvidence(finding),
+        "  - Why it may matter: " + finding.whyRisky,
+        "  - Possible impact: " + finding.possibleImpact,
+        "  - Risk-increasing conditions: " + finding.riskFactors,
+        "  - Mitigating controls: " + finding.mitigatingControls,
+        "  - Verification: " + finding.verification,
+        "  - Decision: " + decisionLabels[finding.decision],
+        "  - Risk cluster ID: `" + finding.clusterId + "`",
         "  - Limitation: " + finding.limitation,
         "  - Recommendation: " + finding.recommendation,
         ""
@@ -338,11 +604,12 @@ function buildMarkdown(state) {
     "",
     "Use the stable finding IDs below as `Source finding IDs` in guidance proposals and Issue drafts. A finding ID is traceability, not write or publication approval.",
     "",
-    "| Finding ID | Area | Severity | Evidence level | Evidence paths | Limitation |",
-    "| --- | --- | --- | --- | --- | --- |"
+    "| Finding ID | Risk cluster | Decision | Area | Severity | Evidence level | Evidence paths | Limitation |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |"
   );
   state.findings.forEach((finding) => {
-    lines.push("| `" + finding.id + "` | " + safeMarkdownCell(finding.area) + " | " + safeMarkdownCell(finding.severity) + " | "
+    lines.push("| `" + finding.id + "` | `" + safeMarkdownCell(finding.clusterId) + "` | "
+      + safeMarkdownCell(decisionLabels[finding.decision]) + " | " + safeMarkdownCell(finding.area) + " | " + safeMarkdownCell(finding.severity) + " | "
       + safeMarkdownCell(evidenceLevels[finding.evidenceLevel]) + " | " + safeMarkdownCell(safeEvidence(finding)) + " | "
       + safeMarkdownCell(finding.limitation) + " |");
   });
@@ -362,9 +629,15 @@ function finding(value) {
   if (!value.id || !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(value.id)) {
     throw new Error("finding requires a stable lowercase ID");
   }
+  const narrative = riskNarratives[value.id];
+  if (!narrative) {
+    throw new Error("finding requires a risk narrative: " + value.id);
+  }
   return {
     occurrenceCount: value.occurrenceCount || value.evidence.length,
     limitation: evidenceLimitations[value.evidenceLevel],
+    observedFact: value.title,
+    ...narrative,
     ...value,
     evidence: [...new Set(value.evidence)].slice(0, 5)
   };
@@ -407,21 +680,41 @@ function safeEvidence(finding) {
   const suffix = finding.occurrenceCount > finding.evidence.length
     ? " 외 " + (finding.occurrenceCount - finding.evidence.length) + "건"
     : "";
-  return finding.evidence.join(", ") + suffix;
+  return finding.evidence.map(safeMarkdownText).join(", ") + suffix;
 }
 
 function safeMarkdownCell(value) {
   return String(value).replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
 }
 
+function safeMarkdownText(value) {
+  return String(value).replace(/[\r\n]+/g, " ");
+}
+
+function uniqueText(values) {
+  return [...new Set(values.filter(Boolean))].join(" / ");
+}
+
+function formatExcludedReasons(reasons) {
+  const entries = Object.entries(reasons || {});
+  return entries.length
+    ? entries.map(([reason, count]) => reason + " " + count).join(", ")
+    : "none";
+}
+
 const analyzerApi = {
+  analysisLimits,
   analyzeRecords,
   buildMarkdown,
+  createRiskClusters,
   createAuditResult,
+  decisionLabels,
   evidenceLevels,
+  fileExclusionReason,
   isGeneratedRecord,
   isAnalyzableFile,
-  selectUrgentFindings
+  selectFilesWithinBudget,
+  selectPriorityCandidates
 };
 
 if (typeof module !== "undefined" && module.exports) {

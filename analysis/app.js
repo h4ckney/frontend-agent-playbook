@@ -1,56 +1,43 @@
 (function () {
 const {
+  analysisLimits,
   analyzeRecords,
   buildMarkdown,
   createAuditResult,
+  decisionLabels,
   evidenceLevels,
   isGeneratedRecord,
-  isAnalyzableFile,
-  selectUrgentFindings
+  selectFilesWithinBudget,
+  selectPriorityCandidates
 } = globalThis.FrontendAnalyzer;
 
-const sampleFindings = [
+const sampleRecords = [
   {
-    id: "security.html-sink-boundary",
-    severity: "high", area: "security", type: "risk", evidenceLevel: "observed",
-    title: "여러 HTML 삽입 지점에서 sanitizer 의존성·import 미발견",
-    evidence: ["components/Content.tsx", "features/rich-content/Html.tsx"],
-    occurrenceCount: 8,
-    limitation: "패턴 존재만 확인하며 실제 악용 가능성이나 런타임 영향은 확정하지 않음",
-    recommendation: "콘텐츠 출처별 신뢰경계를 문서화하고 검증된 SafeHtml 경계에서 정제를 통일합니다."
+    path: "package.json",
+    content: JSON.stringify({
+      dependencies: { next: "13.5.0", react: "18.2.0" },
+      scripts: { test: "vitest" }
+    })
   },
   {
-    id: "security.html-trust-boundary-unknown",
-    severity: "medium", area: "security", type: "gap", evidenceLevel: "unknown",
-    title: "HTML 콘텐츠의 서버 정제와 신뢰경계는 자동 확인 불가",
-    evidence: ["components/Content.tsx"], occurrenceCount: 8,
-    limitation: "정적 분석 범위 밖의 설정, 데이터 출처 또는 런타임 확인이 필요함",
-    recommendation: "백엔드 정제, 제3자 콘텐츠, 사용자 입력 경계를 담당자와 런타임 검증으로 확인합니다."
+    path: "pages/content.tsx",
+    content: "<div dangerouslySetInnerHTML={{ __html: value }} />\n// TODO remove after migration"
   },
-  {
-    id: "testing.critical-journey-coverage-review",
-    severity: "high", area: "testing", type: "gap", evidenceLevel: "inferred",
-    title: "고위험 전환 여정의 E2E 검토 필요",
-    evidence: ["playwright.config.ts"], occurrenceCount: 1,
-    limitation: "정적 근거에 기반한 검토 우선순위이며 결함 확정이 아님",
-    recommendation: "결제, 가입, 제출 등 실패 비용이 큰 여정의 실제 커버리지를 확인합니다."
-  },
-  {
-    id: "dead-code.marked-removal-candidate",
-    severity: "low", area: "dead-code", type: "risk", evidenceLevel: "candidate",
-    title: "삭제 가능성이 표시된 코드 후보 1개 파일",
-    evidence: ["legacy/adapter.ts"], occurrenceCount: 1,
-    limitation: "참조와 부작용 검증 전에는 삭제할 수 없음",
-    recommendation: "참조와 부작용을 확인합니다. 이 결과는 삭제 승인이 아닙니다."
-  }
+  { path: "tests/content.test.tsx", content: "export {};" },
+  { path: "e2e/smoke.spec.ts", content: "export {};" }
 ];
+const sampleFindings = analyzeRecords(sampleRecords);
+const sampleBytes = sampleRecords.reduce(
+  (sum, record) => sum + new Blob([record.content]).size,
+  0
+);
 
 let state = createAuditResult(
   "분석 예시",
   sampleFindings,
-  24,
+  4,
   "폴더를 선택하면 실제 결과로 교체됩니다",
-  { selected: 24, analyzed: 24, excluded: 0 }
+  { selected: 4, analyzed: 4, excluded: 0, analyzedBytes: sampleBytes }
 );
 const input = document.querySelector("#folderInput");
 const toast = document.querySelector("#toast");
@@ -70,7 +57,7 @@ input.addEventListener("change", async (event) => {
       scope
     );
     render();
-    notify("분석이 완료되었습니다.");
+    notify(scope.partial ? "일부 입력을 제외한 부분 분석이 완료되었습니다." : "분석이 완료되었습니다.");
   } catch (error) {
     console.error(error);
     notify("분석 중 오류가 발생했습니다.");
@@ -82,7 +69,7 @@ document.querySelectorAll("[data-filter]").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll("[data-filter]").forEach((node) => node.classList.remove("active"));
     button.classList.add("active");
-    renderUrgent(button.dataset.filter);
+    renderPriority(button.dataset.filter);
   });
 });
 
@@ -98,20 +85,57 @@ document.querySelector("#copyReport").addEventListener("click", async () => {
 document.querySelector("#downloadReport").addEventListener("click", download);
 
 async function readFiles(files) {
-  const selected = files.filter(isAnalyzableFile);
-  const loaded = await Promise.all(selected.map(async (file) => ({
-    path: file.webkitRelativePath || file.name,
-    content: await file.text()
-  })));
-  const records = loaded.filter((record) => !isGeneratedRecord(record));
+  const selection = selectFilesWithinBudget(files);
+  const loaded = await readWithConcurrency(selection.accepted, analysisLimits.readConcurrency);
+  const failed = loaded.filter((result) => result.status === "rejected").length;
+  const readable = loaded.filter((result) => result.status === "fulfilled").map((result) => result.value);
+  const generated = readable.filter((record) => isGeneratedRecord(record)).length;
+  const records = readable.filter((record) => !isGeneratedRecord(record));
+  const excludedByReason = { ...selection.excludedByReason };
+  if (generated) excludedByReason["generated-header"] = generated;
+  if (failed) excludedByReason["read-failed"] = failed;
+
   return {
     records,
     scope: {
       selected: files.length,
       analyzed: records.length,
-      excluded: files.length - records.length
+      excluded: files.length - records.length,
+      analyzedBytes: records.reduce((sum, record) => sum + record.size, 0),
+      excludedByReason,
+      partial: selection.coverageIncomplete || failed > 0
     }
   };
+}
+
+async function readWithConcurrency(files, concurrency) {
+  const results = new Array(files.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < files.length) {
+      const index = nextIndex++;
+      const file = files[index];
+      try {
+        results[index] = {
+          status: "fulfilled",
+          value: {
+            path: file.webkitRelativePath || file.name,
+            content: await file.text(),
+            size: file.size
+          }
+        };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  await Promise.all(Array.from(
+    { length: Math.min(concurrency, files.length) },
+    () => worker()
+  ));
+  return results;
 }
 
 function render() {
@@ -125,25 +149,28 @@ function render() {
   document.querySelector("#unknownCount").textContent = state.summary.unknown;
   document.querySelector("#candidateCount").textContent = state.summary.candidate;
   document.querySelector("#findingCount").textContent = state.findings.length + "건";
-  renderUrgent("all");
+  document.querySelector("#scopeExclusions").textContent = formatScope(state.scope);
+  renderPriority("all");
   renderCoverage();
   renderTable();
 }
 
-function renderUrgent(filter) {
-  const rows = selectUrgentFindings(state.findings, filter);
+function renderPriority(filter) {
+  const rows = selectPriorityCandidates(state.findings, filter);
 
   document.querySelector("#urgentList").innerHTML = rows.length
-    ? rows.map((finding, index) =>
-      '<article class="urgent" data-severity="' + finding.severity + '">' +
-        '<i>' + (index + 1) + '</i><div><h3>' + escapeHtml(finding.title) + '</h3>' +
-        '<span class="evidence-label ' + finding.evidenceLevel + '">' +
-          evidenceLevels[finding.evidenceLevel] + '</span>' +
-        '<p>' + escapeHtml(finding.recommendation) + '</p></div>' +
-        '<span class="pill ' + finding.severity + '">' + finding.severity + '</span>' +
+    ? rows.map((cluster, index) =>
+      '<article class="urgent" data-severity="' + cluster.severity + '">' +
+        '<i>' + (index + 1) + '</i><div><h3>' + escapeHtml(cluster.title) + '</h3>' +
+        '<span class="decision ' + cluster.decision + '">' +
+          decisionLabels[cluster.decision] + '</span>' +
+        '<p><b>왜 위험한가</b>' + escapeHtml(cluster.whyRisky) + '</p>' +
+        '<p><b>가능한 영향</b>' + escapeHtml(cluster.possibleImpact) + '</p>' +
+        '<p><b>다음 확인</b>' + escapeHtml(cluster.verification) + '</p></div>' +
+        '<span class="pill ' + cluster.severity + '">' + cluster.severity + '</span>' +
       '</article>'
     ).join("")
-    : '<div class="empty">해당하는 긴급 항목이 없습니다.</div>';
+    : '<div class="empty">해당하는 우선 검토 후보가 없습니다. 수동 감사가 끝났다는 의미는 아닙니다.</div>';
 }
 
 function renderCoverage() {
@@ -169,6 +196,11 @@ function renderTable() {
       '<td>' + escapeHtml(finding.area) + '</td><td class="finding-cell">' +
         '<strong>' + escapeHtml(finding.title) + '</strong>' +
         '<details><summary>판정 상세</summary>' +
+          '<div><b>왜 위험한가</b><p>' + escapeHtml(finding.whyRisky) + '</p></div>' +
+          '<div><b>가능한 영향</b><p>' + escapeHtml(finding.possibleImpact) + '</p></div>' +
+          '<div><b>위험 증가 조건</b><p>' + escapeHtml(finding.riskFactors) + '</p></div>' +
+          '<div><b>완화 통제</b><p>' + escapeHtml(finding.mitigatingControls) + '</p></div>' +
+          '<div><b>다음 확인</b><p>' + escapeHtml(finding.verification) + '</p></div>' +
           '<div><b>한계</b><p>' + escapeHtml(finding.limitation) + '</p></div>' +
           '<div><b>권장 조치</b><p>' + escapeHtml(finding.recommendation) + '</p></div>' +
         '</details></td>' +
@@ -180,6 +212,21 @@ function renderTable() {
 function formatEvidence(finding) {
   const hiddenCount = Math.max(0, finding.occurrenceCount - finding.evidence.length);
   return finding.evidence.join(", ") + (hiddenCount ? " 외 " + hiddenCount + "건" : "");
+}
+
+function formatScope(scope) {
+  const reasons = Object.entries(scope.excludedByReason || {})
+    .map(([reason, count]) => reason + " " + count)
+    .join(" · ");
+  const coverage = formatBytes(scope.analyzedBytes) + " 분석";
+  const completeness = scope.partial ? " · 일부 입력은 예산 또는 읽기 실패로 미분석" : "";
+  return coverage + (reasons ? " · 제외: " + reasons : "") + completeness;
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / 1024 / 1024).toFixed(1) + " MB";
 }
 
 function download() {
