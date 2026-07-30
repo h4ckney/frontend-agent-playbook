@@ -18,6 +18,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer the proj
 
 ## What Counts As A Candidate
 
+Rule ID: `dead-code.removal-candidate`
+
 - Unreachable branches and statements
 - Unused local variables, parameters, imports, private members, and internal exports
 - Unreferenced components, hooks, utilities, routes, tests, stories, fixtures, assets, and styles

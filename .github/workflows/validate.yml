@@ -33,9 +33,11 @@ jobs:
         run: |
           node --check analysis/app.js
           node --check analysis/analyzer.js
+          node --check analysis/audit-contract.js
+          node --check bin/frontend-agent-audit.mjs
 
       - name: Test analyzer
-        run: node --test analysis/analyzer.test.mjs analysis/browser-smoke.test.mjs
+        run: node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs bin/frontend-agent-audit.test.mjs
 
       - name: Test guidance approval gate
         run: node --test scripts/guidance-approval.test.mjs

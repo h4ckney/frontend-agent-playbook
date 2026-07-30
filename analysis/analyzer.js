@@ -694,13 +694,15 @@ function finding(value) {
   if (!narrative) {
     throw new Error("finding requires a risk narrative: " + value.id);
   }
+  const allEvidence = [...new Set(value.evidence)];
   return {
     occurrenceCount: value.occurrenceCount || value.evidence.length,
     limitation: evidenceLimitations[value.evidenceLevel],
     observedFact: value.title,
     ...narrative,
     ...value,
-    evidence: [...new Set(value.evidence)].slice(0, 5)
+    allEvidence,
+    evidence: allEvidence.slice(0, 5)
   };
 }
 

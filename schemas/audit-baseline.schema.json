@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/h4ckney/frontend-agent-playbook/schemas/audit-baseline.schema.json",
+  "title": "Frontend Agent Playbook Audit Baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "toolVersion",
+    "createdAt",
+    "analysisMode",
+    "scopePolicyDigest",
+    "profileDigest",
+    "detectorCatalogVersion",
+    "capabilities",
+    "externalTools",
+    "partial",
+    "partialReasons",
+    "partialReason",
+    "findings"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "toolVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "analysisMode": {
+      "type": "string",
+      "enum": [
+        "static-lite",
+        "static",
+        "deep"
+      ]
+    },
+    "scopePolicyDigest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profileDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "detectorCatalogVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "externalTools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/externalTool"
+      }
+    },
+    "partial": {
+      "type": "boolean"
+    },
+    "partialReasons": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "partialReason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "externalTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "rulesetDigest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "rulesetDigest": {
+          "type": "string"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprint",
+        "detectorId",
+        "detectorVersion",
+        "severity",
+        "evidenceLevel",
+        "applicability",
+        "exposure",
+        "controlState",
+        "journeyIds",
+        "decision",
+        "effectiveDecision"
+      ],
+      "properties": {
+        "fingerprint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detectorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detectorVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ]
+        },
+        "evidenceLevel": {
+          "enum": [
+            "observed",
+            "inferred",
+            "unknown",
+            "candidate"
+          ]
+        },
+        "applicability": {
+          "enum": [
+            "applicable",
+            "conditional",
+            "not-applicable",
+            "unknown"
+          ]
+        },
+        "exposure": {
+          "enum": [
+            "confirmed",
+            "likely",
+            "limited",
+            "unknown"
+          ]
+        },
+        "controlState": {
+          "enum": [
+            "effective",
+            "partial",
+            "missing",
+            "unverified"
+          ]
+        },
+        "journeyIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "decision": {
+          "enum": [
+            "act-now",
+            "verify-first",
+            "observe",
+            "information-gap"
+          ]
+        },
+        "effectiveDecision": {
+          "enum": [
+            "act-now",
+            "verify-first",
+            "observe",
+            "information-gap",
+            "suppressed"
+          ]
+        }
+      }
+    }
+  }
+}

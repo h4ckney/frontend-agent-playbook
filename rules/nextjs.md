@@ -20,6 +20,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Consult version
 
 ## Core Rules
 
+Rule ID: `nextjs.router-boundary`
+
 - **SHOULD**: Read `package.json`, the lockfile, Next.js configuration, and the `app`, `pages`, `src/app`, and `src/pages` directories before recommending router APIs.
 - **SHOULD**: Use documentation that matches the installed Next.js major version and the router used by the affected route.
 - **SHOULD**: Treat mixed-router repositories per route tree. Do not assume that an `app` directory makes Pages Router code follow App Router rules.
@@ -27,6 +29,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Consult version
 - **MUST**: Do not turn a scoped feature or bug fix into a router migration unless migration is explicitly requested or required by the feature.
 
 ## App Router Rules
+
+Rule ID: `nextjs.metadata`
 
 - **SHOULD**: Apply these rules only to routes under the App Router in a version that supports the referenced API.
 - **SHOULD**: Prefer Server Components unless browser APIs, client hooks, or interactivity require a Client Component.

@@ -1,0 +1,737 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/h4ckney/frontend-agent-playbook/schemas/audit-result.schema.json",
+  "title": "Frontend Agent Playbook Audit Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "toolVersion",
+    "generatedAt",
+    "scopePolicyDigest",
+    "engine",
+    "project",
+    "scope",
+    "findings",
+    "clusters",
+    "diff",
+    "diagnostics"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "toolVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scopePolicyDigest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engine": {
+      "$ref": "#/$defs/engine"
+    },
+    "project": {
+      "$ref": "#/$defs/project"
+    },
+    "scope": {
+      "$ref": "#/$defs/scope"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "clusters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cluster"
+      }
+    },
+    "diff": {
+      "$ref": "#/$defs/diff"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "externalTool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "rulesetDigest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "rulesetDigest": {
+          "type": "string"
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "analysisMode",
+        "capabilities",
+        "detectorCatalogVersion",
+        "profileDigest",
+        "externalTools"
+      ],
+      "properties": {
+        "analysisMode": {
+          "type": "string",
+          "enum": [
+            "static-lite",
+            "static",
+            "deep"
+          ]
+        },
+        "capabilities": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "detectorCatalogVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profileDigest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "externalTools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/externalTool"
+          }
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootLabel",
+        "framework",
+        "frameworkVersion",
+        "routerMode",
+        "reactVersion",
+        "typescriptVersion",
+        "visibility",
+        "profileSource"
+      ],
+      "properties": {
+        "rootLabel": {
+          "type": "string"
+        },
+        "framework": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "frameworkVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "routerMode": {
+          "type": "string",
+          "enum": [
+            "app",
+            "pages",
+            "mixed",
+            "unknown"
+          ]
+        },
+        "reactVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "typescriptVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "public",
+            "mixed",
+            "internal",
+            "unknown"
+          ]
+        },
+        "profileSource": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selectedFiles",
+        "includedFiles",
+        "excludedFiles",
+        "includedBytes",
+        "excludedByReason",
+        "partial",
+        "partialReasons"
+      ],
+      "properties": {
+        "selectedFiles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "includedFiles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excludedFiles": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "includedBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excludedByReason": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "partialReasons": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "reasons",
+        "missingContext"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "applicable",
+            "conditional",
+            "not-applicable",
+            "unknown"
+          ]
+        },
+        "reasons": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "missingContext": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "findingScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "paths",
+        "routes",
+        "journeys"
+      ],
+      "properties": {
+        "paths": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "routes": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "journeys": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "sources",
+        "transforms",
+        "controls",
+        "sinks",
+        "unknowns"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "unknown",
+            "not-assessed"
+          ]
+        },
+        "sources": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "transforms": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "controls": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "sinks": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "unknowns": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "priority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "effectiveDecision",
+        "policyId",
+        "sortKeys",
+        "reasons",
+        "counterEvidence",
+        "missingEvidence",
+        "affectedJourney",
+        "verification"
+      ],
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "act-now",
+            "verify-first",
+            "observe",
+            "information-gap"
+          ]
+        },
+        "effectiveDecision": {
+          "type": "string",
+          "enum": [
+            "act-now",
+            "verify-first",
+            "observe",
+            "information-gap",
+            "suppressed"
+          ]
+        },
+        "policyId": {
+          "type": "string"
+        },
+        "sortKeys": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "reasons": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "counterEvidence": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "missingEvidence": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "affectedJourney": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verification": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "suppression": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "reason",
+        "expires"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "expires": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "fingerprint",
+        "detectorId",
+        "detectorVersion",
+        "ruleRefs",
+        "sourceRuleRefs",
+        "title",
+        "area",
+        "type",
+        "severity",
+        "evidenceLevel",
+        "exposure",
+        "controlState",
+        "applicability",
+        "scope",
+        "flow",
+        "priority",
+        "evidence",
+        "occurrenceCount",
+        "observedFact",
+        "whyRisky",
+        "possibleImpact",
+        "riskFactors",
+        "mitigatingControls",
+        "recommendation",
+        "limitation",
+        "clusterId",
+        "diffStatus",
+        "suppression"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "fingerprint": {
+          "type": "string"
+        },
+        "detectorId": {
+          "type": "string"
+        },
+        "detectorVersion": {
+          "type": "string"
+        },
+        "ruleRefs": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "sourceRuleRefs": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "title": {
+          "type": "string"
+        },
+        "area": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ]
+        },
+        "evidenceLevel": {
+          "type": "string",
+          "enum": [
+            "observed",
+            "inferred",
+            "unknown",
+            "candidate"
+          ]
+        },
+        "exposure": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "likely",
+            "limited",
+            "unknown"
+          ]
+        },
+        "controlState": {
+          "type": "string",
+          "enum": [
+            "effective",
+            "partial",
+            "missing",
+            "unverified"
+          ]
+        },
+        "applicability": {
+          "$ref": "#/$defs/applicability"
+        },
+        "scope": {
+          "$ref": "#/$defs/findingScope"
+        },
+        "flow": {
+          "$ref": "#/$defs/flow"
+        },
+        "priority": {
+          "$ref": "#/$defs/priority"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "occurrenceCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observedFact": {
+          "type": "string"
+        },
+        "whyRisky": {
+          "type": "string"
+        },
+        "possibleImpact": {
+          "type": "string"
+        },
+        "riskFactors": {
+          "type": "string"
+        },
+        "mitigatingControls": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        },
+        "limitation": {
+          "type": "string"
+        },
+        "clusterId": {
+          "type": "string"
+        },
+        "diffStatus": {
+          "type": "string",
+          "enum": [
+            "unbaselined",
+            "new",
+            "worsened",
+            "unchanged",
+            "resolved",
+            "unverified"
+          ]
+        },
+        "suppression": {
+          "$ref": "#/$defs/suppression"
+        }
+      }
+    },
+    "cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "severity",
+        "type",
+        "types",
+        "findingIds",
+        "occurrenceCount",
+        "priority",
+        "whyRisky",
+        "possibleImpact",
+        "riskFactors",
+        "mitigatingControls",
+        "verification",
+        "recommendation",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "types": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "findingIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "occurrenceCount": {
+          "type": "integer"
+        },
+        "priority": {
+          "$ref": "#/$defs/priority"
+        },
+        "whyRisky": {
+          "type": "string"
+        },
+        "possibleImpact": {
+          "type": "string"
+        },
+        "riskFactors": {
+          "type": "string"
+        },
+        "mitigatingControls": {
+          "type": "string"
+        },
+        "verification": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    },
+    "diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baselineId",
+        "unbaselined",
+        "new",
+        "worsened",
+        "unchanged",
+        "resolved",
+        "unverified"
+      ],
+      "properties": {
+        "baselineId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unbaselined": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "new": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "worsened": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "unchanged": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "resolved": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "unverified": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "level",
+        "message"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "reasons": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "findingId": {
+          "type": "string"
+        },
+        "detectorIds": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    }
+  }
+}

@@ -122,6 +122,26 @@ Dashboard Markdown exports include stable finding IDs and an Audit Handoff table
 
 For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html), choose the project's search-exposure scope, and select a project folder. It separates observed facts, risk inferences, information gaps, and removal candidates, applies SEO checks only to relevant public scope, groups findings with the same root cause into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
 
+### Analyzer CLI Preview
+
+The unreleased `main` branch also provides a dependency-free CLI that uses the same analyzer and normalized `AuditResult` contract as the browser:
+
+```bash
+node bin/frontend-agent-audit.mjs scan \
+  --root . \
+  --profile .frontend-agent-playbook.json \
+  --format json \
+  --output .frontend-audit/result.json
+
+node bin/frontend-agent-audit.mjs baseline \
+  --from .frontend-audit/result.json \
+  --output .frontend-audit/baseline.json
+```
+
+Without a compatible baseline, findings remain `unbaselined`; they are not presented as new regressions. CI defaults to report-only and returns exit `1` only for `new` or `worsened` findings matching an explicit blocking profile selector such as `finding:security.html-sink-boundary`, `severity:high`, or `decision:verify-first`. Severity selectors are inclusive thresholds, while finding and decision selectors are exact. Exit `2` means invalid input or an analyzer error, while exit `3` means the profile required complete coverage but the scan was partial. The static CLI does not execute project code, package scripts, or configuration modules and does not follow symlinks. Output extensions must match the selected format, and an existing file is overwritten only when it validates as the same analyzer artifact type.
+
+Contracts are documented in [Analyzer v0.2 design](docs/analyzer-v0.2-design.md) and published as [audit result](schemas/audit-result.schema.json), [audit baseline](schemas/audit-baseline.schema.json), and [project profile](schemas/project-profile.schema.json) schemas. This is a first implementation slice: parser-backed route coverage, deep Next.js metadata analysis, runtime verification, and SARIF import remain planned work.
+
 ## Repository Structure
 
 - `rules/`: Core frontend rules by topic
@@ -131,6 +151,8 @@ For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html)
 - `docs/`: Planning and project documentation
 - `scripts/`: Dependency-free repository validation commands
 - `analysis/`: Dependency-free local audit dashboard and Markdown report generator
+- `bin/`: Dependency-free analyzer CLI
+- `schemas/`: Audit result, baseline, and project-profile contracts
 - `playbooks/`: Separately approved framework and runtime migration procedures
 - `plugins/`: Synchronized installable package used by the Claude Code and Codex marketplace catalogs
 
@@ -173,7 +195,7 @@ Existing patterns do not justify preserving known correctness, security, or acce
 | Guidance Application | Metadata-gated and representative-tested draft | Approval drift, rejection, conflict, fingerprint, and idempotent rerun tests added; repository inspection remains agent-owned |
 | Rule Routing | Usable draft | Governance-first task and risk routing added |
 | Enforcement Mapping | Usable draft | Compiler, lint, CI, and manual-review boundaries documented |
-| Audit Dashboard | Usable draft | Input budgets, partial-analysis disclosure, risk clusters, impact narratives, stable IDs, browser smoke test, and Markdown export added |
+| Audit Dashboard / CLI | Unreleased contract-tested preview | Shared normalized result, project profile, baseline diff, JSON/Markdown output, policy exit codes, browser smoke test, and CLI integration tests added; deep route and data-flow analysis remain pending |
 | Marketplace Package | Codex-local-tested preview | Claude Code and Codex catalogs added; Claude Code install remains unverified on this machine |
 | Migration Playbooks | Usable draft | Incremental Pages-to-App and React 18-to-19 gates, verification, rollback, SEO, RSC, and Compiler boundaries added; live migration validation remains pending |
 | Examples | Usable draft | Agent prompts, audits, guidance adoption forward-test, and production application workflow added |
@@ -200,10 +222,12 @@ node scripts/validate-docs.mjs
 node scripts/sync-plugin-package.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
-node --test analysis/analyzer.test.mjs analysis/browser-smoke.test.mjs scripts/guidance-approval.test.mjs
+node --check analysis/audit-contract.js
+node --check bin/frontend-agent-audit.mjs
+node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
 ```
 
-The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, and skill UI metadata references. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, and approval-gate checks for pull requests and pushes to `main`.
+The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, skill UI metadata references, and detector-to-rule links. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, CLI, contract, and approval-gate checks for pull requests and pushes to `main`.
 
 ## Version
 

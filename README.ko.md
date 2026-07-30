@@ -124,6 +124,26 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트의 검색 노출 범위를 선택한 뒤 폴더를 지정합니다. 대시보드는 관찰된 사실, 위험 추론, 정보 부족 및 제거 후보를 구분하고, SEO는 관련 있는 공개 범위에만 적용하며, 같은 원인의 finding을 위험 cluster로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
 
+### Analyzer CLI 프리뷰
+
+미출시 `main` 브랜치는 브라우저와 같은 analyzer 및 정규화된 `AuditResult` 계약을 사용하는 외부 의존성 없는 CLI도 제공합니다.
+
+```bash
+node bin/frontend-agent-audit.mjs scan \
+  --root . \
+  --profile .frontend-agent-playbook.json \
+  --format json \
+  --output .frontend-audit/result.json
+
+node bin/frontend-agent-audit.mjs baseline \
+  --from .frontend-audit/result.json \
+  --output .frontend-audit/baseline.json
+```
+
+호환되는 baseline이 없으면 finding은 `unbaselined`로 유지되며 새 회귀로 표현되지 않습니다. CI 기본값은 report-only이고 `finding:security.html-sink-boundary`, `severity:high`, `decision:verify-first`처럼 profile에 명시한 차단 selector와 일치하는 `new` 또는 `worsened` finding에만 exit `1`을 반환합니다. Severity selector는 해당 등급 이상을 포함하는 threshold이며 finding과 decision selector는 정확히 일치할 때만 적용됩니다. Exit `2`는 잘못된 입력 또는 analyzer 오류, exit `3`은 profile이 완전한 범위를 요구했지만 부분 분석이 된 경우입니다. Static CLI는 프로젝트 코드, package script 또는 config module을 실행하지 않으며 symlink를 따라가지 않습니다. 출력 확장자는 선택한 format과 일치해야 하며 기존 파일은 같은 analyzer artifact 형식으로 검증될 때만 덮어씁니다.
+
+계약은 [Analyzer v0.2 설계](docs/analyzer-v0.2-design.md)에 설명되어 있으며 [감사 결과](schemas/audit-result.schema.json), [감사 baseline](schemas/audit-baseline.schema.json), [프로젝트 profile](schemas/project-profile.schema.json) schema로 제공합니다. 현재 구현은 첫 단계입니다. Parser 기반 route coverage, 심층 Next.js metadata 분석, runtime 검증 및 SARIF import는 아직 계획 단계입니다.
+
 ## 저장소 구조
 
 - `rules/`: 주제별 핵심 프론트엔드 규칙
@@ -133,6 +153,8 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 - `docs/`: 계획 및 프로젝트 문서
 - `scripts/`: 외부 의존성이 없는 저장소 검증 명령
 - `analysis/`: 외부 의존성이 없는 로컬 감사 대시보드 및 Markdown 보고서 생성기
+- `bin/`: 외부 의존성이 없는 analyzer CLI
+- `schemas/`: 감사 결과, baseline 및 project profile 계약
 - `playbooks/`: 별도 승인된 framework 및 runtime 마이그레이션 절차
 - `plugins/`: Claude Code와 Codex marketplace catalog가 사용하는 동기화된 설치 패키지
 
@@ -175,7 +197,7 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 | 가이드 적용 | 메타데이터 게이트 및 대표 시나리오 검증 초안 | 승인 변경, 거절, 충돌, fingerprint 및 멱등 재실행 테스트 추가. 저장소 검사는 에이전트 책임 |
 | 규칙 라우팅 | 사용 가능한 초안 | 거버넌스 우선 작업 및 위험 라우팅 추가 |
 | 강제 수단 매핑 | 사용 가능한 초안 | compiler, lint, CI 및 수동 리뷰 경계 문서화 |
-| 감사 대시보드 | 사용 가능한 초안 | 입력 budget, 부분 분석 고지, 위험 cluster, 영향 설명, 안정적인 ID, browser smoke test 및 Markdown 내보내기 추가 |
+| 감사 대시보드 / CLI | 미출시 계약 검증 프리뷰 | 공통 정규화 결과, project profile, baseline diff, JSON/Markdown 출력, policy exit code, browser smoke 및 CLI 통합 테스트 추가. 심층 route와 data-flow 분석은 미완료 |
 | 마켓플레이스 패키지 | Codex 로컬 검증 프리뷰 | Claude Code와 Codex catalog 추가. 이 머신에서 Claude Code 설치는 미검증 |
 | 마이그레이션 플레이북 | 사용 가능한 초안 | 점진적 Pages-to-App 및 React 18-to-19 gate, 검증, rollback, SEO, RSC, Compiler 경계 추가. 실제 migration 검증은 미완료 |
 | 예시 | 사용 가능한 초안 | 에이전트 프롬프트, 감사, 가이드 도입 forward-test 및 프로덕션 적용 워크플로우 추가 |
@@ -202,10 +224,12 @@ node scripts/validate-docs.mjs
 node scripts/sync-plugin-package.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
-node --test analysis/analyzer.test.mjs analysis/browser-smoke.test.mjs scripts/guidance-approval.test.mjs
+node --check analysis/audit-contract.js
+node --check bin/frontend-agent-audit.mjs
+node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
 ```
 
-문서 검증 스크립트는 로컬 Markdown 링크, 해결되지 않은 TODO 표시, 필수 규칙 및 워크플로우 섹션, 스킬 frontmatter와 스킬 UI 메타데이터 참조를 확인합니다. Package sync 검사는 설치용 plugin copy가 canonical source와 달라지는 것을 막습니다. GitHub Actions는 pull request와 `main` push에서 동일한 문서, package, analyzer, browser smoke 및 approval gate 검사를 실행합니다.
+문서 검증 스크립트는 로컬 Markdown 링크, 해결되지 않은 TODO 표시, 필수 규칙 및 워크플로우 섹션, 스킬 frontmatter, 스킬 UI 메타데이터 참조와 detector-rule 연결을 확인합니다. Package sync 검사는 설치용 plugin copy가 canonical source와 달라지는 것을 막습니다. GitHub Actions는 pull request와 `main` push에서 동일한 문서, package, analyzer, browser smoke, CLI, contract 및 approval gate 검사를 실행합니다.
 
 ## 버전
 

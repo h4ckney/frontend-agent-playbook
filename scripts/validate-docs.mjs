@@ -2,9 +2,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const require = createRequire(import.meta.url);
 const ignoredDirectories = new Set(['.git', 'node_modules', 'plugins']);
 const errors = [];
 
@@ -68,6 +70,44 @@ function validateRule(filePath, content) {
   }
 
   validateRuleLevels(filePath, content);
+}
+
+function validateDetectorRuleLinks(ruleFiles) {
+  const ruleIds = new Map();
+  const ruleIdPattern = /^Rule ID: `([a-z0-9]+(?:[.-][a-z0-9]+)*)`$/gm;
+
+  for (const filePath of ruleFiles) {
+    const content = fs.readFileSync(filePath, 'utf8');
+    for (const match of content.matchAll(ruleIdPattern)) {
+      const existing = ruleIds.get(match[1]);
+      if (existing) {
+        errors.push(`${relative(filePath)}: duplicate rule ID ${match[1]} also declared in ${relative(existing)}`);
+      } else {
+        ruleIds.set(match[1], filePath);
+      }
+    }
+  }
+
+  const { detectorCatalog } = require(path.join(root, 'analysis', 'audit-contract.js'));
+  const detectorIds = new Set();
+  for (const [findingId, detector] of Object.entries(detectorCatalog)) {
+    if (!detector.id || !detector.version) {
+      errors.push(`analysis/audit-contract.js: detector metadata incomplete for ${findingId}`);
+    }
+    if (!Array.isArray(detector.capabilities) || detector.capabilities.length === 0) {
+      errors.push(`analysis/audit-contract.js: detector capabilities missing for ${findingId}`);
+    }
+    const identity = `${detector.id}@${detector.version}`;
+    if (detectorIds.has(identity)) {
+      errors.push(`analysis/audit-contract.js: duplicate detector identity ${identity}`);
+    }
+    detectorIds.add(identity);
+    for (const ruleId of detector.ruleRefs) {
+      if (!ruleIds.has(ruleId)) {
+        errors.push(`analysis/audit-contract.js: detector ${detector.id} references missing rule ID ${ruleId}`);
+      }
+    }
+  }
 }
 
 function validateRuleLevels(filePath, content) {
@@ -276,6 +316,7 @@ function validateAdoptionForwardTest(filePath, content) {
 }
 
 const markdownFiles = collectMarkdownFiles(root);
+const ruleFiles = markdownFiles.filter((filePath) => path.dirname(filePath) === path.join(root, 'rules'));
 
 for (const filePath of markdownFiles) {
   const content = fs.readFileSync(filePath, 'utf8');
@@ -311,6 +352,8 @@ for (const filePath of markdownFiles) {
     validateProductionFeatureExample(filePath, content);
   }
 }
+
+validateDetectorRuleLinks(ruleFiles);
 
 if (errors.length > 0) {
   console.error(`Documentation validation failed with ${errors.length} error(s):`);

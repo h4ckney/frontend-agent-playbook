@@ -1,16 +1,16 @@
 (function () {
 const {
   analysisLimits,
-  analyzeRecords,
-  buildMarkdown,
-  createAuditResult,
   decisionLabels,
   evidenceLevels,
   isGeneratedRecord,
   seoScopeLabels,
-  selectFilesWithinBudget,
-  selectPriorityCandidates
+  selectFilesWithinBudget
 } = globalThis.FrontendAnalyzer;
+const {
+  buildAuditMarkdown,
+  createAuditBundle
+} = globalThis.FrontendAuditContract;
 
 const sampleRecords = [
   {
@@ -38,6 +38,7 @@ let currentAudit = {
   meta: "폴더를 선택하면 실제 결과로 교체됩니다",
   scope: { selected: 4, analyzed: 4, excluded: 0, analyzedBytes: sampleBytes }
 };
+let currentAuditResult;
 let state = createState();
 const input = document.querySelector("#folderInput");
 const toast = document.querySelector("#toast");
@@ -85,7 +86,7 @@ document.querySelectorAll("[data-filter]").forEach((button) => {
 
 document.querySelector("#copyReport").addEventListener("click", async () => {
   try {
-    await navigator.clipboard.writeText(buildMarkdown(state));
+    await navigator.clipboard.writeText(buildAuditMarkdown(currentAuditResult));
     notify("Markdown 보고서를 복사했습니다.");
   } catch {
     download();
@@ -95,14 +96,66 @@ document.querySelector("#copyReport").addEventListener("click", async () => {
 document.querySelector("#downloadReport").addEventListener("click", download);
 
 function createState() {
-  return createAuditResult(
-    currentAudit.name,
-    analyzeRecords(currentAudit.records, { seoScope: selectedSeoScope }),
-    currentAudit.records.length,
-    currentAudit.meta,
-    currentAudit.scope,
-    { seoScope: selectedSeoScope }
+  const bundle = createAuditBundle({
+    name: currentAudit.name,
+    records: currentAudit.records,
+    meta: currentAudit.meta,
+    scope: currentAudit.scope,
+    context: { seoScope: selectedSeoScope },
+    analysisMode: "static-lite",
+    capabilities: ["route-path-inference", "text-patterns"],
+    scopePolicyDigest: "browser-static-lite-v1"
+  });
+  currentAuditResult = bundle.audit;
+  return createUiState(bundle.audit, currentAudit.meta);
+}
+
+function createUiState(audit, meta) {
+  const findings = audit.findings.map((finding) => ({
+    ...finding,
+    decision: finding.priority.effectiveDecision,
+    verification: finding.priority.verification,
+    evidence: finding.evidence.map((item) => item.path || item.label || item.kind)
+  }));
+  const riskClusters = audit.clusters.map((cluster) => ({
+    ...cluster,
+    decision: cluster.priority.effectiveDecision,
+    verification: cluster.priority.verification,
+    evidence: cluster.evidence.map((item) => item.path || item.label || item.kind)
+  }));
+  const summary = Object.fromEntries(
+    Object.keys(evidenceLevels).map((level) => [
+      level,
+      findings.filter((finding) => finding.evidenceLevel === level).length
+    ])
   );
+  const areas = ["rules", "testing", "seo", "security", "dead-code", "observability"];
+  const areaCounts = areas.map((area) => ({
+    area,
+    count: findings.filter((finding) => finding.area === area).length,
+    status: area === "seo" && audit.project.visibility === "internal"
+      ? "not-applicable"
+      : area === "seo" && ["unknown", "mixed"].includes(audit.project.visibility)
+        ? "conditional"
+        : "active"
+  }));
+  return {
+    name: audit.project.rootLabel,
+    meta,
+    findings,
+    riskClusters,
+    summary,
+    areaCounts,
+    scope: {
+      selected: audit.scope.selectedFiles,
+      analyzed: audit.scope.includedFiles,
+      excluded: audit.scope.excludedFiles,
+      analyzedBytes: audit.scope.includedBytes,
+      excludedByReason: audit.scope.excludedByReason,
+      partial: audit.scope.partial
+    },
+    context: { seoScope: audit.project.visibility }
+  };
 }
 
 async function readFiles(files) {
@@ -178,7 +231,13 @@ function render() {
 }
 
 function renderPriority(filter) {
-  const rows = selectPriorityCandidates(state.findings, filter);
+  const severityOrder = ["critical", "high", "medium", "low", "info"];
+  const rows = state.riskClusters
+    .filter((cluster) => ["act-now", "verify-first"].includes(cluster.decision))
+    .filter((cluster) => filter === "all" || cluster.types.includes(filter))
+    .slice()
+    .sort((a, b) => comparePriorityClusters(a, b, severityOrder))
+    .slice(0, 3);
 
   document.querySelector("#urgentList").innerHTML = rows.length
     ? rows.map((cluster, index) =>
@@ -188,11 +247,30 @@ function renderPriority(filter) {
           decisionLabels[cluster.decision] + '</span>' +
         '<p><b>왜 위험한가</b>' + escapeHtml(cluster.whyRisky) + '</p>' +
         '<p><b>가능한 영향</b>' + escapeHtml(cluster.possibleImpact) + '</p>' +
-        '<p><b>다음 확인</b>' + escapeHtml(cluster.verification) + '</p></div>' +
+        '<p><b>다음 확인</b>' + escapeHtml(cluster.verification) + '</p>' +
+        '<details><summary>우선순위 근거</summary>' +
+          '<p><b>선정 근거</b>' + escapeHtml(cluster.priority.reasons.join(" / ")) + '</p>' +
+          '<p><b>반대 근거</b>' + escapeHtml(cluster.priority.counterEvidence.join(" / ") || "확인된 반대 근거 없음") + '</p>' +
+          '<p><b>부족한 정보</b>' + escapeHtml(cluster.priority.missingEvidence.join(" / ") || "없음") + '</p>' +
+        '</details></div>' +
         '<span class="pill ' + cluster.severity + '">' + cluster.severity + '</span>' +
       '</article>'
     ).join("")
     : '<div class="empty">해당하는 우선 검토 후보가 없습니다. 수동 감사가 끝났다는 의미는 아닙니다.</div>';
+}
+
+function comparePriorityClusters(a, b, severityOrder) {
+  const diffOrder = ["worsened", "new", "unbaselined", "unverified", "unchanged"];
+  const aDiff = diffOrder.findIndex((key) => a.priority.sortKeys.includes(key));
+  const bDiff = diffOrder.findIndex((key) => b.priority.sortKeys.includes(key));
+  const normalizedA = aDiff === -1 ? Number.MAX_SAFE_INTEGER : aDiff;
+  const normalizedB = bDiff === -1 ? Number.MAX_SAFE_INTEGER : bDiff;
+  if (normalizedA !== normalizedB) return normalizedA - normalizedB;
+  const aJourney = a.priority.sortKeys.includes("material-journey") ? 0 : 1;
+  const bJourney = b.priority.sortKeys.includes("material-journey") ? 0 : 1;
+  return aJourney - bJourney
+    || severityOrder.indexOf(a.severity) - severityOrder.indexOf(b.severity)
+    || a.id.localeCompare(b.id);
 }
 
 function renderCoverage() {
@@ -237,7 +315,6 @@ function renderTable() {
           '<div><b>왜 위험한가</b><p>' + escapeHtml(finding.whyRisky) + '</p></div>' +
           '<div><b>가능한 영향</b><p>' + escapeHtml(finding.possibleImpact) + '</p></div>' +
           '<div><b>위험 증가 조건</b><p>' + escapeHtml(finding.riskFactors) + '</p></div>' +
-          '<div><b>완화 통제</b><p>' + escapeHtml(finding.mitigatingControls) + '</p></div>' +
           '<div><b>다음 확인</b><p>' + escapeHtml(finding.verification) + '</p></div>' +
           '<div><b>한계</b><p>' + escapeHtml(finding.limitation) + '</p></div>' +
           '<div><b>권장 조치</b><p>' + escapeHtml(finding.recommendation) + '</p></div>' +
@@ -268,7 +345,7 @@ function formatBytes(bytes) {
 }
 
 function download() {
-  const blob = new Blob([buildMarkdown(state)], { type: "text/markdown;charset=utf-8" });
+  const blob = new Blob([buildAuditMarkdown(currentAuditResult)], { type: "text/markdown;charset=utf-8" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = (state.name.toLowerCase().replace(/[^a-z0-9가-힣]+/g, "-") || "frontend") + "-audit.md";

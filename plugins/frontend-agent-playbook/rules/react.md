@@ -19,6 +19,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Consult React o
 
 ## Version And RSC Mode
 
+Rule ID: `react.version-context`
+
 - **SHOULD**: Inspect the installed React version, framework, bundler, and route architecture before applying Server Component guidance.
 - **SHOULD**: For React versions or setups without supported RSC integration, use client-rendered or framework-supported SSR patterns and do not recommend RSC directives or boundaries.
 - **MUST**: Do not infer RSC support from the React major version alone. Some pre-React 19 frameworks used canary or experimental integrations, so verify the framework and its versioned documentation.

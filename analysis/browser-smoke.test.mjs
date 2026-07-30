@@ -73,13 +73,18 @@ test("loads analyzer and dashboard scripts in browser order and renders findings
   context.globalThis = context;
 
   const analyzerSource = fs.readFileSync(new URL("./analyzer.js", import.meta.url), "utf8");
+  const contractSource = fs.readFileSync(new URL("./audit-contract.js", import.meta.url), "utf8");
   const appSource = fs.readFileSync(new URL("./app.js", import.meta.url), "utf8");
 
   vm.runInContext(analyzerSource, context, { filename: "analyzer.js" });
+  vm.runInContext(contractSource, context, { filename: "audit-contract.js" });
   vm.runInContext(appSource, context, { filename: "app.js" });
 
+  assert.equal(context.FrontendAuditContract.TOOL_VERSION, "0.2.0-dev");
   assert.match(nodes.get("urgentList").innerHTML, /HTML 렌더링 신뢰경계 확인/);
   assert.match(nodes.get("urgentList").innerHTML, /왜 위험한가/);
+  assert.match(nodes.get("urgentList").innerHTML, /우선순위 근거/);
+  assert.match(nodes.get("urgentList").innerHTML, /선정 근거/);
   assert.match(nodes.get("findingsTable").innerHTML, /security\.html-sink-boundary/);
   assert.match(nodes.get("scopeExclusions").textContent, /181 B 분석/);
   assert.match(nodes.get("seoScopeStatus").textContent, /인덱싱 의도만 확인/);

@@ -20,6 +20,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer existing
 
 ## Core Rules
 
+Rule ID: `error-handling-observability.error-recovery`
+
 - **SHOULD**: Treat failure handling as part of the feature, not cleanup after the happy path.
 - **SHOULD**: Surface actionable user-facing recovery for meaningful failures.
 - **SHOULD**: Preserve diagnostics needed for debugging while minimizing sensitive data in logs and telemetry.

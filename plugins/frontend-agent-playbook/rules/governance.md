@@ -6,6 +6,8 @@ Define how AI agents should resolve conflicts, decide whether a rule applies, an
 
 ## Precedence
 
+Rule ID: `governance.codebase-context`
+
 Use this order when guidance conflicts:
 
 1. Non-negotiable security, accessibility, privacy, and data-integrity requirements

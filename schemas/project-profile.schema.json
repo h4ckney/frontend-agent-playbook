@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/h4ckney/frontend-agent-playbook/schemas/project-profile.schema.json",
+  "title": "Frontend Agent Playbook Project Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "public",
+            "mixed",
+            "internal",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "criticalJourneys": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/criticalJourney"
+      }
+    },
+    "routePolicies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/routePolicy"
+      }
+    },
+    "trustBoundaries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/trustBoundary"
+      }
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/control"
+      }
+    },
+    "suppressions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/suppression"
+      }
+    },
+    "ci": {
+      "$ref": "#/$defs/ci"
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "criticalJourney": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "routes",
+        "impact"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "routes": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "impact": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "owners": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "routePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pattern",
+        "visibility",
+        "indexing"
+      ],
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "public",
+            "internal",
+            "mixed"
+          ]
+        },
+        "indexing": {
+          "type": "string",
+          "enum": [
+            "required",
+            "not-applicable",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "trustBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "paths",
+        "requiredControls"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "paths": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "requiredControls": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "area",
+        "verification"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "area": {
+          "type": "string",
+          "minLength": 1
+        },
+        "appliesTo": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "verification": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "suppressionCommon": {
+      "type": "object",
+      "required": [
+        "owner",
+        "reason",
+        "expires"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "suppression": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/suppressionCommon"
+        },
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "fingerprint"
+              ],
+              "properties": {
+                "fingerprint": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "ruleId",
+                "detectorIds",
+                "pathScope"
+              ],
+              "properties": {
+                "ruleId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "detectorIds": {
+                  "$ref": "#/$defs/stringArray"
+                },
+                "pathScope": {
+                  "$ref": "#/$defs/stringArray"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "report-only",
+            "blocking"
+          ],
+          "default": "report-only"
+        },
+        "failOn": {
+          "description": "Blocking selectors. Use exact finding:<finding-id>, inclusive severity:<level>, or exact decision:<effective-decision>. Bare stable finding IDs are also accepted as exact finding selectors.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(finding:[a-z0-9]+(?:[.-][a-z0-9]+)*|severity:(critical|high|medium|low|info)|decision:(act-now|verify-first|observe|information-gap)|[a-z0-9]+(?:[.-][a-z0-9]+)*)$"
+          }
+        },
+        "requireComplete": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  }
+}

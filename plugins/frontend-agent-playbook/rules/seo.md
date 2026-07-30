@@ -10,6 +10,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Confirm the pro
 
 ## Applicability
 
+Rule ID: `seo.applicability`
+
 - **MUST**: Determine whether affected routes are public and indexable, public but intentionally non-indexable, mixed, or internal/private before applying this rule.
 - **SHOULD**: Apply search metadata, sitemap, canonical, structured-data, and search-appearance guidance only to public routes whose discovery or search presentation matters.
 - **MAY**: Mark search optimization as not applicable for authenticated, network-restricted, or otherwise internal-only products with no intended organic discovery.
@@ -57,6 +59,10 @@ Use the shared precedence in [Rule Governance](./governance.md). Confirm the pro
 
 ## Robots And Sitemaps
 
+Rule ID: `seo.sitemap`
+
+Rule ID: `seo.robots`
+
 - **SHOULD**: Use robots meta directives for HTML pages and `X-Robots-Tag` when indexing directives are required for non-HTML resources or response-level control.
 - **MUST**: Do not block crawling of a URL when a crawler must read its `noindex` directive.
 - **SHOULD**: Treat `robots.txt` primarily as crawl control, not as proof that a URL cannot appear in search.
@@ -64,6 +70,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Confirm the pro
 - **SHOULD**: Keep environment-specific robots and sitemap behavior explicit so preview settings cannot leak into production.
 
 ## Metadata And Search Appearance
+
+Rule ID: `seo.metadata`
 
 - **SHOULD**: Use unique, specific titles and descriptions for indexable pages and keep them aligned with visible content.
 - **SHOULD**: Keep a logical heading hierarchy and descriptive internal-link text.

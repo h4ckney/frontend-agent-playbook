@@ -10,6 +10,10 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer the proj
 
 ## Select Tests By Risk
 
+Rule ID: `testing.test-foundation`
+
+Rule ID: `testing.critical-journeys`
+
 Choose the lowest test level that gives reliable confidence, then add broader coverage only when the failure crosses boundaries or affects a critical user journey.
 
 | Change or risk | Preferred coverage |

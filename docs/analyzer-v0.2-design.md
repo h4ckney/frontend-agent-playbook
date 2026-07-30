@@ -2,6 +2,12 @@
 
 이 문서는 현재 Frontend Audit 대시보드에서 확인된 구조적 한계를 해결하기 위한 구현 설계다. 목표는 정적 패턴을 더 많이 찾는 것이 아니라, 같은 분석 결과를 CLI, CI, 브라우저 UI와 Markdown 보고서에서 재현하고 각 우선순위의 근거를 설명할 수 있게 만드는 것이다.
 
+## Implementation Status
+
+2026-07-30 기준 `main`에는 Recommended First Slice가 미출시 프리뷰로 구현되어 있다. 공통 `AuditResult`, project profile과 baseline schema, 브라우저 compatibility adapter, filesystem CLI, JSON/Markdown/summary 출력, policy exit code, baseline diff, detector-rule 연결 검증 및 contract/CLI test가 포함된다.
+
+현재 profile 적용은 경로 기반 route 추론으로 확인 가능한 critical journey, route policy, trust boundary와 declared control에 한정된다. Parser 기반 route inventory와 import graph, route별 Next.js metadata 상속, 완전한 source-to-sink 분석, deep runtime 검증 및 SARIF adapter는 구현되지 않았다. 따라서 아래 Phase 3 이후 내용과 Definition of Done은 완료 상태가 아니라 후속 gate다.
+
 ## 1. Problem Statement
 
 현재 analyzer에는 다음 한계가 있다.
@@ -92,7 +98,7 @@ CLI, UI, Markdown과 baseline은 같은 결과 계약을 사용한다. 결과 �
     "analysisMode": "static-lite",
     "capabilities": [
       "text-patterns",
-      "route-file-inventory"
+      "route-path-inference"
     ],
     "detectorCatalogVersion": "2026-07-30.1",
     "profileDigest": "sha256:example",
@@ -105,6 +111,7 @@ CLI, UI, Markdown과 baseline은 같은 결과 계약을 사용한다. 결과 �
     "routerMode": "pages",
     "reactVersion": "18.x",
     "typescriptVersion": "4.x",
+    "visibility": "mixed",
     "profileSource": ".frontend-agent-playbook.json"
   },
   "scope": {
@@ -344,7 +351,7 @@ cluster는 가장 높은 severity를 상속할 수 있지만 occurrence 수로 s
   "detectorCatalogVersion": "2026-07-30.1",
   "capabilities": [
     "text-patterns",
-    "route-file-inventory"
+    "route-path-inference"
   ],
   "externalTools": [],
   "partial": false,
@@ -672,6 +679,7 @@ UI 개선은 JSON contract가 안정된 후 진행한다. 화면 요구 때문�
 Deliverables:
 
 - `schemas/audit-result.schema.json`
+- `schemas/audit-baseline.schema.json`
 - `schemas/project-profile.schema.json`
 - dependency-free runtime assertion과 schema fixture test
 - 이 문서의 finding, priority, diff와 profile vocabulary를 fixture로 고정

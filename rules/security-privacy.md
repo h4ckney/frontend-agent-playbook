@@ -29,6 +29,8 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer project 
 
 ## Authentication And Session Rules
 
+Rule ID: `security-privacy.browser-storage`
+
 - **SHOULD**: Prefer server-managed sessions or other backend-approved auth flows over browser-managed token handling.
 - **MUST**: Do not store session identifiers, refresh tokens, or other sensitive credentials in JavaScript-accessible browser storage, including `localStorage` and `sessionStorage`.
 - **MUST**: If cookies are used for sensitive session state, prefer backend-managed `HttpOnly`, `Secure`, and appropriate `SameSite` settings.
@@ -44,6 +46,10 @@ Use the shared precedence in [Rule Governance](./governance.md). Prefer project 
 - **MUST**: Do not duplicate the same sensitive payload across multiple client caches without a concrete need.
 
 ## Rendering And Injection Rules
+
+Rule ID: `security-privacy.html-injection`
+
+Rule ID: `security-privacy.cross-window-messaging`
 
 - **MUST**: Do not introduce `dangerouslySetInnerHTML`, raw HTML insertion, or code evaluation without a documented trusted-content boundary.
 - **MUST**: Escape or sanitize untrusted rich text at the approved boundary before rendering.
