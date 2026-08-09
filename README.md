@@ -5,17 +5,19 @@
 [![Validate](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml/badge.svg)](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Production-oriented frontend playbook for Claude Code, Codex, and other AI coding agents.
+Evidence-driven judgment and control for frontend systems built with Claude Code, Codex, and other AI coding agents.
 
-This repository defines practical rules, skills, examples, and templates for React, Next.js, TypeScript, forms, runtime validation, state ownership, design systems, styling, internationalization, bundle and dependency decisions, security, privacy, data fetching, caching, error handling, observability, accessibility, SEO, performance, testing, dead-code removal, and code review workflows.
+This repository helps engineers retain a working model of the web systems they change with AI. Official React, Next.js, TypeScript, and web-platform documentation remains an input; the playbook focuses on diagnosis, boundaries, evidence, proportional decisions, verification, and operational ownership.
 
-![Frontend Audit dashboard showing evidence levels, priority review candidates, and risk areas](assets/audit-dashboard.png)
+![Frontend Audit dashboard showing evidence levels, priority review items, and risk areas](assets/audit-dashboard.png)
 
 ## Why Not Just Another Rules List?
 
+- **Judgment before patterns**: start from the user or system symptom, trace the relevant boundary, and collect evidence before selecting a technique.
+- **Ownership after generation**: require an explainable system path, failure model, verification, and recovery point before accepting material AI-generated changes.
 - **Audit before adoption**: inspect the codebase, versions, router, rendering model, existing instructions, and evidence before selecting guidance.
 - **Approval-gated changes**: proposals, file-level approval, application, and external Issue publication remain separate boundaries.
-- **Version-aware frontend decisions**: distinguish Pages Router from App Router, RSC from non-RSC React, and compiler-supported TypeScript features.
+- **Version-aware adapters**: distinguish Pages Router from App Router, RSC from non-RSC React, and compiler-supported TypeScript features without treating framework summaries as the core product.
 
 ## Quick Start
 
@@ -33,6 +35,7 @@ Add the smallest entry point to the target repository's `AGENTS.md`:
 ## Frontend Agent Guidance
 
 - Start with `.agents/vendor/frontend-agent-playbook/rules/governance.md`.
+- For diagnosis, uncertain causality, performance, or material generated changes, select one relevant model from `.agents/vendor/frontend-agent-playbook/judgment/`.
 - Use `.agents/vendor/frontend-agent-playbook/skills/audit-frontend-rules/references/rule-routing.md` to select only task-relevant rules.
 - Reinspect the installed framework, router, rendering model, TypeScript version, lint, tests, and local instructions before applying guidance.
 - Keep project instructions and version-matched official documentation above the vendored playbook.
@@ -64,9 +67,11 @@ The Codex local marketplace add and install path has been smoke-tested in an iso
 
 ## What This Is
 
-`frontend-agent-playbook` is a frontend operating playbook for AI coding agents working on production applications.
+`frontend-agent-playbook` is an evidence-driven operating playbook for engineers and AI coding agents working on production web systems.
 
-It is designed to reduce vague AI-generated code and push agents toward senior frontend engineer behavior: reading existing code first, following project conventions, handling real UI states, preserving accessibility, and verifying changes before completion.
+Its core question is not “Which frontend best practices can be listed?” It is “How should an engineer understand, diagnose, change, verify, and operate this web system without losing control of it?” Searchable framework knowledge stays in official documentation or narrow adapters. Reusable judgment earned from production failures, repeated misjudgments, AI failure modes, and cross-project decisions belongs here.
+
+This scope is intentionally narrower than product and delivery governance. It does not decide what product to build or claim that generated output transfers ownership automatically. It preserves frontend system depth while AI accelerates implementation.
 
 ## How To Use
 
@@ -74,7 +79,14 @@ Reference the relevant playbook files from project instructions, agent memory, `
 
 Always start with [Rule governance](rules/governance.md), then use [Rule routing](skills/audit-frontend-rules/references/rule-routing.md) to select the smallest task-specific subset.
 
-Available rules:
+Use a judgment model when the task requires diagnosis or a material engineering decision:
+
+- [Performance diagnosis](judgment/performance-diagnosis.md)
+- [Debugging and root cause](judgment/debugging-root-cause.md)
+- [AI-generated code verification](judgment/ai-generated-code-verification.md)
+- [Judgment model admission and transition map](judgment/README.md)
+
+Supporting rules and adapters:
 
 - [React rules](rules/react.md)
 - [Next.js rules](rules/nextjs.md)
@@ -120,7 +132,7 @@ After an owner approves named proposal IDs, use [Apply Frontend Guidance](skills
 The dependency-free [guidance approval gate](scripts/guidance-approval.mjs) compares supplied approval metadata for repository identity, proposal status, material scope, exact target paths, dependencies, enforcement, content fingerprints, conflicts, and idempotent reruns before application. It does not inspect repository ownership or compute target-file fingerprints; the applying agent must gather and verify those inputs.
 Dashboard Markdown exports include stable finding IDs and an Audit Handoff table. Carry those IDs into proposals and Issue drafts for traceability, but do not treat them as defect proof or write approval.
 
-For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html), choose the project's search-exposure scope, and select a project folder. It separates observed facts, risk inferences, information gaps, and removal candidates, applies SEO checks only to relevant public scope, groups findings with the same root cause into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
+For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html), choose the project's search-exposure scope, and select a project folder. It separates observed facts, risk hypotheses, information gaps, and removal candidates, applies SEO checks only to relevant public scope, groups findings with the same root cause into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
 
 ### Analyzer CLI Preview
 
@@ -144,7 +156,8 @@ Contracts are documented in [Analyzer v0.2 design](docs/analyzer-v0.2-design.md)
 
 ## Repository Structure
 
-- `rules/`: Core frontend rules by topic
+- `judgment/`: Reusable diagnosis, decision, verification, and ownership models
+- `rules/`: Narrow constraints, version adapters, and risk-triggered domain guidance
 - `skills/`: Repeatable agent workflows for applying and maintaining rules
 - `examples/`: Copy-ready agent instruction examples
 - `templates/`: Fillable request forms for common frontend work
@@ -173,6 +186,10 @@ Existing patterns do not justify preserving known correctness, security, or acce
 
 | Area | Status | Notes |
 | --- | --- | --- |
+| Judgment model contract | Pilot draft | Admission gate, document contract, and existing-guidance transition map added |
+| Performance Diagnosis | Pilot draft | Measurement-first boundary decomposition and counterexample checks added |
+| Debugging / Root Cause | Pilot draft | Reproduction, failure-boundary narrowing, causal verification, and containment distinction added |
+| AI-Generated Code Verification | Pilot draft | Delegation contract, ownership handoff, rejection signals, and recovery evidence added |
 | Governance | Usable draft | Precedence, applicability, explicit requirement levels, exceptions, and removal policy added |
 | React | Usable draft | Official references and agent checklist added |
 | Next.js | Usable draft | Official references and agent checklist added |
@@ -203,9 +220,11 @@ Existing patterns do not justify preserving known correctness, security, or acce
 
 ## Roadmap
 
+- Forward-test the three initial judgment models on real performance, debugging, and AI-generated change reviews.
+- Record which model decisions led to Maintain, Improve, Propose, or Reject outcomes and where the model produced noise.
+- Reclassify existing topic rules as core constraints, version adapters, domain guidance, consolidation inputs, or removal candidates only after representative use.
 - Forward-test the [implemented issue drafts](docs/next-issue-drafts.md) against an additional live repository before enabling external Issue publication.
-- Add more realistic good and bad examples.
-- Add framework-specific examples for common Next.js workflows.
+- Add realistic examples only when they demonstrate a decision, counterexample, or failure path that official documentation does not already cover.
 - Add review examples with severity labels.
 - Forward-test the audit skill against an additional live App Router or mixed-router repository.
 - Forward-test rule routing against implementation, review, SEO, and dead-code tasks.

@@ -1,6 +1,6 @@
 # Rule Routing
 
-Use this reference after the initial repository inspection. Load governance first, then only the rule files justified by the task and observed risks.
+Use this reference after the initial repository inspection. Load governance first, select a judgment model only when the task needs diagnosis or a material decision, then load only the rules justified by the task and observed risks.
 
 ## Context Probe
 
@@ -21,7 +21,18 @@ Do not infer App Router, RSC, TypeScript features, or lint enforcement from a ma
 
 - `rules/governance.md`
 
-### Tier 1: Task Core
+### Tier 1: Judgment Model
+
+Normally choose zero or one primary model. Load more only for explicitly separate questions, and do not load all judgment models by default.
+
+| Task signal | Load |
+| --- | --- |
+| Measured slowdown, performance regression, or explicit performance target | `judgment/performance-diagnosis.md` |
+| Bug, regression, intermittent failure, stale state, hydration mismatch, or uncertain cause | `judgment/debugging-root-cause.md` |
+| Review or acceptance of a material AI-generated change | `judgment/ai-generated-code-verification.md` |
+| Narrow and fully understood implementation task | No judgment model required |
+
+### Tier 2: Task Constraints
 
 Choose the smallest useful set, normally two to four files.
 
@@ -35,13 +46,13 @@ Choose the smallest useful set, normally two to four files.
 | Locale, translated message, formatting, direction, or locale routing | `i18n.md`, then `seo.md` for indexable localized URLs |
 | Production dependency, client boundary, import strategy, code split, or bundle budget | `bundle-dependencies.md`, then `performance.md` for measured or user-visible runtime cost |
 | Remote read, mutation, cache, or optimistic UI | `data-fetching-cache.md`, `error-handling-observability.md` |
-| Bug fix or regression | `testing.md`, plus the domain rule for the failure |
-| Code review | `code-review.md`, plus rules for the changed surface |
+| Bug fix or regression | `testing.md`, plus the domain rule selected after tracing the failure path |
+| Code review | `code-review.md`, plus rules for the changed surface; add AI-generated code verification when applicable |
 | Type boundary or compiler change | `typescript.md` |
 | Pages Router to App Router migration | `nextjs.md`, `playbooks/pages-to-app-router.md` |
 | React 18 to React 19 migration | `react.md`, `typescript.md`, `playbooks/react-18-to-19.md` |
 
-### Tier 2: Risk Triggered
+### Tier 3: Risk Triggered
 
 Load only when the trigger is present.
 
@@ -55,11 +66,11 @@ Load only when the trigger is present.
 | Multiple locales, user-selectable language, plural or regional formatting, RTL, or localized public URLs | `i18n.md` |
 | New runtime package, unexpected client code, heavy script, dynamic import, or measured budget regression | `bundle-dependencies.md` |
 | Indexable URL, metadata, canonical, redirect, robots, sitemap, or structured data | `seo.md` |
-| Measured slowdown, bundle change, image/font/script addition, or performance acceptance criterion | `performance.md` |
+| A diagnosed rendering, JavaScript, asset, or network boundary needs implementation constraints | `performance.md` |
 | Removal, unused dependency, expired flag, or cleanup request | `dead-code.md` |
 | Critical workflow or missing regression coverage | `testing.md` |
 
-### Tier 3: Evidence References
+### Tier 4: Evidence References
 
 Open official version-matched documentation and repository-specific instructions only for claims that depend on them. Do not load every external reference listed by a rule file.
 
@@ -92,6 +103,7 @@ Include a compact record in the audit:
 ```markdown
 ## Selected Guidance
 - Always: governance
+- Judgment: debugging-root-cause
 - Loaded: react, testing, security-privacy
 - Conditional: nextjs Pages Router sections
 - Excluded: App Router/RSC, SEO, performance, dead code

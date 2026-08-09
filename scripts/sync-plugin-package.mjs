@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pluginRoot = path.join(root, "plugins", "frontend-agent-playbook");
-const directorySources = ["playbooks", "rules", "skills", "templates"];
+const directorySources = ["judgment", "playbooks", "rules", "skills", "templates"];
 const fileSources = ["LICENSE", "scripts/guidance-approval.mjs"];
 const checkOnly = process.argv.includes("--check");
 

@@ -270,7 +270,7 @@ The proposed workflow changes repository instructions and can create backlog ite
 - No files are created before approval.
 - Approved application follows the target repository's existing layout.
 - A repeated run does not create duplicate active decisions or duplicate artifacts.
-- Issue drafts separate observed facts, risk inferences, and information gaps.
+- Issue drafts separate observed facts, risk hypotheses, and information gaps.
 - False-positive and over-engineering decisions are documented in examples.
 
 ### Verification artifacts

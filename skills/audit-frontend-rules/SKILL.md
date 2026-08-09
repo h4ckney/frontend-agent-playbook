@@ -1,28 +1,29 @@
 ---
 name: audit-frontend-rules
-description: Audit a frontend codebase against a routed subset of current guidance, identify material risks and gaps, propose project-specific rules, skills, enforcement changes, or follow-up issue drafts behind an explicit approval gate, and persist approved applicability decisions. Use when adopting or reviewing frontend AI instructions, selecting applicable rules, maintaining .frontend-rules-decisions.md, recommending reusable project guidance, or deciding whether guidance should be kept, changed, disabled, removed, or created.
+description: Audit a frontend codebase with evidence-driven judgment models and a routed subset of current guidance, identify material risks and gaps, propose project-specific rules, skills, enforcement changes, or follow-up issue drafts behind an explicit approval gate, and persist approved applicability decisions. Use when diagnosing frontend systems, reviewing AI-generated changes, adopting frontend instructions, selecting applicable rules, maintaining .frontend-rules-decisions.md, or deciding whether guidance should be kept, changed, disabled, removed, or created.
 ---
 
 # Audit Frontend Rules
 
-Audit shared guidance against project evidence before recommending that it be applied, changed, disabled, or removed. Always read `../../rules/governance.md` when available. Read [Rule Routing](references/rule-routing.md) after the initial context probe and load only the rule subset justified by the task and observed risk.
+Audit shared guidance against project evidence before recommending that it be applied, changed, disabled, or removed. Always read `../../rules/governance.md` when available. Read [Rule Routing](references/rule-routing.md) after the initial context probe, select a judgment model when diagnosis or a material decision is required, and load only the rule subset justified by the task and observed risk.
 
 ## Workflow
 
 1. Inspect the repository structure, package manager, framework versions, route trees, rendering model, configuration, scripts, test setup, CI, and local agent instructions.
 2. Read `.frontend-rules-decisions.md` when present. Treat its entries as project evidence, verify their scope and recheck triggers, and do not assume stale decisions remain valid.
-3. Use [Rule Routing](references/rule-routing.md) to select governance plus the smallest applicable rule subset. Record loaded, conditional, and excluded guidance.
-4. Inventory applicable rule and skill files. Record duplicated guidance and their precedence.
-5. Compare selected guidance with current code patterns, product requirements, persisted decisions, official version-matched documentation, and measured behavior.
-6. Classify each relevant item as Keep, Conditional, Disable, or Removal candidate.
-7. Identify contradictions, obsolete APIs, unjustified absolutes, duplicate instructions, and changes that would introduce disproportionate complexity.
-8. Assess only risk domains supported by the task or repository evidence. Load their rule files on demand.
-9. Assess unit, component, integration, and E2E gaps according to risk and the existing toolchain.
-10. Synthesize related findings by root cause and user journey. Convert dashboard priority candidates into urgent recommendations only after repository evidence supports the impact and timing.
-11. Recommend zero to three urgent changes. Do not fill the list when fewer issues are urgent.
-12. Propose zero or more guidance artifacts using `../../templates/guidance-proposal.md`. Include `No artifact needed` when an existing rule or direct fix is sufficient.
-13. Draft follow-up issues only for accepted or explicitly requested work using `../../templates/audit-issue.md` when available. Do not publish them.
-14. Propose decision-file additions, updates, or removals using `../../templates/frontend-rules-decisions.md`. Write them only when the user requested persistence or approved repository changes.
+3. Use [Rule Routing](references/rule-routing.md) to select governance, zero or one primary judgment model, and the smallest applicable rule subset. Record loaded, conditional, and excluded guidance.
+4. For each material finding or selected judgment model, build only the relevant system path: entry point, data flow, state owner, side effects, failure boundaries, and observable outcome.
+5. Inventory applicable judgment, rule, and skill files. Record duplicated guidance and their precedence.
+6. Compare selected guidance with current code patterns, product requirements, persisted decisions, official version-matched documentation, and measured behavior.
+7. Classify each relevant guidance item as Keep, Conditional, Disable, or Removal candidate. Separately classify the engineering action as Maintain, Improve, Propose, or Reject when a code change is under review.
+8. Identify contradictions, obsolete APIs, unjustified absolutes, duplicate instructions, and changes that would introduce disproportionate complexity.
+9. Assess only risk domains supported by the task or repository evidence. Load their rule files on demand.
+10. Assess unit, component, integration, and E2E gaps according to risk and the existing toolchain.
+11. Synthesize related findings by root cause and user journey. Convert dashboard priority candidates into urgent recommendations only after repository evidence supports the impact and timing.
+12. Recommend zero to three urgent changes. Do not fill the list when fewer issues are urgent.
+13. Propose zero or more guidance artifacts using `../../templates/guidance-proposal.md`. Include `No artifact needed` when an existing rule or direct fix is sufficient.
+14. Draft follow-up issues only for accepted or explicitly requested work using `../../templates/audit-issue.md` when available. Do not publish them.
+15. Propose decision-file additions, updates, or removals using `../../templates/frontend-rules-decisions.md`. Write them only when the user requested persistence or approved repository changes.
 
 ## Guidance Proposals
 
@@ -58,9 +59,20 @@ Audit shared guidance against project evidence before recommending that it be ap
 - Treat version control as decision history; keep the active file current.
 - Do not let a persisted decision override higher-precedence governance requirements.
 
+## Judgment Model Selection
+
+- Load `../../judgment/debugging-root-cause.md` for bugs, regressions, intermittent failures, stale state, hydration mismatches, or uncertain causality.
+- Load `../../judgment/performance-diagnosis.md` only for a measured slowdown, credible performance regression, or explicit performance acceptance criterion.
+- Load `../../judgment/ai-generated-code-verification.md` when reviewing or accepting a material AI-generated implementation, refactor, migration, or architecture change.
+- Select no judgment model for a narrow, fully understood task when governance and one domain rule are sufficient.
+- Treat judgment models as decision processes, not additional finding catalogs.
+- Keep engineering actions (Maintain, Improve, Propose, Reject) separate from guidance applicability (Keep, Conditional, Disable, Removal candidate).
+- Record the selected model, the system path it helped build, and any step skipped because evidence or scope did not justify it.
+
 ## Progressive Rule Loading
 
 - Load governance first.
+- Normally load zero or one primary judgment model when diagnosis or a material decision is required. Load more only for explicitly separate questions.
 - Load two to four task-core rules in the normal case.
 - Load forms and runtime validation, state ownership, design system and styling, internationalization, bundle and dependencies, security, accessibility, SEO, performance, testing, and dead-code rules only when their triggers are present.
 - For mixed-router repositories, route findings by affected tree instead of loading one router model globally.
@@ -175,6 +187,7 @@ Audit shared guidance against project evidence before recommending that it be ap
 ## Performance Assessment
 
 - Identify the user-visible metric, route, device or runtime assumptions, and reproducible baseline before recommending optimization.
+- Use `../../judgment/performance-diagnosis.md` to split the measured path across network, server, rendering, JavaScript, and asset boundaries before selecting an optimization.
 - Inspect rendering, JavaScript execution, assets, fonts, third-party scripts, network waterfalls, and bundle output only where task or measurement evidence makes them relevant.
 - Use `../../rules/performance.md` when available, add `../../rules/bundle-dependencies.md` only when imports, packages, runtime boundaries, code splitting, or bundle budgets are involved, and distinguish measured regressions from static risk inferences.
 - Report material measured regressions, unbudgeted shipped cost, or missing verification as Performance Risks without inventing universal thresholds.
@@ -205,6 +218,8 @@ Always use these core sections:
 ## Issue Drafts
 ## Proposed Changes
 ```
+
+When a judgment model is selected, add `## Selected Judgment Model` and `## System Path` after Codebase Context. Do not add empty judgment sections to a narrow audit that did not require a model.
 
 Add Forms Or Runtime Validation Risks, State Ownership Risks, Design System Or Styling Risks, Internationalization Risks, Bundle Or Dependency Risks, Security Or Privacy Risks, Data Fetching Or Cache Risks, Error Handling Or Observability Risks, SEO Risks, Dead Code Candidates, Performance Risks, or Accessibility Risks only when that domain was selected or the user requested a full matrix. Record unselected domains under Selected Guidance; do not describe an unassessed domain as having no finding.
 

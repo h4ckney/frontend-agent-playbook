@@ -1,4 +1,4 @@
 interface:
   display_name: "Audit Frontend Rules"
-  short_description: "Audit and propose scoped frontend guidance"
-  default_prompt: "Use $audit-frontend-rules to audit this frontend codebase, propose only justified project rules, skills, or issue drafts with evidence, and wait for explicit approval before any application."
+  short_description: "Diagnose and audit frontend systems with evidence"
+  default_prompt: "Use $audit-frontend-rules to select a relevant frontend judgment model, trace the system path, audit only justified guidance, propose evidence-backed rules, skills, or issue drafts, and wait for explicit approval before any application."

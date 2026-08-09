@@ -44,6 +44,24 @@ Classify reviewed rules and skills as one of:
 
 Support Conditional, Disable, and Removal candidate decisions with concrete evidence from configuration, source code, tests, official versioned documentation, or measured behavior.
 
+These labels apply to rules and skills. Do not confuse them with the engineering action for a code change: Maintain, Improve, Propose, or Reject.
+
+## Guidance Types
+
+- **MUST**: Treat judgment models as reusable decision processes, rules as narrow constraints, adapters as version-specific implementation guidance, skills as executable workflows, and analyzer output as bounded evidence.
+- **MUST**: Do not present framework documentation summaries or static analyzer findings as the repository's primary judgment layer.
+- **SHOULD**: Select a judgment model before loading topic rules when the task involves diagnosis, uncertain causality, architecture, production behavior, or material AI-generated changes.
+- **SHOULD**: Keep framework and domain guidance on demand. Do not load it solely because the repository contains it.
+
+## Content Admission
+
+- **MUST**: Do not add easily searchable reference knowledge as core playbook content unless it is required to apply a repository-specific decision or safety boundary.
+- **SHOULD**: Add new core guidance only when it comes from a production failure, repeated misjudgment, recurring AI failure mode, incident-critical mental model, or a decision reused across projects.
+- **MUST**: Mark untested guidance as a hypothesis or draft. Do not describe it as validated practice.
+- **SHOULD**: Include the trigger, system model, evidence, decision process, counterexample, and verification needed to use new judgment guidance.
+- **SHOULD**: Prefer deepening or consolidating an existing judgment model over creating another topic file.
+- **MUST**: Preserve necessary correctness, security, accessibility, privacy, and data-integrity constraints when merging, relocating, or removing guidance.
+
 ## Avoid Over-engineering
 
 - **SHOULD**: Inspect the current implementation before proposing a new abstraction, dependency, state layer, validation library, or test tier.

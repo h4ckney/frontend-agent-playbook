@@ -5,17 +5,19 @@
 [![Validate](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml/badge.svg)](https://github.com/h4ckney/frontend-agent-playbook/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Claude Code, Codex 및 기타 AI 코딩 에이전트를 위한 프로덕션 지향 프론트엔드 플레이북입니다.
+Claude Code, Codex 및 기타 AI 코딩 에이전트와 함께 프론트엔드 시스템을 다룰 때 필요한 증거 기반 판단과 통제 플레이북입니다.
 
-이 저장소는 React, Next.js, TypeScript, 폼, 런타임 검증, 상태 소유권, 디자인 시스템, 스타일링, 국제화, 번들 및 의존성 판단, 보안, 개인정보 보호, 데이터 페칭, 캐싱, 오류 처리, 관측 가능성, 접근성, SEO, 성능, 테스트, 데드코드 제거 및 코드 리뷰 워크플로우를 위한 실용적인 규칙, 스킬, 예시와 템플릿을 제공합니다.
+이 저장소는 AI가 변경하는 웹 시스템의 동작 원리를 엔지니어가 계속 이해하고 통제할 수 있도록 돕습니다. React, Next.js, TypeScript 및 웹 플랫폼 공식 문서는 입력 자료로 사용하고, 플레이북은 진단, 경계, 근거, 비례적인 판단, 검증 및 운영 소유권에 집중합니다.
 
-![근거 수준, 우선 검토 후보 및 위험 영역을 표시하는 프론트엔드 감사 대시보드](assets/audit-dashboard.png)
+![근거 수준, 우선 검토 항목 및 위험 영역을 표시하는 프론트엔드 점검 대시보드](assets/audit-dashboard.png)
 
 ## 단순한 규칙 목록과 무엇이 다른가요?
 
+- **패턴보다 판단 우선**: 기법을 고르기 전에 사용자 또는 시스템 증상에서 시작해 관련 경계를 추적하고 근거를 수집합니다.
+- **생성 이후에도 소유권 유지**: 중요한 AI 생성 변경을 수용하기 전에 시스템 경로, 실패 모델, 검증 및 복구 지점을 설명할 수 있어야 합니다.
 - **도입 전 감사**: 가이드를 선택하기 전에 코드베이스, 버전, 라우터, 렌더링 모델, 기존 지침과 근거를 확인합니다.
 - **승인 기반 변경**: 제안, 파일 단위 승인, 적용 및 외부 Issue 게시는 서로 분리된 경계로 유지합니다.
-- **버전 인지형 프론트엔드 판단**: Pages Router와 App Router, RSC와 비 RSC React, 컴파일러가 지원하는 TypeScript 기능을 구분합니다.
+- **버전 인지형 어댑터**: Pages Router와 App Router, RSC와 비 RSC React, 컴파일러가 지원하는 TypeScript 기능을 구분하되 프레임워크 요약을 핵심 제품으로 취급하지 않습니다.
 
 ## 빠른 시작
 
@@ -33,6 +35,7 @@ npx degit h4ckney/frontend-agent-playbook#v0.1.1 .agents/vendor/frontend-agent-p
 ## Frontend Agent Guidance
 
 - Start with `.agents/vendor/frontend-agent-playbook/rules/governance.md`.
+- For diagnosis, uncertain causality, performance, or material generated changes, select one relevant model from `.agents/vendor/frontend-agent-playbook/judgment/`.
 - Use `.agents/vendor/frontend-agent-playbook/skills/audit-frontend-rules/references/rule-routing.md` to select only task-relevant rules.
 - Reinspect the installed framework, router, rendering model, TypeScript version, lint, tests, and local instructions before applying guidance.
 - Keep project instructions and version-matched official documentation above the vendored playbook.
@@ -64,9 +67,11 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 ## 이 저장소의 목적
 
-`frontend-agent-playbook`은 프로덕션 애플리케이션을 다루는 AI 코딩 에이전트를 위한 프론트엔드 운영 플레이북입니다.
+`frontend-agent-playbook`은 프로덕션 웹 시스템을 다루는 엔지니어와 AI 코딩 에이전트를 위한 증거 기반 운영 플레이북입니다.
 
-에이전트가 먼저 기존 코드를 읽고, 프로젝트 관례를 따르며, 실제 UI 상태와 접근성을 처리하고, 완료 전에 변경 사항을 검증하도록 유도합니다. 이를 통해 모호한 AI 생성 코드를 줄이고 시니어 프론트엔드 엔지니어에 가까운 작업 방식을 갖추는 것이 목적입니다.
+핵심 질문은 “어떤 프론트엔드 베스트 프랙티스를 더 나열할까?”가 아닙니다. “이 웹 시스템을 어떻게 이해하고, 진단하고, 변경하고, 검증하고, 운영해야 통제권을 잃지 않을까?”입니다. 검색으로 쉽게 얻을 수 있는 프레임워크 지식은 공식 문서나 좁은 어댑터에 두고, 프로덕션 실패, 반복된 오판, AI의 실패 패턴과 여러 프로젝트에서 재사용된 판단을 핵심 자산으로 축적합니다.
+
+이 범위는 제품 및 전달 거버넌스보다 의도적으로 좁습니다. 무엇을 만들지 결정하거나 생성된 결과가 자동으로 소유권을 이전한다고 주장하지 않습니다. AI가 구현 속도를 높이더라도 프론트엔드 시스템에 대한 깊이를 유지하는 것이 목적입니다.
 
 ## 사용 방법
 
@@ -74,7 +79,14 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 항상 [규칙 거버넌스](rules/governance.md)부터 시작한 다음 [규칙 라우팅](skills/audit-frontend-rules/references/rule-routing.md)을 사용하여 작업에 필요한 최소 규칙만 선택합니다.
 
-사용 가능한 규칙:
+진단이나 중요한 엔지니어링 판단이 필요한 작업에서는 판단 모델을 사용합니다.
+
+- [성능 진단](judgment/performance-diagnosis.md)
+- [디버깅과 근본 원인](judgment/debugging-root-cause.md)
+- [AI 생성 코드 검증](judgment/ai-generated-code-verification.md)
+- [판단 모델 추가 기준 및 전환 지도](judgment/README.md)
+
+보조 규칙과 어댑터:
 
 - [React 규칙](rules/react.md)
 - [Next.js 규칙](rules/nextjs.md)
@@ -122,7 +134,7 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 대시보드 Markdown 내보내기에는 안정적인 finding ID와 Audit Handoff 표가 포함됩니다. 추적성을 위해 해당 ID를 제안서와 Issue 초안에 전달하되, 결함의 증거나 쓰기 승인으로 간주하지 마세요.
 
-빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트의 검색 노출 범위를 선택한 뒤 폴더를 지정합니다. 대시보드는 관찰된 사실, 위험 추론, 정보 부족 및 제거 후보를 구분하고, SEO는 관련 있는 공개 범위에만 적용하며, 같은 원인의 finding을 위험 cluster로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
+빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트의 검색 노출 범위를 선택한 뒤 폴더를 지정합니다. 대시보드는 관찰된 사실, 위험 가능성, 정보 부족 및 삭제 후보를 구분하고, SEO는 관련 있는 공개 범위에만 적용하며, 같은 원인의 항목을 위험 그룹으로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
 
 ### Analyzer CLI 프리뷰
 
@@ -146,7 +158,8 @@ node bin/frontend-agent-audit.mjs baseline \
 
 ## 저장소 구조
 
-- `rules/`: 주제별 핵심 프론트엔드 규칙
+- `judgment/`: 재사용 가능한 진단, 판단, 검증 및 소유권 모델
+- `rules/`: 좁은 제약, 버전 어댑터 및 위험 기반 도메인 가이드
 - `skills/`: 규칙 적용 및 유지 관리를 위한 반복 가능한 에이전트 워크플로우
 - `examples/`: 바로 사용할 수 있는 에이전트 지침 예시
 - `templates/`: 일반적인 프론트엔드 작업을 위한 작성형 요청 양식
@@ -175,6 +188,10 @@ node bin/frontend-agent-audit.mjs baseline \
 
 | 영역 | 상태 | 설명 |
 | --- | --- | --- |
+| 판단 모델 계약 | 파일럿 초안 | 추가 기준, 문서 계약 및 기존 가이드 전환 지도 추가 |
+| 성능 진단 | 파일럿 초안 | 측정 우선 경계 분해와 반례 검증 추가 |
+| 디버깅 / 근본 원인 | 파일럿 초안 | 재현, 실패 경계 축소, 인과 검증 및 임시 대응 구분 추가 |
+| AI 생성 코드 검증 | 파일럿 초안 | 위임 계약, 소유권 전달, 거절 신호 및 복구 근거 추가 |
 | 거버넌스 | 사용 가능한 초안 | 우선순위, 적용 가능성, 명시적 요구 수준, 예외 및 제거 정책 추가 |
 | React | 사용 가능한 초안 | 공식 참고 자료 및 에이전트 체크리스트 추가 |
 | Next.js | 사용 가능한 초안 | 공식 참고 자료 및 에이전트 체크리스트 추가 |
@@ -205,9 +222,11 @@ node bin/frontend-agent-audit.mjs baseline \
 
 ## 로드맵
 
+- 실제 성능, 디버깅 및 AI 생성 변경 리뷰에서 초기 판단 모델 세 개를 forward-test
+- 판단 모델이 유지, 개선, 제안 또는 거절 중 어떤 결정으로 이어졌는지와 노이즈가 발생한 지점을 기록
+- 대표 사용 결과를 확인한 뒤 기존 주제 규칙을 핵심 제약, 버전 어댑터, 도메인 가이드, 통합 대상 또는 삭제 후보로 재분류
 - 외부 Issue 게시를 활성화하기 전에 [구현된 Issue 초안](docs/next-issue-drafts.md)을 추가 실제 저장소에서 forward-test
-- 더 현실적인 좋은 예시와 나쁜 예시 추가
-- 일반적인 Next.js 워크플로우를 위한 프레임워크별 예시 추가
+- 공식 문서에 이미 있는 지식을 반복하지 않고 판단, 반례 또는 실패 경로를 보여주는 현실적인 예시만 추가
 - 심각도 레이블을 포함한 리뷰 예시 추가
 - 추가 App Router 또는 mixed-router 실제 저장소에서 감사 스킬 forward-test
 - 구현, 리뷰, SEO 및 데드코드 작업에서 규칙 라우팅 forward-test

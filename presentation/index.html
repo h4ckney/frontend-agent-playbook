@@ -896,12 +896,12 @@
     <section class="slide hero active" data-title="소개" aria-hidden="false">
       <div class="slide-inner">
         <p class="eyebrow">Frontend Agent Playbook</p>
-        <h1>흩어진 좋은 규칙을<br>프로젝트에 맞는 실행으로</h1>
-        <p class="lead">React, Next.js, TypeScript의 공식 가이드를 코드베이스의 버전·구조·위험에 맞게 골라 쓰고, 근거를 확인한 뒤 사람의 승인을 받아 유지·개선·후속 작업 제안으로 연결하는 플레이북입니다.</p>
+        <h1>AI가 코드를 작성해도<br>시스템의 통제권은 유지하도록</h1>
+        <p class="lead">검색 가능한 프론트엔드 지식을 더 모으기보다, 웹 시스템을 어떻게 이해하고 진단하고 변경하고 검증할지 판단 모델·규칙·스킬·증거로 연결한 플레이북입니다.</p>
         <div class="hero-meta">
-          <span>공식 가이드 → 프로젝트 맥락</span>
-          <span>유지 · 개선 · 제안</span>
-          <span>근거 확인 → 승인 → 검증</span>
+          <span>증상 → 시스템 경계</span>
+          <span>근거 → 판단 → 검증</span>
+          <span>유지 · 개선 · 제안 · 거절</span>
         </div>
       </div>
     </section>
@@ -909,16 +909,16 @@
     <section class="slide" data-title="문제와 이유" aria-hidden="true">
       <div class="slide-inner">
         <p class="eyebrow">01 · Problem</p>
-        <h2>좋은 가이드는 많았지만, 실제 프로젝트에 적용하는 과정은 흩어져 있었습니다</h2>
+        <h2>지식은 충분했지만, 판단과 소유권은 자동으로 생기지 않았습니다</h2>
         <div class="two-column">
           <div>
             <p class="statement">AI는 기존 코드와 관례를 참고합니다. 나쁜 패턴이 쌓일수록 그 패턴을 <mark>정상적인 방식으로 받아들여 반복할 가능성</mark>도 커집니다.</p>
-            <p class="reason">공식 근거를 모으는 데서 끝나지 않고, 현재 코드를 지키고 개선하며 당장 해결하지 못한 위험은 다음 작업으로 남기는 공통 흐름이 필요했습니다.</p>
+            <p class="reason">공식 문서는 빠르게 찾을 수 있어도 왜 느린지, 어디서 상태가 어긋났는지, 생성된 변경을 받아도 되는지는 시스템 경계와 실제 근거를 따라 판단해야 했습니다.</p>
           </div>
           <div class="failure-list">
             <div class="failure">
               <b>01</b>
-              <div><strong>근거와 적용 조건이 분산</strong><span>React, Next.js, TypeScript의 가이드는 좋지만 버전·Router·공개 범위에 따라 무엇을 적용할지는 다시 판단해야 합니다.</span></div>
+              <div><strong>증상과 원인이 쉽게 섞임</strong><span>느림, stale state, hydration 오류 같은 증상은 Network·Server·Rendering·JS와 데이터 흐름 중 실제 실패 경계를 찾아야 합니다.</span></div>
             </div>
             <div class="failure">
               <b>02</b>
@@ -926,7 +926,7 @@
             </div>
             <div class="failure">
               <b>03</b>
-              <div><strong>발견이 다음 행동으로 이어지지 않음</strong><span>지금 고칠 문제, 유지할 좋은 패턴, 범위 밖이라 이슈로 제안할 문제를 구분하지 않으면 우선순위가 사람에게 그대로 남습니다.</span></div>
+              <div><strong>생성된 코드가 설명 없이 남음</strong><span>코드가 동작해도 데이터 흐름, 실패 방식과 복구 지점을 이해하지 못하면 시스템 소유권은 약해집니다.</span></div>
             </div>
           </div>
         </div>
@@ -936,17 +936,18 @@
     <section class="slide" data-title="동작 구조" aria-hidden="true">
       <div class="slide-inner">
         <p class="eyebrow">02 · Workflow</p>
-        <h2>규칙·스킬·분석기를 하나의 실행 흐름으로 묶었습니다</h2>
+        <h2>판단 모델·규칙·스킬·증거를 하나의 실행 흐름으로 묶었습니다</h2>
         <div class="flow">
-          <article class="flow-step"><b>01 · RULES</b><strong>무엇을<br>지킬지</strong><span>공식 가이드와 프로젝트 예외를 판단 기준으로 정리</span></article>
-          <article class="flow-step"><b>02 · SKILLS</b><strong>어떻게 점검하고<br>적용할지</strong><span>코드 탐색부터 제안·승인·적용까지 반복 가능한 절차</span></article>
-          <article class="flow-step"><b>03 · ANALYZER</b><strong>무엇을 먼저<br>살펴볼지</strong><span>검토 후보와 근거 수준, 아직 확인하지 못한 정보를 정리</span></article>
-          <article class="flow-step"><b>04 · PLAYBOOK</b><strong>어떻게<br>연결할지</strong><span>프로젝트 맥락부터 검증과 결정 기록까지 하나로 연결</span></article>
+          <article class="flow-step"><b>01 · JUDGMENT</b><strong>어떻게<br>판단할지</strong><span>증상에서 시스템 경계와 확인할 근거를 좁히는 사고 과정</span></article>
+          <article class="flow-step"><b>02 · RULES</b><strong>어떤 제약을<br>지킬지</strong><span>프로젝트와 버전에 맞는 좁고 검증 가능한 제약</span></article>
+          <article class="flow-step"><b>03 · SKILLS</b><strong>어떻게<br>실행할지</strong><span>탐색부터 제안·승인·적용·검증까지 반복 가능한 절차</span></article>
+          <article class="flow-step"><b>04 · EVIDENCE</b><strong>무엇으로<br>확인할지</strong><span>Analyzer, 코드, 런타임과 테스트에서 얻은 근거를 구분</span></article>
         </div>
         <div class="principle">
           <span><strong>유지</strong> · 이미 좋은 패턴은 훼손하지 않도록 지킴</span>
           <span><strong>개선</strong> · 현재 작업 범위에서 검증 가능한 만큼 개선</span>
           <span><strong>제안</strong> · 범위 밖 위험은 근거와 완료 기준을 갖춘 초안으로 남김</span>
+          <span><strong>거절</strong> · 근거·범위·검증이 부족한 변경은 수용하지 않음</span>
         </div>
       </div>
     </section>
@@ -1002,7 +1003,7 @@
               <li>입력 데이터의 실제 출처와 신뢰 경계</li>
               <li>사용자·비즈니스에 미치는 실제 영향</li>
               <li>기존 방어 로직과 예외가 타당한지</li>
-              <li>유지·즉시 개선·후속 제안 중 처리 방향</li>
+              <li>유지·개선·제안·거절 중 처리 방향</li>
               <li>수정과 이슈 등록의 우선순위·시점</li>
             </ul>
           </article>
@@ -1017,33 +1018,33 @@
             </ul>
           </article>
         </div>
-        <p class="honesty"><strong>현재 상태:</strong> 안정 버전은 v0.1.1이며 분석기 v0.2의 첫 구현은 main에서 검증 중입니다. 정적 패턴 검사이므로 실제로 도움이 된 지적과 오탐의 비율은 아직 충분히 측정하지 못했습니다.</p>
+        <p class="honesty"><strong>현재 상태:</strong> 안정 버전은 v0.1.1이며 분석기 v0.2와 초기 판단 모델은 main에서 검증 중입니다. 정적 패턴 검사와 판단 모델 모두 실제 프로젝트에서 유효했던 결정과 노이즈를 더 측정해야 합니다.</p>
       </div>
     </section>
 
     <section class="slide" data-title="다음 계획" aria-hidden="true">
       <div class="slide-inner">
         <p class="eyebrow">05 · Next</p>
-        <h2>다음 단계는 규칙 추가보다 실전 검증입니다</h2>
+        <h2>다음 단계는 판단 모델을 실제 문제에 검증하는 것입니다</h2>
         <div class="roadmap-grid">
           <div class="roadmap">
-            <div class="roadmap-item"><div><strong>실제 프로젝트 2~3곳에서 검증</strong><span>Pages Router, App Router, 혼합 구조에서도 같은 기준으로 판단하는지 확인</span></div></div>
-            <div class="roadmap-item"><div><strong>도움이 된 지적과 오탐 측정</strong><span>분석 항목이 유지·수정·이슈·제외 중 어디로 이어졌는지 기록</span></div></div>
+            <div class="roadmap-item"><div><strong>실제 문제 3종에서 판단 모델 검증</strong><span>성능 저하, 재현하기 어려운 버그, 중요한 AI 생성 변경에 적용</span></div></div>
+            <div class="roadmap-item"><div><strong>결정과 노이즈 측정</strong><span>판단이 유지·개선·제안·거절 중 어디로 이어졌는지 기록</span></div></div>
             <div class="roadmap-item"><div><strong>기준선과 변경 비교를 분석 UI에 연결</strong><span>새로 생김·악화됨·기존·확인 불가를 구분해 반복 분석의 노이즈를 줄임</span></div></div>
-            <div class="roadmap-item"><div><strong>Next.js 분석 정확도 높이기</strong><span>페이지별 메타데이터와 제한된 데이터 흐름부터 파서 기반 분석의 정확도를 검증</span></div></div>
+            <div class="roadmap-item"><div><strong>기존 규칙 재분류</strong><span>핵심 제약·버전 어댑터·도메인 가이드·통합 대상·삭제 후보로 정리</span></div></div>
           </div>
           <aside class="questions">
             <p class="eyebrow">Discussion</p>
             <h3>같이 확인하고 싶은 것</h3>
             <ol>
-              <li>AI 코드리뷰에서 가장 자주 보는 과잉 지적은 무엇인가?</li>
-              <li>파일럿으로 적용해볼 프로젝트가 있는가?</li>
-              <li>어떤 위험을 지금 수정하고 어떤 위험을 이슈로 남겨야 하는가?</li>
+              <li>AI가 작성한 뒤 시스템 이해가 가장 자주 끊기는 지점은 어디인가?</li>
+              <li>성능·디버깅 판단 모델을 시험해볼 실제 문제가 있는가?</li>
+              <li>유지·개선·제안·거절 분류가 실제 리뷰에 도움이 되는가?</li>
             </ol>
           </aside>
         </div>
         <div class="closing-row">
-          <p class="closing">좋은 코드베이스를 지키고, 지금 개선하며,<br>당장 해결할 수 없는 위험은 근거 있는 다음 작업으로 남깁니다.</p>
+          <p class="closing">AI가 코드를 작성해도 판단과 운영 책임은 유지하고,<br>확인하지 못한 위험은 근거 있는 다음 작업으로 남깁니다.</p>
           <a class="star-ask" href="https://github.com/h4ckney/frontend-agent-playbook" target="_blank" rel="noreferrer">마지막 승인 게이트 · 괜찮았다면 GitHub ★ 부탁드립니다</a>
         </div>
       </div>
