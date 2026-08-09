@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Frontend Agent Playbook 내부 발표 자료">
+  <title>Frontend Agent Playbook</title>
+  <style>
+    :root {
+      --paper: #f5f6f3;
+      --surface: #ffffff;
+      --ink: #17201f;
+      --muted: #68736f;
+      --line: #d7ddda;
+      --forest: #18302d;
+      --green: #2f7c5d;
+      --mint: #b8dfca;
+      --coral: #d8654f;
+      --amber: #e5ad45;
+      --blue: #3b78a8;
+      --violet: #75649b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100%;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    a {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .topbar {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 20;
+      height: 72px;
+      padding: 0 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.96);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 6px;
+      background: var(--forest);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .brand-copy strong,
+    .brand-copy span {
+      display: block;
+    }
+
+    .brand-copy strong {
+      font-size: 13px;
+    }
+
+    .brand-copy span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .progress {
+      width: min(360px, 36vw);
+      height: 4px;
+      overflow: hidden;
+      background: var(--line);
+    }
+
+    .progress i {
+      display: block;
+      width: 16.666%;
+      height: 100%;
+      background: var(--green);
+      transition: width 220ms ease;
+    }
+
+    .top-actions,
+    .deck-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus-visible {
+      border-color: var(--green);
+      color: var(--green);
+      outline: none;
+    }
+
+    .icon-button:disabled {
+      cursor: default;
+      opacity: 0.35;
+    }
+
+    .counter {
+      min-width: 50px;
+      color: var(--muted);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+
+    .deck {
+      padding-top: 72px;
+    }
+
+    .slide {
+      min-height: calc(100dvh - 72px);
+      padding: 48px 64px 54px;
+      display: none;
+      overflow: hidden;
+    }
+
+    .slide.active {
+      display: flex;
+      animation: reveal 260ms ease-out;
+    }
+
+    .slide-inner {
+      width: min(1320px, 100%);
+      margin: auto;
+    }
+
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1,
+    h2 {
+      line-height: 1.1;
+    }
+
+    h1 {
+      max-width: 960px;
+      margin-bottom: 26px;
+      font-size: 68px;
+    }
+
+    h2 {
+      max-width: 900px;
+      margin-bottom: 34px;
+      font-size: 46px;
+    }
+
+    h3 {
+      font-size: 17px;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 20px;
+      line-height: 1.65;
+    }
+
+    .hero {
+      position: relative;
+      background: var(--forest);
+      color: #f6f8f6;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 10px;
+      background: var(--mint);
+    }
+
+    .hero .slide-inner {
+      position: relative;
+    }
+
+    .hero .eyebrow {
+      color: #7fd1a7;
+    }
+
+    .hero .lead {
+      color: #c1d2cc;
+    }
+
+    .hero-meta {
+      margin-top: 64px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #9cb5ad;
+      font-size: 12px;
+    }
+
+    .hero-meta span {
+      padding: 7px 10px;
+      border: 1px solid #48645d;
+      border-radius: 4px;
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(420px, 0.92fr);
+      gap: 70px;
+      align-items: start;
+    }
+
+    .statement {
+      max-width: 660px;
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.32;
+    }
+
+    .statement mark {
+      padding: 0 4px;
+      background: var(--mint);
+      color: var(--forest);
+    }
+
+    .failure-list {
+      border-top: 1px solid var(--ink);
+    }
+
+    .failure {
+      padding: 19px 0;
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .failure b {
+      color: var(--coral);
+      font-size: 12px;
+    }
+
+    .failure strong,
+    .failure span {
+      display: block;
+    }
+
+    .failure strong {
+      margin-bottom: 5px;
+      font-size: 16px;
+    }
+
+    .failure span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .reason {
+      margin-top: 42px;
+      padding-left: 18px;
+      border-left: 4px solid var(--green);
+      color: var(--forest);
+      font-size: 18px;
+      font-weight: 750;
+      line-height: 1.6;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 180px;
+      padding: 22px 20px;
+      border: 1px solid var(--line);
+      border-top: 5px solid var(--green);
+      border-radius: 6px;
+      background: var(--surface);
+    }
+
+    .flow-step:nth-child(2) {
+      border-top-color: var(--blue);
+    }
+
+    .flow-step:nth-child(3) {
+      border-top-color: var(--violet);
+    }
+
+    .flow-step:nth-child(4) {
+      border-top-color: var(--amber);
+    }
+
+    .flow-step b,
+    .flow-step strong,
+    .flow-step span {
+      display: block;
+    }
+
+    .flow-step b {
+      margin-bottom: 24px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .flow-step strong {
+      min-height: 52px;
+      font-size: 18px;
+      line-height: 1.45;
+    }
+
+    .flow-step span {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 76px;
+      right: -19px;
+      z-index: 2;
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--forest);
+      color: #fff;
+      font-size: 11px;
+    }
+
+    .principle {
+      margin: 28px 0 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 32px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .principle strong {
+      color: var(--ink);
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.65fr);
+      gap: 30px;
+      align-items: stretch;
+    }
+
+    .screen {
+      min-height: 470px;
+      overflow: hidden;
+      border: 1px solid #c8d0cc;
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 18px 40px rgba(21, 45, 40, 0.13);
+    }
+
+    .screen-bar {
+      height: 34px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+      background: #eef1ef;
+    }
+
+    .screen-bar i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #aab5b0;
+    }
+
+    .screen-context {
+      min-height: 76px;
+      padding: 12px 14px;
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .screen-context > strong {
+      font-size: 11px;
+    }
+
+    .scope-options {
+      padding: 3px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: #eef1ef;
+    }
+
+    .scope-options span {
+      min-height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 3px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 750;
+    }
+
+    .scope-options .selected {
+      background: var(--forest);
+      color: #fff;
+    }
+
+    .scope-result {
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .screen img {
+      width: 100%;
+      height: 360px;
+      display: block;
+      object-fit: cover;
+      object-position: top;
+    }
+
+    .demo-steps {
+      display: grid;
+      align-content: start;
+      border-top: 1px solid var(--ink);
+    }
+
+    .demo-step {
+      padding: 18px 0;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .demo-step b {
+      color: var(--green);
+      font-size: 11px;
+    }
+
+    .demo-step strong,
+    .demo-step span {
+      display: block;
+    }
+
+    .demo-step strong {
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .demo-step span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .demo-link {
+      min-height: 42px;
+      margin-top: 20px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: var(--forest);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .boundaries {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .boundary {
+      min-height: 310px;
+      padding: 25px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+    }
+
+    .boundary.auto {
+      border-top: 5px solid var(--blue);
+    }
+
+    .boundary.human {
+      border-top: 5px solid var(--amber);
+    }
+
+    .boundary.blocked {
+      border-top: 5px solid var(--coral);
+    }
+
+    .boundary-label {
+      display: inline-block;
+      margin-bottom: 28px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .boundary h3 {
+      margin-bottom: 16px;
+      font-size: 21px;
+    }
+
+    .boundary ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .boundary li {
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .honesty {
+      margin-top: 30px;
+      padding: 15px 18px;
+      border: 1px solid #e6c37e;
+      border-radius: 6px;
+      background: #fff7e8;
+      color: #765119;
+      font-size: 12px;
+    }
+
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(390px, 0.9fr);
+      gap: 60px;
+    }
+
+    .roadmap {
+      counter-reset: roadmap;
+      border-top: 1px solid var(--ink);
+    }
+
+    .roadmap-item {
+      padding: 17px 0;
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .roadmap-item::before {
+      counter-increment: roadmap;
+      content: "0" counter(roadmap);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .roadmap-item strong,
+    .roadmap-item span {
+      display: block;
+    }
+
+    .roadmap-item strong {
+      font-size: 14px;
+    }
+
+    .roadmap-item span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .questions {
+      padding: 26px;
+      border-radius: 8px;
+      background: var(--forest);
+      color: #f4f7f5;
+    }
+
+    .questions .eyebrow {
+      color: #78c79e;
+    }
+
+    .questions h3 {
+      margin-bottom: 22px;
+      font-size: 23px;
+    }
+
+    .questions ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .questions li {
+      padding: 13px 0;
+      border-top: 1px solid #36514a;
+      color: #d1ddd8;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .closing-row {
+      margin-top: 30px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .closing {
+      margin: 0;
+      padding-left: 18px;
+      border-left: 5px solid var(--green);
+      font-size: 19px;
+      font-weight: 850;
+      line-height: 1.55;
+    }
+
+    .star-ask {
+      min-height: 44px;
+      padding: 0 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      border: 1px solid var(--forest);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--forest);
+      font-size: 12px;
+      font-weight: 850;
+      text-decoration: none;
+    }
+
+    .star-ask:hover,
+    .star-ask:focus-visible {
+      background: var(--forest);
+      color: #fff;
+      outline: none;
+    }
+
+    @media (max-width: 1000px) {
+      .slide {
+        padding: 42px 32px 48px;
+      }
+
+      h1 {
+        font-size: 54px;
+      }
+
+      h2 {
+        font-size: 38px;
+      }
+
+      .two-column,
+      .demo-grid,
+      .roadmap-grid {
+        grid-template-columns: 1fr;
+        gap: 34px;
+      }
+
+      .flow {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .flow-step:not(:last-child)::after {
+        display: none;
+      }
+
+      .screen {
+        min-height: 380px;
+      }
+
+      .screen img {
+        height: 270px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .topbar {
+        height: 62px;
+        padding: 0 12px;
+      }
+
+      .brand span,
+      .progress,
+      .top-actions > .icon-button {
+        display: none;
+      }
+
+      .deck {
+        padding-top: 62px;
+      }
+
+      .slide {
+        min-height: calc(100dvh - 62px);
+        padding: 34px 18px 42px;
+        overflow: auto;
+      }
+
+      h1 {
+        font-size: 42px;
+      }
+
+      h2 {
+        margin-bottom: 26px;
+        font-size: 33px;
+      }
+
+      .lead {
+        font-size: 17px;
+      }
+
+      .statement {
+        font-size: 27px;
+      }
+
+      .hero-meta {
+        margin-top: 42px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .flow,
+      .boundaries {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-step {
+        min-height: 0;
+      }
+
+      .flow-step b {
+        margin-bottom: 16px;
+      }
+
+      .principle {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .closing-row {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .screen {
+        min-height: 360px;
+      }
+
+      .screen-context {
+        grid-template-columns: 1fr;
+        gap: 7px;
+      }
+
+      .scope-result {
+        white-space: normal;
+      }
+
+      .screen img {
+        height: 210px;
+      }
+    }
+
+    @media print {
+      .topbar {
+        display: none;
+      }
+
+      .deck {
+        padding: 0;
+      }
+
+      .slide,
+      .slide.active {
+        min-height: 100vh;
+        page-break-after: always;
+        display: flex;
+        animation: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide.active,
+      .progress i {
+        animation: none;
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">FA</span>
+      <span class="brand-copy">
+        <strong>Frontend Agent Playbook</strong>
+        <span>내부 공유 · v0.1.1 + main 미리보기</span>
+      </span>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+    <div class="top-actions">
+      <button class="icon-button" id="fullscreenButton" type="button" title="전체 화면" aria-label="전체 화면">⛶</button>
+      <nav class="deck-nav" aria-label="슬라이드 이동">
+        <button class="icon-button" id="previousButton" type="button" title="이전 슬라이드" aria-label="이전 슬라이드">←</button>
+        <span class="counter"><b id="currentSlide">1</b> / <span id="totalSlides">6</span></span>
+        <button class="icon-button" id="nextButton" type="button" title="다음 슬라이드" aria-label="다음 슬라이드">→</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="deck">
+    <section class="slide hero active" data-title="소개" aria-hidden="false">
+      <div class="slide-inner">
+        <p class="eyebrow">Frontend Agent Playbook</p>
+        <h1>흩어진 좋은 규칙을<br>프로젝트에 맞는 실행으로</h1>
+        <p class="lead">React, Next.js, TypeScript의 공식 가이드를 코드베이스의 버전·구조·위험에 맞게 골라 쓰고, 근거를 확인한 뒤 사람의 승인을 받아 유지·개선·후속 작업 제안으로 연결하는 플레이북입니다.</p>
+        <div class="hero-meta">
+          <span>공식 가이드 → 프로젝트 맥락</span>
+          <span>유지 · 개선 · 제안</span>
+          <span>근거 확인 → 승인 → 검증</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="문제와 이유" aria-hidden="true">
+      <div class="slide-inner">
+        <p class="eyebrow">01 · Problem</p>
+        <h2>좋은 가이드는 많았지만, 실제 프로젝트에 적용하는 과정은 흩어져 있었습니다</h2>
+        <div class="two-column">
+          <div>
+            <p class="statement">AI는 기존 코드와 관례를 참고합니다. 나쁜 패턴이 쌓일수록 그 패턴을 <mark>정상적인 방식으로 받아들여 반복할 가능성</mark>도 커집니다.</p>
+            <p class="reason">공식 근거를 모으는 데서 끝나지 않고, 현재 코드를 지키고 개선하며 당장 해결하지 못한 위험은 다음 작업으로 남기는 공통 흐름이 필요했습니다.</p>
+          </div>
+          <div class="failure-list">
+            <div class="failure">
+              <b>01</b>
+              <div><strong>근거와 적용 조건이 분산</strong><span>React, Next.js, TypeScript의 가이드는 좋지만 버전·Router·공개 범위에 따라 무엇을 적용할지는 다시 판단해야 합니다.</span></div>
+            </div>
+            <div class="failure">
+              <b>02</b>
+              <div><strong>나쁜 코드가 다음 기준이 됨</strong><span>임시 처리와 일관성 없는 구조가 누적되면 AI도 이를 기존 관례로 받아들여 같은 문제를 반복할 수 있습니다.</span></div>
+            </div>
+            <div class="failure">
+              <b>03</b>
+              <div><strong>발견이 다음 행동으로 이어지지 않음</strong><span>지금 고칠 문제, 유지할 좋은 패턴, 범위 밖이라 이슈로 제안할 문제를 구분하지 않으면 우선순위가 사람에게 그대로 남습니다.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="동작 구조" aria-hidden="true">
+      <div class="slide-inner">
+        <p class="eyebrow">02 · Workflow</p>
+        <h2>규칙·스킬·분석기를 하나의 실행 흐름으로 묶었습니다</h2>
+        <div class="flow">
+          <article class="flow-step"><b>01 · RULES</b><strong>무엇을<br>지킬지</strong><span>공식 가이드와 프로젝트 예외를 판단 기준으로 정리</span></article>
+          <article class="flow-step"><b>02 · SKILLS</b><strong>어떻게 점검하고<br>적용할지</strong><span>코드 탐색부터 제안·승인·적용까지 반복 가능한 절차</span></article>
+          <article class="flow-step"><b>03 · ANALYZER</b><strong>무엇을 먼저<br>살펴볼지</strong><span>검토 후보와 근거 수준, 아직 확인하지 못한 정보를 정리</span></article>
+          <article class="flow-step"><b>04 · PLAYBOOK</b><strong>어떻게<br>연결할지</strong><span>프로젝트 맥락부터 검증과 결정 기록까지 하나로 연결</span></article>
+        </div>
+        <div class="principle">
+          <span><strong>유지</strong> · 이미 좋은 패턴은 훼손하지 않도록 지킴</span>
+          <span><strong>개선</strong> · 현재 작업 범위에서 검증 가능한 만큼 개선</span>
+          <span><strong>제안</strong> · 범위 밖 위험은 근거와 완료 기준을 갖춘 초안으로 남김</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="데모" aria-hidden="true">
+      <div class="slide-inner">
+        <p class="eyebrow">03 · Demo</p>
+        <h2>분석 결과를 검토와 다음 조치로 연결합니다</h2>
+        <div class="demo-grid">
+          <div class="screen">
+            <div class="screen-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="screen-context" aria-label="검색 노출 범위: 내부 전용, SEO 검사는 선택 사항">
+              <strong>검색 노출 범위</strong>
+              <div class="scope-options" aria-hidden="true">
+                <span>미확인</span><span>검색 노출</span><span>혼합</span><span class="selected">내부 전용</span>
+              </div>
+              <span class="scope-result">SEO 검사는 선택 사항</span>
+            </div>
+            <img src="../assets/audit-dashboard.png" alt="Frontend Audit 대시보드 참고 화면">
+          </div>
+          <div>
+            <div class="demo-steps">
+              <div class="demo-step"><b>01</b><div><strong>프로젝트 맥락 확인</strong><span>버전, Router, 공개 범위와 기존 도구를 먼저 읽습니다.</span></div></div>
+              <div class="demo-step"><b>02</b><div><strong>분석 항목의 실제 영향 검토</strong><span>관찰된 사실, 위험 가능성, 정보 부족, 삭제 후보를 구분하고 왜 위험할 수 있는지와 다음 확인 방법을 함께 표시합니다.</span></div></div>
+              <div class="demo-step"><b>03</b><div><strong>Markdown 검토 보고서 생성</strong><span>항목 ID와 근거를 코드베이스 점검 스킬에 전달합니다.</span></div></div>
+              <div class="demo-step"><b>04</b><div><strong>다음 조치 제안</strong><span>점검 스킬이 유지·개선·이슈 초안을 제안하며, 수정과 이슈 등록은 각각 승인을 받습니다.</span></div></div>
+            </div>
+            <a class="demo-link" href="../analysis/index.html">로컬 점검 화면으로 이동 →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="현재 한계" aria-hidden="true">
+      <div class="slide-inner">
+        <p class="eyebrow">04 · Boundaries</p>
+        <h2>자동화는 검토 대상을 찾고, 최종 결정은 사람이 내립니다</h2>
+        <div class="boundaries">
+          <article class="boundary auto">
+            <span class="boundary-label">자동 분석</span>
+            <h3>먼저 살펴볼 항목</h3>
+            <ul>
+              <li>버전과 Router 구성</li>
+              <li>HTML 콘텐츠의 출처·정제 여부와 테스트 공백</li>
+              <li>근거가 충분한지와 먼저 볼 순서</li>
+              <li>민감 정보가 제거된 검토 보고서</li>
+            </ul>
+          </article>
+          <article class="boundary human">
+            <span class="boundary-label">사람의 확인</span>
+            <h3>사람이 확인</h3>
+            <ul>
+              <li>입력 데이터의 실제 출처와 신뢰 경계</li>
+              <li>사용자·비즈니스에 미치는 실제 영향</li>
+              <li>기존 방어 로직과 예외가 타당한지</li>
+              <li>유지·즉시 개선·후속 제안 중 처리 방향</li>
+              <li>수정과 이슈 등록의 우선순위·시점</li>
+            </ul>
+          </article>
+          <article class="boundary blocked">
+            <span class="boundary-label">자동화하지 않음</span>
+            <h3>자동으로 결정하지 않음</h3>
+            <ul>
+              <li>정적 패턴만으로 취약점 확정</li>
+              <li>삭제 후보의 자동 제거</li>
+              <li>점수를 품질 보증이나 배포 승인에 사용</li>
+              <li>승인 없는 규칙 적용·파일 수정·이슈 등록</li>
+            </ul>
+          </article>
+        </div>
+        <p class="honesty"><strong>현재 상태:</strong> 안정 버전은 v0.1.1이며 분석기 v0.2의 첫 구현은 main에서 검증 중입니다. 정적 패턴 검사이므로 실제로 도움이 된 지적과 오탐의 비율은 아직 충분히 측정하지 못했습니다.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-title="다음 계획" aria-hidden="true">
+      <div class="slide-inner">
+        <p class="eyebrow">05 · Next</p>
+        <h2>다음 단계는 규칙 추가보다 실전 검증입니다</h2>
+        <div class="roadmap-grid">
+          <div class="roadmap">
+            <div class="roadmap-item"><div><strong>실제 프로젝트 2~3곳에서 검증</strong><span>Pages Router, App Router, 혼합 구조에서도 같은 기준으로 판단하는지 확인</span></div></div>
+            <div class="roadmap-item"><div><strong>도움이 된 지적과 오탐 측정</strong><span>분석 항목이 유지·수정·이슈·제외 중 어디로 이어졌는지 기록</span></div></div>
+            <div class="roadmap-item"><div><strong>기준선과 변경 비교를 분석 UI에 연결</strong><span>새로 생김·악화됨·기존·확인 불가를 구분해 반복 분석의 노이즈를 줄임</span></div></div>
+            <div class="roadmap-item"><div><strong>Next.js 분석 정확도 높이기</strong><span>페이지별 메타데이터와 제한된 데이터 흐름부터 파서 기반 분석의 정확도를 검증</span></div></div>
+          </div>
+          <aside class="questions">
+            <p class="eyebrow">Discussion</p>
+            <h3>같이 확인하고 싶은 것</h3>
+            <ol>
+              <li>AI 코드리뷰에서 가장 자주 보는 과잉 지적은 무엇인가?</li>
+              <li>파일럿으로 적용해볼 프로젝트가 있는가?</li>
+              <li>어떤 위험을 지금 수정하고 어떤 위험을 이슈로 남겨야 하는가?</li>
+            </ol>
+          </aside>
+        </div>
+        <div class="closing-row">
+          <p class="closing">좋은 코드베이스를 지키고, 지금 개선하며,<br>당장 해결할 수 없는 위험은 근거 있는 다음 작업으로 남깁니다.</p>
+          <a class="star-ask" href="https://github.com/h4ckney/frontend-agent-playbook" target="_blank" rel="noreferrer">마지막 승인 게이트 · 괜찮았다면 GitHub ★ 부탁드립니다</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const previousButton = document.querySelector("#previousButton");
+      const nextButton = document.querySelector("#nextButton");
+      const fullscreenButton = document.querySelector("#fullscreenButton");
+      const currentSlide = document.querySelector("#currentSlide");
+      const totalSlides = document.querySelector("#totalSlides");
+      const progressBar = document.querySelector("#progressBar");
+      let index = Math.max(0, Math.min(slides.length - 1, Number(location.hash.slice(1)) - 1 || 0));
+
+      totalSlides.textContent = slides.length;
+
+      function render(nextIndex, updateHash = true) {
+        index = Math.max(0, Math.min(slides.length - 1, nextIndex));
+        slides.forEach((slide, slideIndex) => {
+          const active = slideIndex === index;
+          slide.classList.toggle("active", active);
+          slide.setAttribute("aria-hidden", String(!active));
+        });
+        currentSlide.textContent = index + 1;
+        progressBar.style.width = ((index + 1) / slides.length * 100) + "%";
+        previousButton.disabled = index === 0;
+        nextButton.disabled = index === slides.length - 1;
+        document.title = slides[index].dataset.title + " · Frontend Agent Playbook";
+        if (updateHash) history.replaceState(null, "", "#" + (index + 1));
+      }
+
+      previousButton.addEventListener("click", () => render(index - 1));
+      nextButton.addEventListener("click", () => render(index + 1));
+      fullscreenButton.addEventListener("click", () => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          document.documentElement.requestFullscreen();
+        }
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") render(index + 1);
+        if (event.key === "ArrowLeft" || event.key === "PageUp") render(index - 1);
+        if (event.key === "Home") render(0);
+        if (event.key === "End") render(slides.length - 1);
+      });
+
+      window.addEventListener("hashchange", () => {
+        const requested = Number(location.hash.slice(1)) - 1;
+        if (Number.isInteger(requested)) render(requested, false);
+      });
+
+      render(index, false);
+    })();
+  </script>
+</body>
+</html>

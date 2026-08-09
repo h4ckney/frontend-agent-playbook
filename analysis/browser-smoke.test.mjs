@@ -81,19 +81,19 @@ test("loads analyzer and dashboard scripts in browser order and renders findings
   vm.runInContext(appSource, context, { filename: "app.js" });
 
   assert.equal(context.FrontendAuditContract.TOOL_VERSION, "0.2.0-dev");
-  assert.match(nodes.get("urgentList").innerHTML, /HTML 렌더링 신뢰경계 확인/);
+  assert.match(nodes.get("urgentList").innerHTML, /HTML 콘텐츠의 출처·정제 여부 확인/);
   assert.match(nodes.get("urgentList").innerHTML, /왜 위험한가/);
   assert.match(nodes.get("urgentList").innerHTML, /우선순위 근거/);
   assert.match(nodes.get("urgentList").innerHTML, /선정 근거/);
   assert.match(nodes.get("findingsTable").innerHTML, /security\.html-sink-boundary/);
   assert.match(nodes.get("scopeExclusions").textContent, /181 B 분석/);
-  assert.match(nodes.get("seoScopeStatus").textContent, /인덱싱 의도만 확인/);
+  assert.match(nodes.get("seoScopeStatus").textContent, /검색 노출 범위 미확인/);
   assert.match(nodes.get("coverageList").innerHTML, /data-status="conditional"/);
 
   seoScopeInputs[3].checked = true;
   seoScopeInputs[3].listeners.change();
 
-  assert.match(nodes.get("seoScopeStatus").textContent, /검색 최적화 제외/);
+  assert.match(nodes.get("seoScopeStatus").textContent, /SEO 검사는 선택 사항/);
   assert.doesNotMatch(nodes.get("findingsTable").innerHTML, /seo\./);
   assert.match(nodes.get("coverageList").innerHTML, /data-status="not-applicable"/);
 });

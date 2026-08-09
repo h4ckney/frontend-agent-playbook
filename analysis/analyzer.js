@@ -18,87 +18,87 @@ const analysisLimits = Object.freeze({
 
 const evidenceLevels = {
   observed: "관찰된 사실",
-  inferred: "위험 추론",
+  inferred: "위험 가능성",
   unknown: "정보 부족",
   candidate: "삭제 후보"
 };
 const evidenceLimitations = {
-  observed: "패턴 존재만 확인하며 실제 악용 가능성이나 런타임 영향은 확정하지 않음",
-  inferred: "정적 근거에 기반한 검토 우선순위이며 결함 확정이 아님",
-  unknown: "정적 분석 범위 밖의 설정, 데이터 출처 또는 런타임 확인이 필요함",
-  candidate: "참조와 부작용 검증 전에는 삭제할 수 없음"
+  observed: "코드 패턴의 존재만 확인했으며 실제 악용 가능성이나 실행 중 영향까지 확인한 것은 아님",
+  inferred: "정적 근거를 바탕으로 위험 가능성을 추정한 것으로, 결함이 확인된 것은 아님",
+  unknown: "정적 분석으로 확인할 수 없는 설정, 데이터 출처 또는 실행 결과를 추가로 확인해야 함",
+  candidate: "참조 여부와 부수효과를 확인하기 전에는 삭제할 수 없음"
 };
 const decisionLabels = {
   "act-now": "즉시 조치",
-  "verify-first": "먼저 검증",
+  "verify-first": "먼저 확인",
   observe: "관찰",
-  "information-gap": "정보 부족"
+  "information-gap": "정보 확인 필요"
 };
 const seoScopeLabels = {
   unknown: "미확인",
-  public: "공개·검색 노출",
+  public: "검색 노출",
   mixed: "공개·내부 혼합",
-  internal: "내부·비공개 전용"
+  internal: "내부 전용"
 };
 const riskNarratives = {
   "rules.package-json-invalid": {
     clusterId: "context.package-integrity",
     clusterTitle: "프로젝트 패키지 정보 복구",
     whyRisky: "패키지 정보를 읽지 못하면 프레임워크 버전과 사용 가능한 검증 명령을 잘못 판단할 수 있습니다.",
-    possibleImpact: "잘못된 버전 규칙 적용, 설치·빌드 실패 또는 감사 범위 누락으로 이어질 수 있습니다.",
-    riskFactors: "실제 package.json 구문 오류이거나 이 파일이 활성 workspace package인 경우",
-    mitigatingControls: "다른 유효한 workspace package가 분석 대상이고 손상된 파일이 비활성 fixture인 경우",
-    verification: "해당 파일을 JSON parser와 프로젝트 package manager로 확인합니다.",
+    possibleImpact: "잘못된 버전 규칙 적용, 설치·빌드 실패 또는 점검 범위 누락으로 이어질 수 있습니다.",
+    riskFactors: "실제 package.json에 문법 오류가 있거나 이 파일이 현재 사용하는 workspace package인 경우",
+    mitigatingControls: "다른 정상적인 workspace package를 분석했고 오류 파일이 테스트용 fixture인 경우",
+    verification: "해당 파일을 JSON 파서와 프로젝트 패키지 매니저로 확인합니다.",
     decision: "act-now"
   },
   "security.html-sink-boundary": {
     clusterId: "security.html-rendering-boundary",
-    clusterTitle: "HTML 렌더링 신뢰경계 확인",
-    whyRisky: "정제되지 않은 외부 HTML이 애플리케이션 origin에서 DOM으로 해석되면 공격자 제어 마크업이 실행 문맥에 들어올 수 있습니다.",
-    possibleImpact: "사용자 화면 변조, 사용자 권한으로의 요청 유도 또는 브라우저에서 접근 가능한 데이터 노출 가능성이 있습니다.",
+    clusterTitle: "HTML 콘텐츠의 출처·정제 여부 확인",
+    whyRisky: "정제되지 않은 외부 HTML이 페이지의 DOM으로 해석되면 공격자가 제어한 마크업이 실행될 수 있습니다.",
+    possibleImpact: "화면이 변조되거나 사용자 권한으로 원치 않는 요청이 전송되고, 브라우저에서 접근 가능한 데이터가 노출될 수 있습니다.",
     riskFactors: "사용자·광고·외부 CMS 입력, 서버 정제 계약 부재, CSP 또는 Trusted Types 부재",
     mitigatingControls: "고정된 신뢰 콘텐츠, 검증된 서버 정제, 단일 SafeHtml 경계, 효과적인 CSP 또는 Trusted Types",
-    verification: "대표 입력 경로를 출처부터 sink까지 추적하고 악성 마크업 fixture와 응답 보안 헤더를 확인합니다.",
+    verification: "대표 입력이 들어오는 곳부터 HTML 출력 지점까지 추적하고, 테스트용 악성 마크업과 응답 보안 헤더를 확인합니다.",
     decision: "verify-first"
   },
   "security.html-trust-boundary-unknown": {
     clusterId: "security.html-rendering-boundary",
-    clusterTitle: "HTML 렌더링 신뢰경계 확인",
-    whyRisky: "입력 출처와 서버 정제 여부를 모르면 HTML sink의 실제 노출도를 판단할 수 없습니다.",
+    clusterTitle: "HTML 콘텐츠의 출처·정제 여부 확인",
+    whyRisky: "입력 출처와 서버 정제 여부를 모르면 HTML 직접 삽입 코드의 실제 위험을 판단할 수 없습니다.",
     possibleImpact: "위험한 경로를 안전하다고 넘기거나 신뢰된 콘텐츠까지 불필요하게 긴급 수정할 수 있습니다.",
-    riskFactors: "제3자·사용자 입력 여부와 backend contract가 문서화되지 않은 경우",
-    mitigatingControls: "소유자가 확인한 신뢰경계와 반복 가능한 정제 검증이 있는 경우",
-    verification: "콘텐츠 소유자, backend contract와 대표 runtime payload의 정제 상태를 확인합니다.",
+    riskFactors: "제3자·사용자 입력 여부와 백엔드 정제 규칙이 문서화되지 않은 경우",
+    mitigatingControls: "담당자가 확인한 신뢰 경계와 반복 가능한 정제 검증이 있는 경우",
+    verification: "콘텐츠 담당자와 함께 서버 정제 규칙이 실제 응답에도 적용되는지 확인합니다.",
     decision: "information-gap"
   },
   "security.browser-auth-storage": {
     clusterId: "security.browser-auth-storage",
     clusterTitle: "브라우저 인증정보 저장 경계 확인",
-    whyRisky: "JavaScript가 읽을 수 있는 장기 인증정보는 같은 origin에서 실행된 악성 코드나 XSS에 노출될 수 있습니다.",
+    whyRisky: "JavaScript가 읽을 수 있는 장기 인증정보는 같은 페이지에서 실행된 악성 스크립트나 XSS에 노출될 수 있습니다.",
     possibleImpact: "세션 탈취, 사용자 사칭 또는 인증정보 재사용 가능성이 있습니다.",
-    riskFactors: "실제 access·refresh token 저장, 긴 만료, 광범위한 script 실행 권한",
-    mitigatingControls: "UI 상태용 이름만 유사한 값, 짧은 수명, 서버 관리 세션과 제한된 cookie 정책",
+    riskFactors: "실제 access/refresh token 저장, 긴 만료 시간, 페이지에 포함되는 스크립트 범위가 넓은 경우",
+    mitigatingControls: "UI 상태와 이름만 비슷한 값, 짧은 수명, 서버가 관리하는 세션과 제한적인 쿠키 정책",
     verification: "저장되는 실제 값의 의미와 수명, 소비 지점, 로그아웃·계정 전환 동작을 확인합니다.",
     decision: "verify-first"
   },
   "security.postmessage-wildcard-origin": {
     clusterId: "security.cross-window-origin",
-    clusterTitle: "교차 window 메시지 origin 제한",
-    whyRisky: "와일드카드 대상은 의도하지 않은 window가 메시지를 받을 가능성을 넓힙니다.",
-    possibleImpact: "메시지에 포함된 상태나 식별자가 다른 origin으로 전달될 수 있습니다.",
-    riskFactors: "민감한 payload, opener·iframe 교체 가능성, 수신 측 origin 검증 부재",
-    mitigatingControls: "비민감 broadcast와 수신 측의 엄격한 origin·schema 검증",
-    verification: "발신 payload와 대상 window lifecycle을 확인하고 송수신 양쪽 origin 검증을 테스트합니다.",
+    clusterTitle: "창 사이 메시지의 origin 제한 확인",
+    whyRisky: "대상 origin에 `*`를 사용하면 의도하지 않은 창이 메시지를 받을 가능성이 커집니다.",
+    possibleImpact: "메시지에 포함된 상태나 식별자가 허용하지 않은 origin으로 전달될 수 있습니다.",
+    riskFactors: "민감한 데이터, opener·iframe 교체 가능성, 수신 측 origin 검증 부재",
+    mitigatingControls: "민감하지 않은 브로드캐스트와 수신 측의 엄격한 origin·메시지 형식 검증",
+    verification: "보내는 데이터와 대상 창의 생성·교체 흐름을 확인하고, 송수신 양쪽의 origin 검증을 테스트합니다.",
     decision: "verify-first"
   },
   "rules.mixed-next-router": {
     clusterId: "context.router-model",
     clusterTitle: "혼합 Router 운영 경계 확인",
-    whyRisky: "App Router와 Pages Router는 metadata, data fetching, cache와 rendering 규칙이 다릅니다.",
-    possibleImpact: "한 route tree의 규칙을 다른 tree에 적용해 동작·SEO·cache 회귀를 만들 수 있습니다.",
-    riskFactors: "공유 모듈이 두 tree의 server/client 가정을 섞거나 migration ownership이 없는 경우",
-    mitigatingControls: "route tree별 소유권, 테스트와 명시된 migration 경계",
-    verification: "변경 대상 URL을 route tree에 매핑하고 해당 tree의 build·rendering·metadata 동작을 확인합니다.",
+    whyRisky: "App Router와 Pages Router는 메타데이터, 데이터 패칭, 캐시와 렌더링 규칙이 다릅니다.",
+    possibleImpact: "한 라우트 트리의 규칙을 다른 트리에 적용해 동작·SEO·캐시 회귀를 만들 수 있습니다.",
+    riskFactors: "공유 모듈이 두 트리의 서버·클라이언트 전제를 섞거나 마이그레이션 담당자가 없는 경우",
+    mitigatingControls: "라우트 트리별 담당 범위, 테스트와 명시된 마이그레이션 경계",
+    verification: "변경 대상 URL이 어느 라우트 트리에 속하는지 확인하고 해당 트리의 빌드·렌더링·메타데이터 동작을 검증합니다.",
     decision: "verify-first"
   },
   "rules.pre-react-18-version-branch": {
@@ -106,9 +106,9 @@ const riskNarratives = {
     clusterTitle: "React 버전별 규칙 분기",
     whyRisky: "새 렌더링 모델과 API를 이전 React 환경에 적용하면 지원되지 않는 동작을 전제할 수 있습니다.",
     possibleImpact: "빌드 실패, hydration 차이 또는 불필요한 마이그레이션이 발생할 수 있습니다.",
-    riskFactors: "framework integration 확인 없이 RSC·concurrent API를 권고하는 경우",
-    mitigatingControls: "현재 렌더링 모델을 유지하고 호환되는 규칙 subset만 선택한 경우",
-    verification: "React와 renderer 버전, framework integration, 실제 root API를 확인합니다.",
+    riskFactors: "프레임워크 호환성을 확인하지 않고 RSC·동시성 API를 권고하는 경우",
+    mitigatingControls: "현재 렌더링 모델을 유지하고 호환되는 규칙만 골라 적용한 경우",
+    verification: "React와 렌더러 버전, 프레임워크 호환성, 실제 root API를 확인합니다.",
     decision: "verify-first"
   },
   "testing.test-foundation-missing": {
@@ -116,17 +116,17 @@ const riskNarratives = {
     clusterTitle: "회귀 검증 기반 확인",
     whyRisky: "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
     possibleImpact: "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다.",
-    riskFactors: "빈번한 변경, 복잡한 상태 전이, 성숙한 CI 대비 test command 부재",
-    mitigatingControls: "상위 workspace나 외부 CI에서 검증하며 선택 폴더만으로는 보이지 않는 경우",
-    verification: "workspace root, CI와 실제 변경 경로의 test command 및 최근 실행 결과를 확인합니다.",
+    riskFactors: "변경이 잦거나 상태 전이가 복잡한데 CI에서 실행할 테스트 명령이 없는 경우",
+    mitigatingControls: "상위 workspace나 외부 CI에서 검증하고 있어 선택한 폴더에서는 보이지 않는 경우",
+    verification: "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다.",
     decision: "verify-first"
   },
   "testing.e2e-path-missing": {
     clusterId: "testing.critical-journeys",
     clusterTitle: "고위험 사용자 여정 검증",
-    whyRisky: "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 routing, auth, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+    whyRisky: "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 라우팅, 인증, 결제 또는 제출 실패를 포착하기 어렵습니다.",
     possibleImpact: "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다.",
-    riskFactors: "고위험 다단계 여정이 존재하고 대체 integration 또는 synthetic 검증도 없는 경우",
+    riskFactors: "고위험 다단계 여정이 있는데 통합 테스트나 합성 모니터링 같은 대체 검증도 없는 경우",
     mitigatingControls: "해당 제품에 고위험 여정이 없거나 다른 계층의 반복 가능한 전체 경로 검증이 있는 경우",
     verification: "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다.",
     decision: "verify-first"
@@ -134,39 +134,39 @@ const riskNarratives = {
   "seo.next-metadata-missing": {
     clusterId: "seo.indexability-baseline",
     clusterTitle: "공개 URL의 검색 노출 계약 확인",
-    whyRisky: "렌더링된 metadata를 찾지 못하면 검색 엔진과 공유 미리보기가 페이지 의도를 일관되게 해석하지 못할 수 있습니다.",
-    possibleImpact: "잘못된 title·canonical, 중복 URL 또는 검색 노출 저하 가능성이 있습니다.",
-    riskFactors: "공개 indexable route이며 metadata가 runtime 외부에서 주입되지 않는 경우",
-    mitigatingControls: "비공개 route, upstream rendering 또는 별도 검증된 metadata 계층",
-    verification: "대표 공개 URL의 최종 HTML에서 title, description, canonical과 status를 확인합니다.",
+    whyRisky: "렌더링된 메타데이터를 찾지 못하면 검색 엔진과 공유 미리보기가 페이지의 의도를 일관되게 해석하지 못할 수 있습니다.",
+    possibleImpact: "잘못된 title·canonical URL, 중복 URL 또는 검색 노출 저하 가능성이 있습니다.",
+    riskFactors: "검색 노출 대상 라우트인데 메타데이터가 다른 계층에서 주입되지 않는 경우",
+    mitigatingControls: "비공개 라우트, 상위 렌더링 계층 또는 별도로 검증된 메타데이터 처리",
+    verification: "대표 공개 URL의 최종 HTML에서 title, description, canonical URL과 상태 코드를 확인합니다.",
     decision: "verify-first"
   },
   "seo.sitemap-missing": {
     clusterId: "seo.indexability-baseline",
     clusterTitle: "공개 URL의 검색 노출 계약 확인",
-    whyRisky: "대규모 또는 깊은 공개 URL은 sitemap 부재 시 발견과 갱신 신호가 약해질 수 있습니다.",
+    whyRisky: "공개 URL이 많거나 구조가 깊은 사이트는 sitemap이 없으면 검색 엔진의 페이지 발견과 갱신이 늦어질 수 있습니다.",
     possibleImpact: "일부 공개 URL의 발견 또는 갱신이 지연될 수 있습니다.",
     riskFactors: "동적·대규모 URL, 내부 링크가 약한 페이지, 잦은 URL 변경",
-    mitigatingControls: "작고 강하게 연결된 사이트이거나 외부 sitemap 서비스가 있는 경우",
-    verification: "공개 URL inventory와 실제 배포된 sitemap 위치·내용을 확인합니다.",
+    mitigatingControls: "규모가 작고 내부 링크가 충분하거나 외부 sitemap 서비스가 있는 경우",
+    verification: "공개 URL 목록과 실제 배포된 sitemap의 위치와 내용을 확인합니다.",
     decision: "verify-first"
   },
   "seo.robots-missing": {
     clusterId: "seo.indexability-baseline",
     clusterTitle: "공개 URL의 검색 노출 계약 확인",
-    whyRisky: "환경별 crawling 의도가 명시되지 않으면 preview 또는 제한 URL이 예상과 다르게 노출될 수 있습니다.",
-    possibleImpact: "불필요한 crawling, preview 노출 또는 운영 URL의 차단 가능성이 있습니다.",
-    riskFactors: "preview·production host가 분리되고 별도 edge 설정이 확인되지 않은 경우",
-    mitigatingControls: "플랫폼이나 edge 계층에서 검증된 robots 정책을 제공하는 경우",
-    verification: "production과 preview host의 실제 robots 응답과 meta robots를 확인합니다.",
+    whyRisky: "환경별 크롤링 정책이 명시되지 않으면 프리뷰 또는 제한 URL이 예상과 다르게 노출될 수 있습니다.",
+    possibleImpact: "불필요한 크롤링, 프리뷰 페이지 노출 또는 운영 URL 차단 가능성이 있습니다.",
+    riskFactors: "프리뷰와 운영 도메인이 분리돼 있는데 별도 엣지 설정을 확인하지 못한 경우",
+    mitigatingControls: "플랫폼이나 엣지 계층에서 검증된 robots 정책을 제공하는 경우",
+    verification: "운영 및 프리뷰 도메인의 실제 robots 응답과 meta robots를 확인합니다.",
     decision: "verify-first"
   },
   "seo.indexing-intent-unknown": {
     clusterId: "seo.indexing-intent",
     clusterTitle: "검색 노출 범위 확인",
-    whyRisky: "공개 URL이 있는지 모르면 metadata·sitemap 부재를 결함으로 판단할 수도, 필요한 검색 노출 검증을 누락할 수도 없습니다.",
+    whyRisky: "공개 URL이 있는지 모르면 메타데이터·sitemap 부재를 결함으로 잘못 판단하거나 필요한 검색 노출 검증을 놓칠 수 있습니다.",
     possibleImpact: "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다.",
-    riskFactors: "공개·내부 route가 섞여 있거나 배포 환경과 인증 경계가 문서화되지 않은 경우",
+    riskFactors: "공개·내부 라우트가 섞여 있거나 배포 환경과 인증 경계가 문서화되지 않은 경우",
     mitigatingControls: "제품 소유자가 검색 노출 대상 URL과 내부 전용 경계를 명시한 경우",
     verification: "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다.",
     decision: "information-gap"
@@ -174,31 +174,31 @@ const riskNarratives = {
   "dead-code.marked-removal-candidate": {
     clusterId: "dead-code.removal-candidates",
     clusterTitle: "표시된 제거 후보 검증",
-    whyRisky: "오래된 코드 표시는 유지보수 비용 신호지만 실제 참조와 부작용을 증명하지 않습니다.",
-    possibleImpact: "방치하면 탐색 비용이 늘고, 성급히 삭제하면 동적 경로나 공개 API가 깨질 수 있습니다.",
-    riskFactors: "만료된 flag·adapter이며 owner와 runtime 사용이 확인되지 않는 경우",
-    mitigatingControls: "호환성 계약이나 예정된 migration 때문에 의도적으로 유지되는 경우",
-    verification: "정적·동적 참조, export, side effect, telemetry와 owner를 확인합니다.",
+    whyRisky: "`TODO remove`나 `@deprecated` 표시는 정리가 필요할 수 있다는 신호지만, 실제로 사용하지 않는 코드라는 증거는 아닙니다.",
+    possibleImpact: "그대로 두면 코드를 파악하기 어려워지고, 확인 없이 삭제하면 동적 경로나 공개 API가 깨질 수 있습니다.",
+    riskFactors: "만료된 기능 플래그·어댑터인데 담당자와 실제 사용 여부를 확인하지 못한 경우",
+    mitigatingControls: "호환성 유지나 예정된 마이그레이션 때문에 의도적으로 남겨둔 경우",
+    verification: "정적·동적 참조, export, 부수효과, 모니터링 기록과 담당자를 확인합니다.",
     decision: "observe"
   },
   "observability.console-only-catch": {
     clusterId: "observability.error-recovery",
     clusterTitle: "오류 복구와 진단 경로 확인",
-    whyRisky: "console 출력만으로 끝나는 오류는 사용자 복구 상태와 운영 진단에 연결되지 않을 수 있습니다.",
+    whyRisky: "console 출력만으로 끝나는 오류는 사용자 안내나 운영 진단으로 이어지지 않을 수 있습니다.",
     possibleImpact: "사용자는 실패 이유나 재시도 경로를 잃고 운영자는 반복 장애를 추적하지 못할 수 있습니다.",
-    riskFactors: "중요 mutation·결제·인증 경로이며 상위 error boundary나 logger가 없는 경우",
-    mitigatingControls: "상위 계층이 오류를 처리하고 기존 telemetry가 자동 수집하는 경우",
-    verification: "호출 계층의 error boundary, 사용자 상태, logger와 alert 연결을 확인합니다.",
+    riskFactors: "중요한 데이터 변경·결제·인증 경로인데 상위 error boundary나 로거가 없는 경우",
+    mitigatingControls: "상위 계층이 오류를 처리하고 기존 모니터링 도구가 자동으로 수집하는 경우",
+    verification: "호출 계층의 error boundary, 사용자 오류 안내, 로거와 알림 연결을 확인합니다.",
     decision: "verify-first"
   },
   "rules.framework-version-unknown": {
     clusterId: "context.framework-version",
-    clusterTitle: "프레임워크 컨텍스트 확보",
+    clusterTitle: "프레임워크 정보 확인",
     whyRisky: "버전과 실행 모델을 모르면 적용 가능한 규칙과 API를 신뢰성 있게 선택할 수 없습니다.",
-    possibleImpact: "잘못된 router·RSC·TypeScript 가정을 바탕으로 과도하거나 호환되지 않는 권고가 나올 수 있습니다.",
-    riskFactors: "모노레포 하위 폴더만 선택했거나 package 정보가 별도 위치에 있는 경우",
+    possibleImpact: "잘못된 Router·RSC·TypeScript 가정을 바탕으로 과도하거나 호환되지 않는 권고가 나올 수 있습니다.",
+    riskFactors: "모노레포 하위 폴더만 선택했거나 패키지 정보가 다른 위치에 있는 경우",
     mitigatingControls: "사용자가 버전과 실행 모델을 별도 근거로 제공한 경우",
-    verification: "활성 workspace package와 lockfile, framework config를 포함해 다시 선택합니다.",
+    verification: "현재 사용하는 workspace package와 lockfile, 프레임워크 설정 파일을 포함해 다시 선택합니다.",
     decision: "information-gap"
   }
 };
@@ -304,13 +304,13 @@ function analyzeRecords(inputRecords, options = {}) {
       type: "risk",
       evidenceLevel: "observed",
       title: sanitizerEvidence
-        ? "HTML 삽입 지점 " + htmlSinkCount + "곳, sanitizer 흔적은 있으나 지점별 적용 미확인"
-        : "HTML 삽입 지점 " + htmlSinkCount + "곳, sanitizer 의존성·import 미발견",
+        ? "HTML 직접 삽입 코드 " + htmlSinkCount + "곳, 정제 라이브러리 흔적은 있으나 각 위치의 적용 여부는 확인되지 않음"
+        : "HTML 직접 삽입 코드 " + htmlSinkCount + "곳, 정제 라이브러리 의존성이나 import를 찾지 못함",
       evidence: htmlSinkMatches.map((match) => match.path),
       occurrenceCount: htmlSinkCount,
       recommendation: sanitizerEvidence
-        ? "각 삽입 지점이 승인된 정제 경계를 통과하는지 확인합니다."
-        : "콘텐츠 출처별 신뢰경계를 문서화하고 검증된 SafeHtml 경계에서 정제를 통일합니다."
+        ? "각 삽입 위치의 HTML이 승인된 정제 과정을 거치는지 확인합니다."
+        : "콘텐츠 출처별 신뢰 경계를 문서화하고 검증된 SafeHtml 경계에서 정제 처리를 통일합니다."
     }));
     findings.push(finding({
       id: "security.html-trust-boundary-unknown",
@@ -318,10 +318,10 @@ function analyzeRecords(inputRecords, options = {}) {
       area: "security",
       type: "gap",
       evidenceLevel: "unknown",
-      title: "HTML 콘텐츠의 서버 정제와 신뢰경계는 자동 확인 불가",
+      title: "HTML 콘텐츠의 서버 정제 여부와 신뢰 경계는 자동으로 확인할 수 없음",
       evidence: htmlSinkMatches.map((match) => match.path),
       occurrenceCount: htmlSinkCount,
-      recommendation: "백엔드 정제, 제3자 콘텐츠, 사용자 입력 경계를 담당자와 런타임 검증으로 확인합니다."
+      recommendation: "백엔드 정제 여부와 제3자 콘텐츠·사용자 입력의 경계를 담당자 확인과 실제 응답 검증으로 확인합니다."
     }));
   }
 
@@ -343,7 +343,7 @@ function analyzeRecords(inputRecords, options = {}) {
     area: "security",
     type: "risk",
     evidenceLevel: "observed",
-    title: "postMessage 대상 origin이 와일드카드",
+    title: "postMessage의 대상 origin에 `*` 사용",
     recommendation: "허용 origin을 명시하고 수신 측에서도 origin과 메시지 형태를 검증합니다."
   });
 
@@ -381,7 +381,7 @@ function analyzeRecords(inputRecords, options = {}) {
       type: "gap",
       evidenceLevel: "inferred",
       title: "테스트 기반을 찾지 못함",
-      evidence: ["test script 및 test/spec 파일 미발견"],
+      evidence: ["`test` 스크립트와 test/spec 파일을 찾지 못함"],
       recommendation: "변경 위험이 큰 순수 로직이나 상태 전이부터 좁은 회귀 테스트를 추가합니다."
     }));
   }
@@ -406,7 +406,7 @@ function analyzeRecords(inputRecords, options = {}) {
     const conditional = seoScope === "mixed";
     if (!metadata) findings.push(missingConfig("seo.next-metadata-missing", conditional ? "medium" : "high", "Next.js 메타데이터 구성을 찾지 못함", "인덱싱 대상 페이지의 title, description, canonical을 렌더링 결과로 확인합니다."));
     if (!sitemap) findings.push(missingConfig("seo.sitemap-missing", conditional ? "low" : "medium", "sitemap 구성을 찾지 못함", "공개 인덱싱 URL이 있다면 해당 URL만 포함하는 sitemap을 제공합니다."));
-    if (!robots) findings.push(missingConfig("seo.robots-missing", "low", "robots 구성을 찾지 못함", "프로덕션과 프리뷰 환경의 크롤링 의도를 분리해 명시합니다."));
+    if (!robots) findings.push(missingConfig("seo.robots-missing", "low", "robots 구성을 찾지 못함", "프로덕션과 프리뷰 환경의 크롤링 정책을 나누어 명시합니다."));
   } else if (nextVersion && seoScope === "unknown") {
     findings.push(finding({
       id: "seo.indexing-intent-unknown",
@@ -416,7 +416,7 @@ function analyzeRecords(inputRecords, options = {}) {
       evidenceLevel: "unknown",
       title: "프로젝트의 검색 노출 범위가 지정되지 않음",
       evidence: ["사용자 입력: 검색 노출 범위 미확인"],
-      recommendation: "공개 검색 유입이 필요한 URL이 있는지 확인한 뒤 SEO 감사를 적용하거나 제외합니다."
+      recommendation: "공개 검색 유입이 필요한 URL이 있는지 확인한 뒤 SEO 검사를 적용하거나 제외합니다."
     }));
   }
 
@@ -428,10 +428,10 @@ function analyzeRecords(inputRecords, options = {}) {
       area: "dead-code",
       type: "risk",
       evidenceLevel: "candidate",
-      title: "삭제 가능성이 표시된 코드 후보 " + deadCandidates.length + "개 파일",
+      title: "삭제 표시가 있는 코드 " + deadCandidates.length + "개 파일",
       evidence: deadCandidates.map((record) => record.path),
       occurrenceCount: deadCandidates.length,
-      recommendation: "참조, 동적 import, 공개 export와 부작용을 확인합니다. 이 결과는 삭제 승인이 아닙니다."
+      recommendation: "참조, 동적 import, 공개 export와 부수효과를 확인합니다. 이 결과만으로 삭제하면 안 됩니다."
     }));
   }
 
@@ -443,7 +443,7 @@ function analyzeRecords(inputRecords, options = {}) {
       area: "observability",
       type: "gap",
       evidenceLevel: "inferred",
-      title: "오류 처리가 console 출력에 머무를 가능성",
+      title: "오류 처리가 console 출력에서 끝날 가능성",
       evidence: consoleOnly.map((record) => record.path),
       recommendation: "기존 로거와 오류 경계를 확인하고 사용자 복구 상태와 진단 정보를 함께 설계합니다."
     }));

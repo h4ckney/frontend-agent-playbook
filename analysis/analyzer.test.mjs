@@ -32,13 +32,13 @@ test("groups HTML sinks and reports missing sanitizer without claiming XSS", () 
     record("tests/content.test.tsx", "export {};"),
     record("e2e/smoke.spec.ts", "export {};")
   ]);
-  const htmlFinding = findings.find((finding) => finding.title.includes("HTML 삽입 지점"));
+  const htmlFinding = findings.find((finding) => finding.id === "security.html-sink-boundary");
 
   assert.ok(htmlFinding);
   assert.equal(htmlFinding.id, "security.html-sink-boundary");
   assert.equal(htmlFinding.occurrenceCount, 17);
   assert.equal(htmlFinding.evidenceLevel, "observed");
-  assert.match(htmlFinding.title, /sanitizer 의존성·import 미발견/);
+  assert.match(htmlFinding.title, /정제 라이브러리 의존성이나 import를 찾지 못함/);
   assert.doesNotMatch(htmlFinding.title, /XSS 취약점/);
 });
 
@@ -55,9 +55,9 @@ test("does not lower sink severity from project-wide sanitizer evidence", () => 
     record("tests/content.test.tsx", "export {};"),
     record("e2e/smoke.spec.ts", "export {};")
   ]);
-  const htmlFinding = findings.find((finding) => finding.title.includes("HTML 삽입 지점"));
+  const htmlFinding = findings.find((finding) => finding.id === "security.html-sink-boundary");
 
-  assert.match(htmlFinding.title, /지점별 적용 미확인/);
+  assert.match(htmlFinding.title, /각 위치의 적용 여부는 확인되지 않음/);
   assert.equal(htmlFinding.severity, "high");
 });
 
@@ -72,10 +72,10 @@ test("does not treat an unrelated sanitizer import as sink-level protection", ()
     record("tests/content.test.tsx", "export {};"),
     record("e2e/smoke.spec.ts", "export {};")
   ]);
-  const htmlFinding = findings.find((finding) => finding.title.includes("HTML 삽입 지점"));
+  const htmlFinding = findings.find((finding) => finding.id === "security.html-sink-boundary");
 
   assert.equal(htmlFinding.severity, "high");
-  assert.match(htmlFinding.title, /지점별 적용 미확인/);
+  assert.match(htmlFinding.title, /각 위치의 적용 여부는 확인되지 않음/);
 });
 
 test("excludes environment, generated, build, binary-like, and oversized files", () => {
@@ -202,7 +202,7 @@ test("marks dead code only as a removal candidate", () => {
   const deadCode = findings.find((finding) => finding.area === "dead-code");
 
   assert.equal(deadCode.evidenceLevel, "candidate");
-  assert.match(deadCode.recommendation, /삭제 승인이 아닙니다/);
+  assert.match(deadCode.recommendation, /이 결과만으로 삭제하면 안 됩니다/);
   assert.deepEqual(selectPriorityCandidates(findings), []);
 });
 
@@ -246,7 +246,7 @@ test("groups related findings into one priority candidate with impact context", 
   ]);
   assert.match(htmlCluster.whyRisky, /DOM/);
   assert.match(htmlCluster.possibleImpact, /사용자/);
-  assert.match(htmlCluster.verification, /입력 경로/);
+  assert.match(htmlCluster.verification, /HTML 출력 지점/);
   assert.equal(candidates.filter((candidate) => candidate.id === htmlCluster.id).length, 1);
   assert.equal(selectPriorityCandidates(findings, "gap").some(
     (candidate) => candidate.id === htmlCluster.id
@@ -301,11 +301,11 @@ test("Markdown contains limitations and paths but no source contents", () => {
   assert.doesNotMatch(output, new RegExp(secret));
   assert.doesNotMatch(output, /Score:/);
   assert.match(output, /## Security Or Privacy Risks/);
-  assert.match(output, /Evidence level: 위험 추론/);
+  assert.match(output, /Evidence level: 위험 가능성/);
   assert.match(output, /Finding ID: `security\.browser-auth-storage`/);
   assert.match(output, /## Audit Handoff/);
   assert.match(output, /Source finding IDs/);
-  assert.match(output, /결함 확정이 아님/);
+  assert.match(output, /결함이 확인된 것은 아님/);
 });
 
 test("defaults audit scope to inspected files for existing callers", () => {
@@ -327,7 +327,7 @@ test("documents internal SEO exclusion in Markdown", () => {
   const state = createAuditResult("internal-tool", [], 0, "test", {}, { seoScope: "internal" });
   const output = buildMarkdown(state);
 
-  assert.match(output, /Search exposure scope: 내부·비공개 전용/);
+  assert.match(output, /Search exposure scope: 내부 전용/);
   assert.match(output, /SEO applicability: not applicable/);
   assert.match(output, /Not assessed: this project was classified as internal\/private only/);
 });

@@ -762,7 +762,8 @@
     };
   }
 
-  function buildAuditMarkdown(result) {
+  function buildAuditMarkdown(result, options = {}) {
+    if (options.locale === "ko") return buildAuditMarkdownKo(result);
     const lines = [
       "# Frontend Audit: " + sanitizeLabel(result.project.rootLabel),
       "",
@@ -825,6 +826,197 @@
       lines.push("- **" + item.id + "**: " + sanitizeLabel(item.message), "");
     });
     return lines.join("\n");
+  }
+
+  function buildAuditMarkdownKo(result) {
+    const decisionLabels = {
+      "act-now": "즉시 조치",
+      "verify-first": "먼저 확인",
+      observe: "관찰",
+      "information-gap": "정보 확인 필요",
+      suppressed: "제외"
+    };
+    const evidenceLabels = {
+      observed: "관찰된 사실",
+      inferred: "위험 가능성",
+      unknown: "정보 부족",
+      candidate: "삭제 후보"
+    };
+    const applicabilityLabels = {
+      applicable: "적용",
+      conditional: "조건부 적용",
+      "not-applicable": "적용하지 않음",
+      unknown: "확인 필요"
+    };
+    const diffLabels = {
+      unbaselined: "기준선 없음",
+      new: "새로 발견",
+      worsened: "악화",
+      unchanged: "변화 없음",
+      resolved: "해결됨",
+      unverified: "비교할 수 없음"
+    };
+    const lines = [
+      "# 프론트엔드 코드베이스 점검: " + sanitizeLabel(result.project.rootLabel),
+      "",
+      "> 정적 패턴 검사 결과입니다. 발견된 항목이 없다고 해서 안전하거나 배포할 준비가 끝났다는 뜻은 아닙니다.",
+      "",
+      "- 도구 버전: " + result.toolVersion,
+      "- 분석 방식: " + formatAnalysisModeKo(result.engine.analysisMode),
+      "- 분석 기능: " + (
+        result.engine.capabilities.map(formatCapabilityKo).join(", ") || "없음"
+      ),
+      "- 분석한 파일: " + result.scope.includedFiles,
+      "- 제외한 파일: " + result.scope.excludedFiles,
+      "- 분석 범위: " + (result.scope.partial ? "일부 파일을 분석하지 못함" : "설정된 한도 안에서 완료"),
+      "- 기준선 비교: " + formatDiffCountsKo(result.diff, diffLabels),
+      "",
+      "## 우선 검토 항목",
+      ""
+    ];
+    const candidates = result.clusters
+      .filter((cluster) => ["act-now", "verify-first"].includes(cluster.priority.effectiveDecision))
+      .sort(compareClusters)
+      .slice(0, 3);
+    if (!candidates.length) {
+      lines.push("자동으로 찾은 우선 검토 항목이 없습니다. 사람의 추가 검토는 여전히 필요합니다.", "");
+    }
+    candidates.forEach((cluster, index) => {
+      lines.push(
+        (index + 1) + ". **" + sanitizeLabel(cluster.title) + "**",
+        "   - 그룹 ID: `" + cluster.id + "`",
+        "   - 판단: " + (decisionLabels[cluster.priority.effectiveDecision] || cluster.priority.effectiveDecision),
+        "   - 왜 위험할 수 있는가: " + sanitizeLabel(cluster.whyRisky),
+        "   - 가능한 영향: " + sanitizeLabel(cluster.possibleImpact),
+        "   - 우선순위 선정 근거: " + cluster.priority.reasons
+          .map((value) => formatContractTextKo(sanitizeLabel(value))).join(" / "),
+        "   - 아직 필요한 정보: " + (
+          cluster.priority.missingEvidence
+            .map((value) => formatContractTextKo(sanitizeLabel(value))).join(" / ")
+          || "없음"
+        ),
+        "   - 다음으로 확인할 것: " + sanitizeLabel(cluster.priority.verification),
+        ""
+      );
+    });
+    lines.push("## 전체 분석 항목", "");
+    if (!result.findings.length) {
+      lines.push("자동으로 찾은 항목이 없습니다. 사람의 추가 검토는 여전히 필요합니다.", "");
+    }
+    result.findings.forEach((item) => {
+      lines.push(
+        "- **[" + item.severity.toUpperCase() + "] " + sanitizeLabel(item.title) + "**",
+        "  - 항목 ID: `" + item.id + "`",
+        "  - 탐지기: `" + item.detectorId + "@" + item.detectorVersion + "`",
+        "  - 관련 규칙: " + (item.ruleRefs.map((id) => "`" + id + "`").join(", ") || "연결된 규칙 없음"),
+        "  - 근거 수준: " + (evidenceLabels[item.evidenceLevel] || item.evidenceLevel),
+        "  - 적용 여부: " + (applicabilityLabels[item.applicability.status] || item.applicability.status),
+        "  - 변경 상태: " + (diffLabels[item.diffStatus] || item.diffStatus),
+        "  - 기본 판단: " + (decisionLabels[item.priority.decision] || item.priority.decision),
+        "  - 적용된 판단: " + (decisionLabels[item.priority.effectiveDecision] || item.priority.effectiveDecision),
+        "  - 근거 위치: " + formatEvidenceKo(item.evidence),
+        "  - 분석 한계: " + sanitizeLabel(item.limitation),
+        "  - 다음으로 확인할 것: " + sanitizeLabel(item.priority.verification),
+        ""
+      );
+    });
+    lines.push("## 분석 진단", "");
+    if (!result.diagnostics.length) lines.push("추가 진단 정보가 없습니다.", "");
+    result.diagnostics.forEach((item) => {
+      lines.push("- **" + item.id + "**: " + formatContractTextKo(sanitizeLabel(item.message)), "");
+    });
+    return lines.join("\n");
+  }
+
+  function formatContractTextKo(value) {
+    const exact = {
+      "Analysis coverage is partial.": "일부 파일을 분석하지 못했습니다.",
+      "A project profile was applied without a reproducible digest.":
+        "프로젝트 프로필을 적용했지만 같은 설정인지 확인할 식별값이 없습니다.",
+      "No approved project profile was provided; product-specific journeys, route policies, trust boundaries, and controls were not applied.":
+        "승인된 프로젝트 프로필이 없어 제품별 사용자 여정, 라우트 정책, 신뢰 경계와 방어 수단을 적용하지 않았습니다.",
+      "Detector output was omitted because the analysis surface did not declare required capabilities.":
+        "현재 분석 방식이 필요한 기능을 제공하지 않아 일부 탐지 결과를 제외했습니다.",
+      "Baseline comparison is incomplete.":
+        "기준선 조건이 달라 일부 항목을 비교하지 못했습니다.",
+      "An expired or invalid suppression was not applied.":
+        "제외 설정이 만료됐거나 올바르지 않아 적용하지 않았습니다.",
+      "The detector describes potentially material impact if the hypothesis is confirmed.":
+        "가정이 사실로 확인되면 영향이 클 수 있는 항목입니다.",
+      "The source pattern was directly observed.":
+        "해당 코드 패턴을 실제 파일에서 찾았습니다.",
+      "The result is an inference or information gap that still requires verification.":
+        "위험 가능성 또는 정보 부족 항목이므로 추가 확인이 필요합니다.",
+      "declared control effectiveness":
+        "등록된 방어 수단이 실제로 작동하는지",
+      "source trust boundary":
+        "입력 출처의 신뢰 경계",
+      "sink-level control effectiveness requires repository-aware verification":
+        "HTML 출력 위치의 방어 수단이 실제로 작동하는지 코드베이스에서 확인해야 함"
+    };
+    if (exact[value]) return exact[value];
+    if (value.startsWith("Baseline status: ")) {
+      return "기준선 비교 상태: " + formatDiffStatusKo(
+        value.slice("Baseline status: ".length).replace(/\.$/, "")
+      );
+    }
+    if (value.startsWith("Affected approved journeys: ")) {
+      return "영향받는 중요 사용자 여정: " + value.slice("Affected approved journeys: ".length);
+    }
+    if (value.startsWith("The finding intersects approved journey context: ")) {
+      return "등록된 중요 사용자 여정과 관련됨: "
+        + value.slice("The finding intersects approved journey context: ".length);
+    }
+    if (value.startsWith("The finding intersects approved trust boundary: ")) {
+      return "등록된 신뢰 경계와 관련됨: "
+        + value.slice("The finding intersects approved trust boundary: ".length);
+    }
+    const control = value.match(/^Declared control `([^`]+)` requires verification via (.+)$/);
+    if (control) {
+      return "등록된 방어 수단 `" + control[1] + "`의 동작을 확인해야 함: " + control[2];
+    }
+    return value;
+  }
+
+  function formatAnalysisModeKo(value) {
+    return {
+      "static-lite": "브라우저 정적 패턴 검사",
+      "browser-text": "브라우저 텍스트 검사",
+      "cli-text": "CLI 텍스트 검사",
+      "cli-parser": "CLI 구문 분석"
+    }[value] || sanitizeLabel(value);
+  }
+
+  function formatCapabilityKo(value) {
+    return {
+      "text-patterns": "텍스트 패턴 검사",
+      "route-path-inference": "라우트 경로 추론",
+      "parser-route-inventory": "구문 분석 기반 라우트 목록",
+      "import-graph": "모듈 참조 관계",
+      "test-inventory": "테스트 목록"
+    }[value] || sanitizeLabel(value);
+  }
+
+  function formatDiffStatusKo(value) {
+    return {
+      unbaselined: "기준선 없음",
+      new: "새로 발견",
+      worsened: "악화",
+      unchanged: "변화 없음",
+      resolved: "해결됨",
+      unverified: "비교할 수 없음"
+    }[value] || sanitizeLabel(value);
+  }
+
+  function formatDiffCountsKo(diff, labels) {
+    return ["unbaselined", "new", "worsened", "unchanged", "resolved", "unverified"]
+      .map((key) => labels[key] + " " + diff[key].length)
+      .join(", ");
+  }
+
+  function formatEvidenceKo(evidence) {
+    if (!evidence.length) return "없음";
+    return evidence.map((item) => item.path || item.label || item.kind).join(", ");
   }
 
   function buildAuditSummary(result) {

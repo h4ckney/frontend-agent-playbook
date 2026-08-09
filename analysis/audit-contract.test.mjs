@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const {
+  buildAuditMarkdown,
   compareWithBaseline,
   createAuditBundle,
   createBaseline,
@@ -95,6 +96,19 @@ test("normalizes findings with rule links and approved project context", () => {
   assert.equal(finding.controlState, "partial");
   assert.equal(finding.priority.affectedJourney, "checkout");
   assert.match(finding.priority.reasons.join(" "), /approved journey context: checkout \(high\)/);
+});
+
+test("renders a Korean browser report while preserving stable identifiers", () => {
+  const output = buildAuditMarkdown(audit(), { locale: "ko" });
+
+  assert.match(output, /# 프론트엔드 코드베이스 점검: fixture/);
+  assert.match(output, /## 우선 검토 항목/);
+  assert.match(output, /항목 ID: `security\.html-sink-boundary`/);
+  assert.match(output, /영향받는 중요 사용자 여정: checkout/);
+  assert.doesNotMatch(
+    output,
+    /Priority Review Candidates|Finding ID|Missing findings|static-lite|text-patterns/
+  );
 });
 
 test("keeps runtime fixtures aligned with published schema entry points", () => {
