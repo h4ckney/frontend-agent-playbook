@@ -1,0 +1,40 @@
+{
+  "verifiedAt": "2026-10-25T15:04:04.692Z",
+  "browser": "155.0.8059.85",
+  "platform": "darwin",
+  "target": "local audit dashboard with synthetic inputs",
+  "sourceHashes": {
+    "analysis/analyzer.js": "3540f19ba85c5ee07abb173ece2971baf041cdf39fc46c92572c3cf846ba9332",
+    "analysis/audit-contract.js": "26eb6c103c4b1f0e86d7beae90cac70fe1fedaacd9e15756da6055385d567e33",
+    "analysis/triage-state.js": "9be573a2c933db5a4e2dd1fbb18eafb524afe353fd62cb2116cc9fd7de6e0f13",
+    "analysis/app.js": "360654ec7cd4c3b2a2f2630a3f482915c61c2c241efb0e86b8b37a3f4a5ef5bd",
+    "analysis/index.html": "41b7e896b83e18490292c239543df87fa4e4d0f9015d269d5c00d773de91f262",
+    "analysis/styles.css": "7c9ce54e8947bf9a7c2c97c549d2eccf222a617a045f8d57d3ef209957d72623",
+    "scripts/verify-dashboard.mjs": "d4a873d5f6ff7e3b96c612454171dc1f9dd6695dd977cc20401744656c89dd9b"
+  },
+  "checks": [
+    "group close hides reviewed children; closed items reopenable; original Markdown retains findings and review decision",
+    "same project and evidence restore close decisions after page reload",
+    "decision export/import roundtrip works through keyboard-accessible file chooser",
+    "module priority excludes another module and closed higher-risk siblings; disclosure and keyboard focus survive close; Escape returns focus",
+    "folder input scans CSS fixture; changed source reopens prior review without changing canonical baseline policy",
+    "cross-project import rejected without hiding current findings",
+    "no document horizontal overflow at 320px (dashboard only)",
+    "no document horizontal overflow at 390px (dashboard only)",
+    "no document horizontal overflow at 768px (dashboard only)",
+    "no document horizontal overflow at 1440px (dashboard only)",
+    "normal clicks reach controls and verification request remains visible; no page errors",
+    "scope refresh retains bound identity over unsubmitted text; window-focus refresh preserves group keyboard focus",
+    "a delayed earlier folder selection cannot overwrite the latest selected project",
+    "denied browser storage preserves in-memory review and enables explicit export"
+  ],
+  "pageErrors": [],
+  "exclusions": [
+    "production app routes",
+    "all screen states",
+    "real devices",
+    "visual regression baseline approval",
+    "deployment",
+    "GitHub issue writes"
+  ]
+}

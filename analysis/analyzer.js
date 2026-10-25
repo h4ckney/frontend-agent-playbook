@@ -191,6 +191,26 @@ const riskNarratives = {
     verification: "호출 계층의 error boundary, 사용자 오류 안내, 로거와 알림 연결을 확인합니다.",
     decision: "verify-first"
   },
+  "styling.overlay-clipping-context": {
+    clusterId: "styling.overlay-layout",
+    clusterTitle: "오버레이의 잘림·레이어 경계 확인",
+    whyRisky: "오버레이로 보이는 CSS 블록에 잘림, 높이 제한과 별도 레이어를 만드는 선언이 함께 있습니다. 실제 DOM과 스타일 적용에 따라 내용이나 하위 메뉴가 잘릴 수 있습니다.",
+    possibleImpact: "모달의 오류 안내, 선택 메뉴 또는 필수 동작이 가려져 사용자 작업이 중단될 수 있습니다.",
+    riskFactors: "같은 요소에 해당 선언이 실제 적용되고 확장되는 콘텐츠나 오버레이 자식이 있는 경우",
+    mitigatingControls: "의도된 장식용 잘림, 별도 스크롤 영역, 적절한 Portal 또는 검증된 콘텐츠 크기",
+    verification: "해당 스타일의 실제 적용 요소와 조상 레이어를 확인하고, 긴 콘텐츠·하위 메뉴를 열어 잘림과 클릭 가능성을 브라우저에서 재현합니다.",
+    decision: "verify-first"
+  },
+  "styling.fixed-overlay-width": {
+    clusterId: "styling.overlay-layout",
+    clusterTitle: "오버레이의 잘림·레이어 경계 확인",
+    whyRisky: "오버레이로 보이는 CSS 블록에 큰 고정 너비가 있고 같은 블록에 최대 너비 제한이 없습니다. 지원하는 좁은 화면에서 내용이 벗어날 가능성이 있습니다.",
+    possibleImpact: "모달·메뉴의 내용이나 닫기·확인 동작이 화면 밖으로 밀릴 수 있습니다.",
+    riskFactors: "좁은 viewport에서도 해당 선언이 적용되고 다른 스타일이 너비를 제한하지 않는 경우",
+    mitigatingControls: "다른 규칙의 반응형 제한, 의도된 큰 화면 전용 범위 또는 검증된 대체 UI",
+    verification: "지원 breakpoint 전후에서 실제 계산된 너비와 가로 넘침, 필수 동작 접근성을 확인합니다.",
+    decision: "verify-first"
+  },
   "rules.framework-version-unknown": {
     clusterId: "context.framework-version",
     clusterTitle: "프레임워크 정보 확인",
@@ -282,7 +302,13 @@ function analyzeRecords(inputRecords, options = {}) {
   const appRouter = paths.some((path) => /(^|\/)app\//.test(path));
   const pagesRouter = paths.some((path) => /(^|\/)pages\//.test(path));
   const tests = paths.some((path) => /(__tests__\/|\.(?:test|spec)\.[jt]sx?$)/.test(path));
-  const e2e = paths.some((path) => /(?:playwright|cypress|e2e)/.test(path));
+  // A directory name or README is not an E2E configuration or test-source path.
+  // These paths remain inventory evidence, not proof of execution or journey coverage.
+  const e2e = paths.some((path) =>
+    /(^|\/)(?:playwright|cypress)\.config\.[cm]?[jt]s$/.test(path)
+    || /(^|\/)(?:e2e|playwright|cypress)\/.*\.(?:spec|test)\.[cm]?[jt]sx?$/.test(path)
+    || /(^|\/)cypress\/(?:e2e|integration)\/.*\.cy\.[jt]sx?$/.test(path)
+  );
 
   const htmlSinkMatches = source.flatMap((record) => {
     const count = countMatches(record.content, /dangerouslySetInnerHTML|\.innerHTML\s*=/g);
@@ -393,8 +419,8 @@ function analyzeRecords(inputRecords, options = {}) {
       area: "testing",
       type: "gap",
       evidenceLevel: "inferred",
-      title: "E2E 테스트 도구 또는 경로를 찾지 못함",
-      evidence: ["Playwright, Cypress, e2e 경로 미발견"],
+      title: "E2E 설정 또는 테스트 소스 경로를 찾지 못함",
+      evidence: ["Playwright·Cypress 설정 및 E2E 테스트 소스 경로 미발견"],
       recommendation: "고위험 사용자 여정이 존재하는지 확인한 뒤 우선순위가 높은 하나부터 추가합니다."
     }));
   }
@@ -449,6 +475,8 @@ function analyzeRecords(inputRecords, options = {}) {
     }));
   }
 
+  addStylesheetFindings(findings, records);
+
   if (!packageFile) {
     findings.push(finding({
       id: "rules.framework-version-unknown",
@@ -475,7 +503,7 @@ function createAuditResult(name, findings, fileCount, meta, inputScope = {}, inp
     counts[level] = findings.filter((finding) => finding.evidenceLevel === level).length;
     return counts;
   }, {});
-  const areas = ["rules", "testing", "seo", "security", "dead-code", "observability"];
+  const areas = ["rules", "testing", "seo", "security", "dead-code", "observability", "styling"];
   const hasPublicSeoFindings = findings.some((item) =>
     item.area === "seo" && item.id !== "seo.indexing-intent-unknown"
   );
@@ -602,7 +630,7 @@ function buildMarkdown(state) {
     ),
     "- Automated detection areas: framework version and router context, testing, "
       + (seoScope === "internal" ? "SEO excluded by context, " : "context-aware SEO, ")
-      + "security, dead-code markers, error handling and observability",
+      + "security, dead-code markers, error handling and observability, narrow stylesheet layout candidates",
     "- Manual review remains required: accessibility, performance, forms, state ownership, data fetching, design systems, i18n, and bundle architecture",
     "- Evidence model: observed fact, risk inference, information gap, removal candidate",
     "- Evidence counts: " + Object.keys(evidenceLevels)
@@ -727,6 +755,138 @@ function addPatternFinding(findings, records, config) {
     evidence: matches.map((record) => record.path),
     occurrenceCount: matches.length
   }));
+}
+
+function addStylesheetFindings(findings, records) {
+  const clipped = [];
+  const wide = [];
+  const overlaySelector = /(?:^|[.#\s>+~])(?:modal|dialog|popover|dropdown|tooltip|overlay|drawer|menu|toast)(?:[-_\s.#:[>+~]|$)/i;
+  for (const record of records.filter((item) => /\.(?:css|scss)$/i.test(item.path))) {
+    for (const block of stylesheetBlocks(record.content, /\.scss$/i.test(record.path))) {
+      if (!overlaySelector.test(block.selector)) continue;
+      const declarations = stylesheetDeclarations(block.body);
+      const value = (name) => declarations.get(name)?.value || "";
+      const clipping = [value("overflow-x"), value("overflow-y")]
+        .some((item) => /^(?:hidden|clip)$/.test(item));
+      const heightLimit = [value("height"), value("max-height")]
+        .some((item) => /^\d+(?:\.\d+)?(?:px|rem|em|vh|svh|dvh)$/.test(item));
+      const context = /^(?:fixed|sticky)$/.test(value("position"))
+        || ["transform", "filter", "perspective", "backdrop-filter"]
+          .some((name) => value(name) && value(name) !== "none")
+        || value("isolation") === "isolate"
+        || /(?:^|\s)(?:layout|paint|strict|content)(?:\s|$)/.test(value("contain"));
+      if (clipping && heightLimit && context) clipped.push(record.path);
+      const width = /^(\d+(?:\.\d+)?)px$/.exec(value("width"));
+      const desktopGuard = width && block.conditions.some((condition) => {
+        // Only recognize a single simple conjunctive min-width guard. A comma or
+        // negation can make another branch apply to a narrow viewport.
+        if (!/^@media\b/i.test(condition) || /,|\bnot\b|\bor\b/i.test(condition)) return false;
+        const minWidth = /\(\s*min-width\s*:\s*(\d+(?:\.\d+)?)px\s*\)/i.exec(condition);
+        return minWidth && Number(minWidth[1]) >= Number(width[1]);
+      });
+      if (width && Number(width[1]) >= 640
+        && (!value("max-width") || value("max-width") === "none")
+        && !desktopGuard) wide.push(record.path);
+    }
+  }
+  const configs = [
+    ["styling.overlay-clipping-context", clipped, "medium", "오버레이 스타일의 잘림·높이·레이어 선언 조합 확인"],
+    ["styling.fixed-overlay-width", wide, "low", "오버레이 스타일의 큰 고정 너비와 반응형 제한 확인"]
+  ];
+  for (const [id, paths, severity, title] of configs) {
+    if (!paths.length) continue;
+    findings.push(finding({
+      id, severity, title,
+      area: "styling",
+      type: "risk",
+      evidenceLevel: "inferred",
+      evidence: paths,
+      occurrenceCount: paths.length,
+      recommendation: "기존 레이어 토큰과 공통 오버레이 구조를 유지하며, 실제 화면의 잘림·겹침·클릭 차단을 재현한 뒤 필요한 경계만 수정합니다.",
+      limitation: "독립 CSS/SCSS의 단순 선언 블록만 검사합니다. 선택자가 실제 적용되는지, DOM 관계·cascade·media query·CSS-in-JS·inline style·브라우저 top layer는 확인하지 않았습니다. 화면 결함이나 안전성을 확정하지 않습니다."
+    }));
+  }
+}
+
+// A bounded lexical inventory, deliberately not a CSS parser or cascade evaluator.
+// Strings and comments are masked before matching so their example text cannot
+// create declarations or alter brace boundaries. Only leaf declaration blocks run.
+function stylesheetBlocks(content, scss) {
+  const chars = content.split("");
+  let quote = null;
+  let comment = null;
+  for (let index = 0; index < chars.length; index += 1) {
+    const current = content[index];
+    const next = content[index + 1];
+    if (comment) {
+      if (comment === "block" && current === "*" && next === "/") {
+        chars[index] = chars[index + 1] = " ";
+        index += 1;
+        comment = null;
+      } else if (comment === "line" && current === "\n") {
+        comment = null;
+      } else if (current !== "\n") chars[index] = " ";
+      continue;
+    }
+    if (quote) {
+      chars[index] = current === "\n" ? "\n" : " ";
+      if (current === "\\") {
+        if (index + 1 < chars.length) chars[++index] = " ";
+      } else if (current === quote) quote = null;
+      continue;
+    }
+    if (current === "/" && (next === "*" || (scss && next === "/"))) {
+      comment = next === "*" ? "block" : "line";
+      chars[index] = chars[index + 1] = " ";
+      index += 1;
+    } else if (current === '"' || current === "'") {
+      quote = current;
+      chars[index] = " ";
+    }
+  }
+  if (quote || comment === "block") return [];
+  const source = chars.join("");
+  const frames = [];
+  const blocks = [];
+  let boundary = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "{") {
+      if (frames.length) frames[frames.length - 1].nested = true;
+      frames.push({ selector: source.slice(boundary, index).trim(), start: index + 1, nested: false });
+      boundary = index + 1;
+    } else if (source[index] === "}") {
+      const frame = frames.pop();
+      if (!frame) return [];
+      if (!frame.nested) blocks.push({
+        selector: frame.selector,
+        body: source.slice(frame.start, index),
+        conditions: frames.map((ancestor) => ancestor.selector)
+      });
+      boundary = index + 1;
+    } else if (source[index] === ";" && !frames.length) boundary = index + 1;
+  }
+  return frames.length ? [] : blocks;
+}
+
+function stylesheetDeclarations(body) {
+  const values = new Map();
+  function set(name, value, important) {
+    if (!values.get(name)?.important || important) values.set(name, { value, important });
+  }
+  for (const declaration of body.split(";")) {
+    const match = /^\s*([a-z-]+)\s*:\s*(.*?)\s*$/i.exec(declaration);
+    if (!match) continue;
+    const name = match[1].toLowerCase();
+    const important = /\s*!important\s*$/i.test(match[2]);
+    const value = match[2].replace(/\s*!important\s*$/i, "").trim().toLowerCase();
+    if (name === "overflow") {
+      const [x, y = x] = value.split(/\s+/);
+      set("overflow-x", x, important);
+      set("overflow-y", y, important);
+    }
+    set(name, value, important);
+  }
+  return values;
 }
 
 function countMatches(content, pattern) {

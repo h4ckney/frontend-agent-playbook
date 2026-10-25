@@ -8,9 +8,9 @@
 
 현재 profile 적용은 경로 기반 route 추론으로 확인 가능한 critical journey, route policy, trust boundary와 declared control에 한정된다. Parser 기반 route inventory와 import graph, route별 Next.js metadata 상속, 완전한 source-to-sink 분석, deep runtime 검증 및 SARIF adapter는 구현되지 않았다. 따라서 아래 Phase 3 이후 내용과 Definition of Done은 완료 상태가 아니라 후속 gate다.
 
-## 1. Problem Statement
+## 1. Original Problem Statement
 
-현재 analyzer에는 다음 한계가 있다.
+아래 표는 first slice 구현 전의 설계 출발점이다. CLI 진입점, baseline diff, detector-rule 연결과 제한된 profile 적용은 위 Implementation Status에 적힌 범위로 구현되었다. 표의 "현재 동작"은 당시 기준이며 지금의 미구현 목록이 아니다. 남아 있는 parser·runtime·운영 연동 공백과 후속 순서는 [감사 도구 개선 계획](audit-upgrade-plan.md)에서 구분한다.
 
 | 문제 | 현재 동작 | 실제 영향 |
 | --- | --- | --- |

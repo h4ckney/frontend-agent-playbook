@@ -18,6 +18,78 @@ function record(path, content) {
   return { path, content };
 }
 
+const stylingFindings = (content, path = "src/overlays.css") => analyzeRecords([
+  record(path, content)
+]).filter((item) => item.area === "styling");
+
+test("reports bounded stylesheet layout candidates without claiming rendered defects", () => {
+  const findings = stylingFindings(`
+    .modal { position: fixed; overflow: hidden; height: 40px; transform: translateZ(0); width: 900px; }
+    .popover { position: sticky; overflow-y: clip; max-height: 30vh; }
+  `);
+  assert.equal(findings.length, 2);
+  const clipped = findings.find((item) => item.id === "styling.overlay-clipping-context");
+  assert.equal(clipped.occurrenceCount, 2);
+  assert.deepEqual(clipped.allEvidence, ["src/overlays.css"]);
+  assert.equal(clipped.severity, "medium");
+  for (const item of findings) {
+    assert.equal(item.evidenceLevel, "inferred");
+    assert.equal(item.decision, "verify-first");
+    assert.match(item.limitation, /DOM|media query|CSS-in-JS|top layer/);
+    assert.doesNotMatch(item.title, /결함 확정|취약점|반드시 깨짐/);
+  }
+});
+
+test("does not treat high z-index, intentional scrolling, or unrelated blocks as a layout defect", () => {
+  assert.deepEqual(stylingFindings(`
+    .modal { position: fixed; z-index: 999999; width: 900px; max-width: 95vw; }
+    .dialog { position: fixed; overflow: auto; height: 40px; }
+    .image-crop { overflow: hidden; height: 30px; transform: translateZ(0); }
+    .popover { position: fixed; }
+    .unrelated { overflow: hidden; height: 30px; }
+  `), []);
+});
+
+test("keeps layout evidence within one declaration block and honors local overrides", () => {
+  assert.deepEqual(stylingFindings(`
+    .modal { position: fixed; overflow: hidden; }
+    .modal { height: 40px; }
+    .dialog { position: fixed; overflow: hidden; height: 40px; overflow: visible; }
+    .popover { position: fixed; overflow: visible !important; height: 40px; overflow: hidden; }
+  `), []);
+});
+
+test("ignores stylesheet comments, strings, malformed blocks, and JSX inline styles", () => {
+  assert.deepEqual(stylingFindings(`
+    /* .modal { position: fixed; overflow: hidden; height: 40px; width: 900px; } */
+    .dialog::before { content: "}; .modal { position: fixed; overflow: hidden; height: 40px; width: 900px; }"; }
+  `), []);
+  assert.deepEqual(stylingFindings(".modal { position: fixed; overflow: hidden; height: 40px;"), []);
+  assert.deepEqual(stylingFindings("const style = { position: 'fixed', width: '900px' };", "src/Modal.tsx"), []);
+  assert.deepEqual(stylingFindings("// .modal { position: fixed; overflow: hidden; height: 40px; width: 900px; }", "src/overlay.scss"), []);
+});
+
+test("recognizes a simple desktop min-width guard without assuming complex media conditions", () => {
+  assert.deepEqual(stylingFindings("@media (min-width: 900px) { .modal { width: 900px; } }"), []);
+  for (const condition of ["(max-width: 900px)", "(min-width: 900px), (orientation: portrait)", "not (min-width: 900px)"]) {
+    const findings = stylingFindings("@media " + condition + " { .modal { width: 900px; max-width: none; } }");
+    assert.equal(findings[0]?.id, "styling.fixed-overlay-width", condition);
+    assert.match(findings[0].mitigatingControls, /큰 화면 전용/);
+    assert.match(findings[0].limitation, /media query/);
+  }
+});
+
+test("requires E2E config or test-source paths rather than a named directory or document", () => {
+  for (const path of ["e2e/README.md", "docs/playwright.md", "src/use2e.ts", "e2e/placeholder.ts"]) {
+    assert.ok(analyzeRecords([record(path, "export {};")])
+      .some((item) => item.id === "testing.e2e-path-missing"), path);
+  }
+  for (const path of ["playwright.config.ts", "cypress.config.mjs", "e2e/smoke.spec.ts", "tests/e2e/nested/checkout.test.tsx", "cypress/e2e/checkout.cy.ts"]) {
+    assert.ok(!analyzeRecords([record(path, "export {};")])
+      .some((item) => item.id === "testing.e2e-path-missing"), path);
+  }
+});
+
 test("groups HTML sinks and reports missing sanitizer without claiming XSS", () => {
   const sinks = Array.from(
     { length: 17 },

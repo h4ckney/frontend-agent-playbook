@@ -13,7 +13,7 @@
   <main>
     <section class="intro">
       <div><em>CODEBASE AUDIT</em><h1>프론트엔드 위험을<br>우선순위로 정리합니다</h1><p>버전·라우터 구성, 우선 검토 항목, 테스트 공백, SEO, 보안, 삭제 후보 코드를 브라우저 안에서 점검합니다.</p></div>
-      <label for="folderInput">프로젝트 폴더 선택</label><input id="folderInput" type="file" webkitdirectory multiple hidden>
+      <button id="chooseFolder" class="folder-button" type="button">프로젝트 폴더 선택</button><input id="folderInput" type="file" webkitdirectory multiple hidden>
     </section>
     <section class="dashboard" aria-live="polite">
       <div class="limitations" role="note"><strong>정적 패턴 검사 결과입니다.</strong> 발견된 항목이 없다고 해서 안전한 것은 아니며, 품질 보증·보안 인증·배포 승인 자료로 사용할 수 없습니다.</div>
@@ -36,7 +36,7 @@
           <div><dt>분석</dt><dd id="analyzedFileCount">24</dd></div>
           <div><dt>제외</dt><dd id="excludedFileCount">0</dd></div>
         </dl>
-        <div class="scope-copy"><strong>자동으로 살펴보는 6개 영역</strong><span>버전·라우터 구성, 테스트, 조건부 SEO, 보안, 삭제 표시 코드, 오류 처리</span><small>접근성, 성능, 폼, 상태 소유권, 데이터 패칭, 디자인 시스템, i18n, 번들 구조는 사람의 추가 검토가 필요합니다.</small><small id="scopeExclusions">181 B 분석</small></div>
+        <div class="scope-copy"><strong>자동으로 살펴보는 7개 영역</strong><span>버전·라우터 구성, 테스트, 조건부 SEO, 보안, 삭제 표시 코드, 오류 처리, CSS 위험 후보</span><small>실제 화면의 겹침·잘림·클릭 차단, 접근성, 성능, 상태·데이터 소유권은 별도 브라우저·코드 검토가 필요합니다.</small><small id="scopeExclusions">181 B 분석</small></div>
       </section>
       <div class="summary">
         <article class="metric card observed"><i>✓</i><div><b id="observedCount">1</b><span>관찰된 사실</span></div></article>
@@ -48,10 +48,17 @@
         <section class="card panel"><div class="panel-head"><div><em>PRIORITY REVIEW CANDIDATES</em><h2>우선 검토 항목</h2></div><div class="filters"><button class="active" data-filter="all">전체</button><button data-filter="risk">위험 가능성</button><button data-filter="gap">정보 부족</button></div></div><div id="urgentList"></div></section>
         <aside class="card panel"><em>RESULTS BY AUTOMATED AREA</em><h2>자동 점검 영역별 결과</h2><div id="coverageList" class="coverage"></div></aside>
       </div>
-      <section class="card panel all"><div class="panel-head"><div><em>EVIDENCE</em><h2>전체 분석 항목</h2></div><span id="findingCount" class="count">4건</span></div><div class="table-wrap"><table><thead><tr><th>근거 수준</th><th>우선순위</th><th>항목 ID</th><th>영역</th><th>확인 내용</th><th>근거 위치</th></tr></thead><tbody id="findingsTable"></tbody></table></div></section>
+      <section class="card panel triage-settings" aria-labelledby="triageTitle">
+        <div><em>LOCAL REVIEW</em><h2 id="triageTitle">검토 상태 보관</h2><p>프로젝트를 구분할 이름을 지정하면 이 브라우저에 상태를 보관합니다. 닫기는 검토 결정이며 수정 완료나 CI 예외를 뜻하지 않습니다.</p></div>
+        <form id="projectIdentityForm" class="identity-form"><label for="projectIdentity">프로젝트 ID</label><input id="projectIdentity" maxlength="160" placeholder="예: 팀/프로젝트" required><button class="secondary" type="submit">상태 연결</button></form>
+        <p id="triageStorageStatus" role="status">프로젝트 ID를 연결하면 닫기·재검증 요청을 사용할 수 있습니다.</p>
+        <div class="triage-tools"><button id="exportTriage" class="secondary" disabled>상태 내보내기</button><button id="chooseTriage" class="secondary" type="button">상태 가져오기</button><input id="importTriage" type="file" accept="application/json,.json" hidden><label class="show-closed"><input id="showClosed" type="checkbox"> 닫은 항목 보기</label></div>
+      </section>
+      <section class="card panel all"><div class="panel-head"><div><em>EVIDENCE</em><h2>관련 발견 묶음</h2><p>같은 범주의 발견을 모듈 경로별로 묶습니다. 동일 원인이 확인되었다는 뜻은 아닙니다.</p></div><span id="findingCount" class="count">4건</span></div><div id="findingsTable" class="finding-groups"></div></section>
       <section class="card export"><div><em>MARKDOWN REPORT</em><h2>점검 결과 내보내기</h2><p>항목 ID를 사용해 점검 결과를 개선 제안과 이슈 초안까지 추적할 수 있습니다.</p></div><div><button id="copyReport" class="secondary">보고서 복사</button><button id="downloadReport" class="primary">.md 저장</button></div></section>
     </section>
   </main>
-  <div id="toast" class="toast" role="status"></div><script src="./analyzer.js"></script><script src="./audit-contract.js"></script><script src="./app.js"></script>
+  <dialog id="triageDialog" aria-labelledby="triageDialogTitle"><form id="triageForm"><h2 id="triageDialogTitle">검토 후 닫기</h2><p>기한이 지나거나 관련 근거가 바뀌면 다시 표시합니다. 수정 완료로 처리하지 않습니다.</p><label for="closeDisposition">결정</label><select id="closeDisposition" required><option value="false-positive">오탐으로 판단</option><option value="accepted-risk">위험 수용·보류</option></select><label for="closeReason">이유</label><textarea id="closeReason" maxlength="1000" required placeholder="판단 근거를 적어주세요. 비밀정보·개인정보는 입력하지 마세요."></textarea><label for="closeExpires">재검토 날짜 (UTC 00:00에 재표시)</label><input id="closeExpires" type="date" required><p id="triageError" role="alert"></p><div class="dialog-actions"><button id="cancelTriage" class="secondary" type="button">취소</button><button class="primary" type="submit">검토 후 닫기</button></div></form></dialog>
+  <div id="toast" class="toast" role="status"></div><script src="./analyzer.js"></script><script src="./audit-contract.js"></script><script src="./triage-state.js"></script><script src="./app.js"></script>
 </body>
 </html>

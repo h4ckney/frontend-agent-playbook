@@ -107,6 +107,8 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 - [코드 리뷰 규칙](rules/code-review.md)
 - [강제 수단 매핑](docs/enforcement-mapping.md)
 - [Analyzer v0.2 설계](docs/analyzer-v0.2-design.md)
+- [감사 도구 개선 실행 계획과 근거](docs/audit-upgrade-plan.md): 로컬 처리 상태, CSS 위험 후보와 후속 검증 단계
+- [새 작업부터 머지까지의 플레이북](playbooks/frontend-delivery.md): 대상 저장소의 브랜치·리뷰 정책에 맞춘 진행 경로
 - [Pages Router에서 App Router로의 마이그레이션 플레이북](playbooks/pages-to-app-router.md)
 - [React 18에서 React 19로의 마이그레이션 플레이북](playbooks/react-18-to-19.md)
 
@@ -134,7 +136,7 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 대시보드 Markdown 내보내기에는 안정적인 finding ID와 Audit Handoff 표가 포함됩니다. 추적성을 위해 해당 ID를 제안서와 Issue 초안에 전달하되, 결함의 증거나 쓰기 승인으로 간주하지 마세요.
 
-빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트의 검색 노출 범위를 선택한 뒤 폴더를 지정합니다. 대시보드는 관찰된 사실, 위험 가능성, 정보 부족 및 삭제 후보를 구분하고, SEO는 관련 있는 공개 범위에만 적용하며, 같은 원인의 항목을 위험 그룹으로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
+빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트의 검색 노출 범위를 선택한 뒤 폴더를 지정합니다. 대시보드는 관찰된 사실, 위험 가능성, 정보 부족 및 삭제 후보를 구분하고, SEO는 관련 있는 공개 범위에만 적용하며, 관련 항목을 위험 그룹으로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 그룹은 검토를 돕는 단위이며 동일 원인을 확정하지 않습니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
 
 ### Analyzer CLI 프리뷰
 
@@ -244,11 +246,20 @@ node scripts/sync-plugin-package.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
+node --check analysis/triage-state.js
 node --check bin/frontend-agent-audit.mjs
-node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
+node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs analysis/triage-state.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
 ```
 
 문서 검증 스크립트는 로컬 Markdown 링크, 해결되지 않은 TODO 표시, 필수 규칙 및 워크플로우 섹션, 스킬 frontmatter, 스킬 UI 메타데이터 참조와 detector-rule 연결을 확인합니다. Package sync 검사는 설치용 plugin copy가 canonical source와 달라지는 것을 막습니다. GitHub Actions는 pull request와 `main` push에서 동일한 문서, package, analyzer, browser smoke, CLI, contract 및 approval gate 검사를 실행합니다.
+
+실제 브라우저 검증은 선택 실행입니다. 호출 환경이 Playwright를 제공하고 로컬 서버가 실행되어 있어야 합니다. 저장소 runtime 의존성이나 기본 CI 설치에 추가하지 않습니다.
+
+```bash
+node scripts/verify-dashboard.mjs --url http://127.0.0.1:4381/analysis/ --output docs/evidence/browser --channel chrome
+```
+
+[검증 근거 기록](docs/evidence/audit-upgrade-2026-10-25.md)에서 합성 입력을 이용한 도구 대시보드 확인과 대상 서비스 렌더링·실기기·release 상태를 구분합니다.
 
 ## 버전
 

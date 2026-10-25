@@ -18,6 +18,7 @@ function fakeElement(dataset = {}) {
     addEventListener(type, listener) {
       this.listeners[type] = listener;
     },
+    querySelectorAll() { return []; },
     click() {}
   };
 }
@@ -27,7 +28,9 @@ test("loads analyzer and dashboard scripts in browser order and renders findings
     "folderInput", "toast", "copyReport", "downloadReport", "projectName",
     "projectMeta", "selectedFileCount", "analyzedFileCount", "excludedFileCount",
     "observedCount", "inferredCount", "unknownCount", "candidateCount",
-    "findingCount", "scopeExclusions", "seoScopeStatus", "urgentList", "coverageList", "findingsTable"
+    "findingCount", "scopeExclusions", "seoScopeStatus", "urgentList", "coverageList", "findingsTable",
+    "projectIdentityForm", "projectIdentity", "showClosed", "triageDialog", "triageForm", "cancelTriage",
+    "exportTriage", "importTriage", "triageStorageStatus", "chooseFolder", "chooseTriage"
   ];
   const nodes = new Map(ids.map((id) => [id, fakeElement()]));
   const filterButtons = [
@@ -75,9 +78,11 @@ test("loads analyzer and dashboard scripts in browser order and renders findings
   const analyzerSource = fs.readFileSync(new URL("./analyzer.js", import.meta.url), "utf8");
   const contractSource = fs.readFileSync(new URL("./audit-contract.js", import.meta.url), "utf8");
   const appSource = fs.readFileSync(new URL("./app.js", import.meta.url), "utf8");
+  const triageSource = fs.readFileSync(new URL("./triage-state.js", import.meta.url), "utf8");
 
   vm.runInContext(analyzerSource, context, { filename: "analyzer.js" });
   vm.runInContext(contractSource, context, { filename: "audit-contract.js" });
+  vm.runInContext(triageSource, context, { filename: "triage-state.js" });
   vm.runInContext(appSource, context, { filename: "app.js" });
 
   assert.equal(context.FrontendAuditContract.TOOL_VERSION, "0.2.0-dev");

@@ -14,6 +14,10 @@ Use the shared precedence in [Rule Governance](./governance.md). Project-owned d
 - MDN CSS Custom Properties: https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Cascading_variables/Using_custom_properties
 - MDN `prefers-reduced-motion`: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion
 - MDN `forced-colors`: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/forced-colors
+- MDN Stacking context: https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Positioned_layout/Stacking_context
+- MDN Top layer: https://developer.mozilla.org/en-US/docs/Glossary/Top_layer
+- Playwright Actionability: https://playwright.dev/docs/actionability
+- Playwright Visual comparisons: https://playwright.dev/docs/test-snapshots
 - WAI-ARIA Authoring Practices Guide: https://www.w3.org/WAI/ARIA/apg/
 
 ## Applicability
@@ -52,12 +56,26 @@ Use the shared precedence in [Rule Governance](./governance.md). Project-owned d
 
 ## Layout And Responsive Behavior
 
+Rule ID: `design-system-styling.responsive-layout`
+
 - **SHOULD**: Follow existing container, grid, spacing, and breakpoint conventions before introducing new layout constants.
 - **SHOULD**: Choose responsive behavior from content and product requirements rather than named device models.
 - **MUST**: Keep content operable under supported text zoom, viewport narrowing, localization expansion, and dynamic user content.
 - **SHOULD**: Use stable layout constraints such as grid tracks, flex constraints, aspect ratio, and min/max sizing when dynamic content could cause shifting or overlap.
 - **MUST**: Do not hide required content or actions at smaller viewports without an approved alternative path.
 - **SHOULD**: Avoid fixed heights for text-bearing regions unless overflow and localization behavior are deliberately handled.
+
+## Layering And Clipping Boundaries
+
+Rule ID: `design-system-styling.layer-boundaries`
+
+- **MUST**: Trace the affected element's rendered ancestors, stacking contexts, clipping containers, and existing Portal or overlay owner before treating a `z-index` value as the cause of a visible defect.
+- **SHOULD**: Inspect `transform`, `filter`, `opacity`, `isolation`, `contain`, positioned ancestors, and clipping overflow when an overlay is hidden, cut off, or intercepts interaction.
+- **MUST**: Distinguish ordinary document stacking from the browser top layer used by modal dialogs and shown popovers; a larger document `z-index` does not establish the intended relationship across those boundaries.
+- **SHOULD**: Reuse the project's semantic layer tokens and overlay composition contract; do not solve a shared boundary problem by repeatedly increasing local numbers.
+- **MUST**: Preserve intended overlap, scroll containers, focus containment, background interaction rules, and scroll restoration when correcting layer or clipping behavior.
+- **SHOULD**: Review global selectors, specificity, stylesheet order, and theme overrides when computed styles differ from the component's owned styles.
+- **MUST**: Report static CSS matches as risk candidates with their inspection limits. A large layer value, fixed size, transform, or overflow declaration alone does not prove a broken screen.
 
 ## Styling And User Preferences
 
@@ -82,6 +100,9 @@ Use the shared precedence in [Rule Governance](./governance.md). Project-owned d
 - **SHOULD**: Test keyboard focus, zoom or text expansion, reduced motion, and forced colors when the change affects those behaviors.
 - **SHOULD**: Add visual regression coverage only when repeated drift or shared-component blast radius justifies its maintenance cost.
 - **SHOULD**: Keep screenshot baselines deterministic and review meaningful visual differences instead of accepting broad baseline updates.
+- **SHOULD**: Open affected modal, menu, tooltip, popover, and toast states in a real browser; verify clipping, supported viewport widths, breakpoint boundaries, text expansion, scrolling, and keyboard interaction in the states the product supports.
+- **MUST**: Verify required controls receive normal user interaction when investigating occlusion; forced clicks or screenshots alone do not establish that an obscured control is usable.
+- **SHOULD**: Record the route, state, viewport, browser, tested commit, and expected relationship with a reproduction. Group repeated consumers only when one correction and its verification can close the same underlying problem.
 - **MAY**: Use focused manual comparison for isolated low-risk styling when automation would be disproportionate.
 
 ## Avoid Over-engineering
@@ -112,6 +133,8 @@ Do not claim system consistency from one screenshot or one component. Verify the
 - Could a shared token or primitive change break unrelated consumers?
 - Are variants bounded and semantically meaningful?
 - Does the layout survive narrow viewports, text expansion, and localization?
+- Did I trace stacking and clipping boundaries instead of only comparing layer numbers?
+- Can required controls be reached, focused, and activated in the affected overlay state?
 - Are focus, reduced motion, forced colors, and contrast preserved?
 - Is every escape hatch scoped and justified?
 - Did I avoid creating system infrastructure for a one-off need?

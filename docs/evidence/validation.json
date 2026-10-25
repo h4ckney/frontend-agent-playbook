@@ -1,0 +1,110 @@
+{
+  "verifiedAt": "2026-10-25T15:05:25.884465+00:00",
+  "nodeVersion": "v25.2.1",
+  "baseCommit": "1952b8a818668e231fbbb4b5833213b8c49cf7a3",
+  "branch": "feature/audit-triage-layout",
+  "checks": [
+    {
+      "command": [
+        "node",
+        "scripts/validate-docs.mjs"
+      ],
+      "exitCode": 0,
+      "output": "Documentation validation passed for 57 Markdown files."
+    },
+    {
+      "command": [
+        "node",
+        "scripts/sync-plugin-package.mjs",
+        "--check"
+      ],
+      "exitCode": 0,
+      "output": "Plugin package is synchronized."
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "analysis/analyzer.js"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "analysis/audit-contract.js"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "analysis/triage-state.js"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "analysis/app.js"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "bin/frontend-agent-audit.mjs"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/reproduce-audit-gaps.mjs"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/verify-dashboard.mjs"
+      ],
+      "exitCode": 0,
+      "output": ""
+    }
+  ],
+  "nodeTests": {
+    "passed": 66,
+    "failed": 0,
+    "log": "node-tests.log"
+  },
+  "browser": {
+    "passedChecks": 14,
+    "pageErrors": [],
+    "report": "browser/browser-result.json",
+    "sourceHashesMatch": true
+  },
+  "remoteCI": "not-run",
+  "commitPushMergeRelease": "not-run"
+}

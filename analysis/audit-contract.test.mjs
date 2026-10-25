@@ -98,6 +98,39 @@ test("normalizes findings with rule links and approved project context", () => {
   assert.match(finding.priority.reasons.join(" "), /approved journey context: checkout \(high\)/);
 });
 
+test("normalizes stylesheet candidates with rule links and conditional evidence", () => {
+  const result = createAuditBundle({
+    name: "layout",
+    records: [
+      { path: "src/modal.css", content: ".modal { position: fixed; overflow: hidden; height: 40px; width: 900px; }" },
+      { path: "src/drawer.css", content: ".drawer { width: 900px; }" }
+    ],
+    context: { seoScope: "internal" }
+  }).audit;
+  const styling = result.findings.filter((item) => item.area === "styling");
+  assert.equal(styling.length, 3);
+  assert.deepEqual(validateAuditResult(result), []);
+  assert.equal(new Set(styling.map((item) => item.fingerprint)).size, 3);
+  const clipped = styling.find((item) => item.id === "styling.overlay-clipping-context");
+  assert.deepEqual(clipped.ruleRefs, ["design-system-styling.layer-boundaries"]);
+  assert.equal(clipped.applicability.status, "conditional");
+  assert.equal(clipped.evidenceLevel, "inferred");
+  assert.equal(clipped.priority.effectiveDecision, "verify-first");
+  const output = buildAuditMarkdown(result);
+  assert.match(output, /styling\.overlay-clipping-context/);
+  assert.doesNotMatch(output, /position: fixed|width: 900px/);
+});
+
+test("does not reuse the old E2E detector decision after its inventory semantics change", () => {
+  const result = audit();
+  const baseline = createBaseline(result);
+  const entry = baseline.findings.find((item) => item.detectorId === "testing.critical-journeys");
+  entry.detectorVersion = "1";
+  const compared = compareWithBaseline(result, baseline);
+  assert.ok(compared.diff.unverified.includes(entry.fingerprint));
+  assert.equal(result.engine.detectorCatalogVersion, "2");
+});
+
 test("renders a Korean browser report while preserving stable identifiers", () => {
   const output = buildAuditMarkdown(audit(), { locale: "ko" });
 

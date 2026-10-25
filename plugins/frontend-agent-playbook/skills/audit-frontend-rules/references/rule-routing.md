@@ -43,6 +43,7 @@ Choose the smallest useful set, normally two to four files.
 | Form, schema, or runtime input boundary | `forms-runtime-validation.md`, `typescript.md` |
 | Shared state, store, provider, URL synchronization, persistence, or hydration | `state-ownership.md`, `react.md` |
 | Shared component, token, variant, theme, responsive system, or styling architecture | `design-system-styling.md`, then `accessibility.md` when semantics, focus, motion, contrast, or perceivability changes |
+| Hidden overlay, clipping, click interception, layout overflow, or z-index regression | `design-system-styling.md`, `testing.md`; add `accessibility.md` when focus or operability is affected |
 | Locale, translated message, formatting, direction, or locale routing | `i18n.md`, then `seo.md` for indexable localized URLs |
 | Production dependency, client boundary, import strategy, code split, or bundle budget | `bundle-dependencies.md`, then `performance.md` for measured or user-visible runtime cost |
 | Remote read, mutation, cache, or optimistic UI | `data-fetching-cache.md`, `error-handling-observability.md` |
@@ -95,6 +96,7 @@ Open official version-matched documentation and repository-specific instructions
 - Do not load a new test tier solely because testing guidance exists.
 - Do not load every rule to produce a general review. Start from changed files and demonstrated risk.
 - Do not load or apply a migration playbook during an unrelated feature, bug fix, SEO correction, or dependency update.
+- Use `playbooks/frontend-delivery.md` only when the task needs the repository's work-to-merge handoff; it does not replace local branch, review, release, or authorization policy.
 
 ## Selection Record
 
