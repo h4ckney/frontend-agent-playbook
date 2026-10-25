@@ -12,7 +12,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "1";
+  const DETECTOR_CATALOG_VERSION = "2";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -29,7 +29,9 @@
     "rules.mixed-next-router": detector("next.router-model", ["nextjs.router-boundary"], ["text-patterns", "route-path-inference"]),
     "rules.pre-react-18-version-branch": detector("react.version-context", ["react.version-context"]),
     "testing.test-foundation-missing": detector("testing.foundation", ["testing.test-foundation"]),
-    "testing.e2e-path-missing": detector("testing.critical-journeys", ["testing.critical-journeys"]),
+    "testing.e2e-path-missing": detector("testing.critical-journeys", ["testing.critical-journeys"], ["text-patterns"], "2"),
+    "styling.overlay-clipping-context": detector("styling.overlay-clipping-context", ["design-system-styling.layer-boundaries"]),
+    "styling.fixed-overlay-width": detector("styling.fixed-overlay-width", ["design-system-styling.responsive-layout"]),
     "seo.next-metadata-missing": detector("next.metadata-presence", ["nextjs.metadata", "seo.metadata"], ["text-patterns", "route-path-inference"]),
     "seo.sitemap-missing": detector("seo.sitemap-presence", ["seo.sitemap"], ["text-patterns", "route-path-inference"]),
     "seo.robots-missing": detector("seo.robots-presence", ["seo.robots"], ["text-patterns", "route-path-inference"]),
@@ -39,10 +41,10 @@
     "rules.framework-version-unknown": detector("context.framework-version", ["governance.codebase-context"])
   });
 
-  function detector(id, ruleRefs, capabilities = ["text-patterns"]) {
+  function detector(id, ruleRefs, capabilities = ["text-patterns"], version = "1") {
     return Object.freeze({
       id,
-      version: "1",
+      version,
       ruleRefs: Object.freeze(ruleRefs.slice()),
       capabilities: Object.freeze(capabilities.slice())
     });

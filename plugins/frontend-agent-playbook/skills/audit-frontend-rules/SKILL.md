@@ -134,6 +134,8 @@ Audit shared guidance against project evidence before recommending that it be ap
 
 - Inspect the existing styling stack, token sources, shared components, variants, themes, breakpoints, escape hatches, and visual-test conventions.
 - Check repeated raw values, visual drift, invalid variant combinations, shared-primitive blast radius, responsive text expansion, focus styling, reduced motion, and forced colors.
+- For layer or layout symptoms, inspect stacking contexts, clipping ancestors, Portal or top-layer ownership, computed-style overrides, scroll restoration, and actual event interception. A large `z-index` or static CSS match is a candidate, not a reproduced screen defect.
+- When an executable target is available, record route, overlay state, viewport, browser, commit, normal interaction, and visual evidence. Otherwise retain runtime verification as an information gap; do not infer successful rendering from source or a simulated DOM test.
 - Distinguish a local style correction from a reusable system decision; do not propose a token, primitive, library, or documentation site without repeated need.
 - Use `../../rules/design-system-styling.md` when available and report material system ownership, visual consistency, responsive, theme, or escape-hatch problems as Design System Or Styling Risks.
 

@@ -107,6 +107,8 @@ Supporting rules and adapters:
 - [Code review rules](rules/code-review.md)
 - [Enforcement mapping](docs/enforcement-mapping.md)
 - [Analyzer v0.2 design](docs/analyzer-v0.2-design.md)
+- [Audit upgrade execution plan and evidence](docs/audit-upgrade-plan.md) (Korean; local triage, CSS candidates, and staged follow-through)
+- [Frontend work-to-merge playbook](playbooks/frontend-delivery.md) (Korean; follows the target repository's branch and review policy)
 - [Pages Router to App Router migration playbook](playbooks/pages-to-app-router.md)
 - [React 18 to React 19 migration playbook](playbooks/react-18-to-19.md)
 
@@ -132,7 +134,7 @@ After an owner approves named proposal IDs, use [Apply Frontend Guidance](skills
 The dependency-free [guidance approval gate](scripts/guidance-approval.mjs) compares supplied approval metadata for repository identity, proposal status, material scope, exact target paths, dependencies, enforcement, content fingerprints, conflicts, and idempotent reruns before application. It does not inspect repository ownership or compute target-file fingerprints; the applying agent must gather and verify those inputs.
 Dashboard Markdown exports include stable finding IDs and an Audit Handoff table. Carry those IDs into proposals and Issue drafts for traceability, but do not treat them as defect proof or write approval.
 
-For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html), choose the project's search-exposure scope, and select a project folder. It separates observed facts, risk hypotheses, information gaps, and removal candidates, applies SEO checks only to relevant public scope, groups findings with the same root cause into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
+For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html), choose the project's search-exposure scope, and select a project folder. It separates observed facts, risk hypotheses, information gaps, and removal candidates, applies SEO checks only to relevant public scope, groups related findings into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Clusters are review aids rather than proof of one root cause. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
 
 ### Analyzer CLI Preview
 
@@ -242,11 +244,20 @@ node scripts/sync-plugin-package.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
+node --check analysis/triage-state.js
 node --check bin/frontend-agent-audit.mjs
-node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
+node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs analysis/triage-state.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
 ```
 
 The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, skill UI metadata references, and detector-to-rule links. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, CLI, contract, and approval-gate checks for pull requests and pushes to `main`.
+
+Optional real-browser verification uses caller-provided Playwright and an already running local server; it adds no repository runtime dependency and is separate from the default CI checks:
+
+```bash
+node scripts/verify-dashboard.mjs --url http://127.0.0.1:4381/analysis/ --output docs/evidence/browser --channel chrome
+```
+
+The [evidence record](docs/evidence/audit-upgrade-2026-10-25.md) separates dashboard verification with synthetic inputs from target-service rendering, real-device checks, and release status.
 
 ## Version
 

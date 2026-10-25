@@ -1,0 +1,43 @@
+{
+  "fixtureDate": "2026-10-25",
+  "input": "synthetic fixtures; no production code, secrets or payloads",
+  "engineVersion": "0.2.0-dev",
+  "detectorCatalogVersion": "2",
+  "observations": [
+    {
+      "id": "e2e-readme",
+      "gapReported": true,
+      "interpretation": "inventory only; never proves journey coverage"
+    },
+    {
+      "id": "auth-wrapper",
+      "authStorageReported": false,
+      "interpretation": "retained static-lite gap"
+    },
+    {
+      "id": "separate-boundaries",
+      "canonicalHtmlClusterCount": 1,
+      "interpretation": "canonical clusters unchanged; browser triage now separates by module directory"
+    },
+    {
+      "id": "same-file-extra-sink",
+      "diffStatus": "unchanged",
+      "occurrenceCount": 1,
+      "interpretation": "canonical baseline gap retained; local source digest reopens a prior review"
+    },
+    {
+      "id": "multi-package",
+      "frameworkVersion": "^15.0.0",
+      "routerMode": "pages",
+      "interpretation": "first-manifest context remains a limitation"
+    },
+    {
+      "id": "css-layout",
+      "stylingFindingIds": [
+        "styling.fixed-overlay-width",
+        "styling.overlay-clipping-context"
+      ],
+      "interpretation": "static risk candidates only; no browser rendering performed"
+    }
+  ]
+}
