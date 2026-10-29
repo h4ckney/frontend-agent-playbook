@@ -256,7 +256,8 @@
     if (phpSources.length && !hasPhpVersion) addGap(phpSources[0].path, "php-runtime-version-unavailable");
     const hasPhpContext = phpSources.length > 0 || inventory.some((item) => item.ecosystem === "runtime" && item.name === "php");
     const now = options.now == null ? Date.now() : new Date(options.now).getTime();
-    const ageDays = Math.floor((now - Date.parse(CHECKED_AT + "T00:00:00Z")) / 86_400_000);
+    // checkedAt is the review's Korean calendar date, not a UTC midnight.
+    const ageDays = Math.floor((now - Date.parse(CHECKED_AT + "T00:00:00+09:00")) / 86_400_000);
     const freshness = !Number.isFinite(ageDays) || ageDays < 0 ? "unverified-clock" : ageDays > 30 ? "stale" : "within-30-days";
     const dedupedGaps = [...new Map(gaps.map((gap) => [gap.path + ":" + gap.reason, gap])).values()];
     if (inventory.length && (dedupedGaps.length || unresolved.length || freshness !== "within-30-days")) {
@@ -275,7 +276,7 @@
         possibleImpact: "보안 점검 누락", riskFactors: "런타임 버전 정보 부재, 지원하지 않는 형식 또는 잘못된 JSON", recommendation: "실행 버전과 유효한 지원 lockfile 또는 별도 감사 결과를 확보합니다." }));
     }
     return {
-      schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
+      schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
       inventory, findings, coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
         limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm lock v2/v3 and Composer lock only; yarn/pnpm/bun and OS packages require external tools", "Build/development phase can still expose CI credentials, artifacts and developer machines",

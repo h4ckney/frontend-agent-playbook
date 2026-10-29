@@ -37,6 +37,7 @@
     "snapshot": {
       "id": "security-context-2026-10-30-v1",
       "checkedAt": "2026-10-30",
+      "timeZone": "Asia/Seoul",
       "freshness": "within-30-days",
       "advisoryCount": 6,
       "sources": [

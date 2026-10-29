@@ -54,6 +54,10 @@ async function newContext(options) {
   });
   return context;
 }
+async function settleView(page) {
+  // Let viewport/scroll changes reach the compositor before recording pixels.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
 async function exportDocument(page) {
   const downloadPromise = page.waitForEvent("download");
   await page.locator("#exportTriage").click();
@@ -210,8 +214,10 @@ try {
     const overflow = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
     assert.ok(overflow.document <= overflow.viewport, JSON.stringify(overflow));
     await page.evaluate(() => scrollTo(0, 0));
+    await settleView(page);
     await page.screenshot({ path: path.join(values.output, "dashboard-" + width + ".png") });
     await page.locator(".all").evaluate((node) => node.scrollIntoView({ block: "start" }));
+    await settleView(page);
     await page.screenshot({ path: path.join(values.output, "dashboard-review-" + width + ".png") });
     recordCheck("no document horizontal overflow at " + width + "px (dashboard only)");
   }
@@ -224,6 +230,7 @@ try {
   const longIdOverflow = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
   assert.ok(longIdOverflow.document <= longIdOverflow.viewport, JSON.stringify(longIdOverflow));
   await page.locator("#triageStorageStatus").scrollIntoViewIfNeeded();
+  await settleView(page);
   await page.screenshot({ path: path.join(values.output, "dashboard-long-project-id-390.png") });
   await page.locator("#projectIdentity").fill("synthetic/css-project");
   await page.getByRole("button", { name: "상태 연결", exact: true }).click();
@@ -294,6 +301,46 @@ try {
   assert.equal(errors.length, 0, errors.join("\n"));
   recordCheck("denied browser storage preserves in-memory review and export across a scope refresh");
   await blockedContext.close();
+
+  // Positive security UI coverage: the vulnerable versions are synthetic file
+  // contents only; none of these packages or runtimes is installed or executed.
+  await fs.writeFile(path.join(fixture, "Dockerfile"), "FROM node:24.22.0 AS builder\nFROM php:8.4.26-fpm\n");
+  await fs.writeFile(path.join(fixture, "package-lock.json"), JSON.stringify({ lockfileVersion: 3, packages: {
+    "": {}, "node_modules/next": { version: "16.4.0" },
+    "node_modules/react-server-dom-webpack": { version: "19.3.0" },
+    "node_modules/tools/node_modules/react-server-dom-webpack": { version: "19.3.0", dev: true }
+  } }));
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector("#projectName").textContent.startsWith("frontend-audit-ui-"));
+  await page.locator("#projectIdentity").fill("synthetic/security-context");
+  await page.getByRole("button", { name: "상태 연결", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  await page.locator("#securityContext summary").click();
+  const inventoryText = await page.locator("#securityContext").textContent();
+  for (const text of ["node@24.22.0", "php@8.4.26", "서비스 실행", "빌드", "개발 도구"]) assert.ok(inventoryText.includes(text), text);
+  const advisoryGroup = page.locator(".issue-group").filter({ has: page.locator("code", { hasText: /^security\.rsc-typed-array-rce$/ }) });
+  assert.equal(await advisoryGroup.count(), 1);
+  assert.equal(await advisoryGroup.locator(".finding-item").count(), 3);
+  await advisoryGroup.locator(":scope > summary").click();
+  await advisoryGroup.locator(".finding-reason summary").first().click();
+  assert.match(await advisoryGroup.textContent(), /GHSA-xqc2-xf4c-x3h3/);
+  recordCheck("synthetic security versions render runtime/build/development evidence and one advisory parent with three module children");
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.locator("#securityContext").evaluate((node) => node.scrollIntoView({ block: "start" }));
+  await settleView(page);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await page.screenshot({ path: path.join(values.output, "dashboard-security-390.png") });
+  await page.locator("#showClosed").uncheck();
+  await advisoryGroup.getByRole("button", { name: "열린 항목 묶음 닫기", exact: true }).click();
+  await page.locator("#closeReason").fill("Synthetic advisory reviewed; this is not proof of remediation.");
+  await page.locator("#closeExpires").fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
+  await page.locator("#triageDialog").getByRole("button", { name: "검토 후 닫기", exact: true }).click();
+  assert.equal(await page.locator("code").filter({ hasText: /^security\.rsc-typed-array-rce$/ }).count(), 0);
+  await page.locator("#showClosed").check();
+  assert.equal(await page.locator("code").filter({ hasText: /^security\.rsc-typed-array-rce$/ }).count(), 3);
+  assert.equal(Object.keys((await exportDocument(page)).decisions).length, 3);
+  recordCheck("security parent close retains three exportable child decisions, closed findings remain inspectable, and 390px inventory does not overflow");
+
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

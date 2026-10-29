@@ -1,0 +1,139 @@
+{
+  "verifiedAt": "2026-10-29T15:57:31.841Z",
+  "browser": "156.0.8078.48",
+  "platform": "darwin",
+  "target": "local audit dashboard with synthetic inputs",
+  "sourceHashes": {
+    "analysis/index.html": "6f2a744af3d72447f912e1f99618b63a47d4bfbbd21874320827e61caa90e0fe",
+    "analysis/styles.css": "66df41fc882d972bdd6cf270fafeaaf60dba06f02d6156c62317a4bdf283c8d2",
+    "analysis/analyzer.js": "4a42d1721766adefa64cf74d571aed548c9b8b50b784407ad171d50b6a51798f",
+    "analysis/artifact-schemas.js": "16ece6c513b0d2022f96b1ad8f7e3f7418a0c97cc00604d115825b0c140ddbb6",
+    "analysis/security-context.js": "305fb02732c3076983bc01eb7d0e4b787da82a0eb626d49f3f6fa904b3c9049a",
+    "analysis/audit-contract.js": "37972c0fa37c47b452e802b6e732208f69e3aae7615db35455c3366329cd3f48",
+    "analysis/triage-state.js": "9a1882d39f326cec59abb33cc7c0cb24d3b22ceb979eec471e2bb00af42cce67",
+    "analysis/app.js": "c396ea6c05a81b106827be4e8531e083d65018795e3753689645cddd60b027b3",
+    "scripts/verify-dashboard.mjs": "ff88d8c50d429d6eff0cd0f923bcae98b956a1e66434dc4c0702b85b838c9fb7",
+    "scripts/dashboard-provenance.mjs": "8c1aabd2f7c85c9d37cc49c27057e84cdb418ab9ac09e00e519d929d236bd20b"
+  },
+  "provenance": {
+    "before": {
+      "testedUrl": "http://127.0.0.1:4381/analysis/",
+      "checkedAt": "2026-10-29T15:55:44.707Z",
+      "diskHashes": {
+        "analysis/index.html": "6f2a744af3d72447f912e1f99618b63a47d4bfbbd21874320827e61caa90e0fe",
+        "analysis/styles.css": "66df41fc882d972bdd6cf270fafeaaf60dba06f02d6156c62317a4bdf283c8d2",
+        "analysis/analyzer.js": "4a42d1721766adefa64cf74d571aed548c9b8b50b784407ad171d50b6a51798f",
+        "analysis/artifact-schemas.js": "16ece6c513b0d2022f96b1ad8f7e3f7418a0c97cc00604d115825b0c140ddbb6",
+        "analysis/security-context.js": "305fb02732c3076983bc01eb7d0e4b787da82a0eb626d49f3f6fa904b3c9049a",
+        "analysis/audit-contract.js": "37972c0fa37c47b452e802b6e732208f69e3aae7615db35455c3366329cd3f48",
+        "analysis/triage-state.js": "9a1882d39f326cec59abb33cc7c0cb24d3b22ceb979eec471e2bb00af42cce67",
+        "analysis/app.js": "c396ea6c05a81b106827be4e8531e083d65018795e3753689645cddd60b027b3"
+      },
+      "servedHashes": {
+        "analysis/index.html": "6f2a744af3d72447f912e1f99618b63a47d4bfbbd21874320827e61caa90e0fe",
+        "analysis/styles.css": "66df41fc882d972bdd6cf270fafeaaf60dba06f02d6156c62317a4bdf283c8d2",
+        "analysis/analyzer.js": "4a42d1721766adefa64cf74d571aed548c9b8b50b784407ad171d50b6a51798f",
+        "analysis/artifact-schemas.js": "16ece6c513b0d2022f96b1ad8f7e3f7418a0c97cc00604d115825b0c140ddbb6",
+        "analysis/security-context.js": "305fb02732c3076983bc01eb7d0e4b787da82a0eb626d49f3f6fa904b3c9049a",
+        "analysis/audit-contract.js": "37972c0fa37c47b452e802b6e732208f69e3aae7615db35455c3366329cd3f48",
+        "analysis/triage-state.js": "9a1882d39f326cec59abb33cc7c0cb24d3b22ceb979eec471e2bb00af42cce67",
+        "analysis/app.js": "c396ea6c05a81b106827be4e8531e083d65018795e3753689645cddd60b027b3"
+      },
+      "assetUrls": {
+        "http://127.0.0.1:4381/analysis/": "analysis/index.html",
+        "http://127.0.0.1:4381/analysis/styles.css": "analysis/styles.css",
+        "http://127.0.0.1:4381/analysis/analyzer.js": "analysis/analyzer.js",
+        "http://127.0.0.1:4381/analysis/artifact-schemas.js": "analysis/artifact-schemas.js",
+        "http://127.0.0.1:4381/analysis/security-context.js": "analysis/security-context.js",
+        "http://127.0.0.1:4381/analysis/audit-contract.js": "analysis/audit-contract.js",
+        "http://127.0.0.1:4381/analysis/triage-state.js": "analysis/triage-state.js",
+        "http://127.0.0.1:4381/analysis/app.js": "analysis/app.js"
+      }
+    },
+    "after": {
+      "testedUrl": "http://127.0.0.1:4381/analysis/",
+      "checkedAt": "2026-10-29T15:57:31.840Z",
+      "diskHashes": {
+        "analysis/index.html": "6f2a744af3d72447f912e1f99618b63a47d4bfbbd21874320827e61caa90e0fe",
+        "analysis/styles.css": "66df41fc882d972bdd6cf270fafeaaf60dba06f02d6156c62317a4bdf283c8d2",
+        "analysis/analyzer.js": "4a42d1721766adefa64cf74d571aed548c9b8b50b784407ad171d50b6a51798f",
+        "analysis/artifact-schemas.js": "16ece6c513b0d2022f96b1ad8f7e3f7418a0c97cc00604d115825b0c140ddbb6",
+        "analysis/security-context.js": "305fb02732c3076983bc01eb7d0e4b787da82a0eb626d49f3f6fa904b3c9049a",
+        "analysis/audit-contract.js": "37972c0fa37c47b452e802b6e732208f69e3aae7615db35455c3366329cd3f48",
+        "analysis/triage-state.js": "9a1882d39f326cec59abb33cc7c0cb24d3b22ceb979eec471e2bb00af42cce67",
+        "analysis/app.js": "c396ea6c05a81b106827be4e8531e083d65018795e3753689645cddd60b027b3"
+      },
+      "servedHashes": {
+        "analysis/index.html": "6f2a744af3d72447f912e1f99618b63a47d4bfbbd21874320827e61caa90e0fe",
+        "analysis/styles.css": "66df41fc882d972bdd6cf270fafeaaf60dba06f02d6156c62317a4bdf283c8d2",
+        "analysis/analyzer.js": "4a42d1721766adefa64cf74d571aed548c9b8b50b784407ad171d50b6a51798f",
+        "analysis/artifact-schemas.js": "16ece6c513b0d2022f96b1ad8f7e3f7418a0c97cc00604d115825b0c140ddbb6",
+        "analysis/security-context.js": "305fb02732c3076983bc01eb7d0e4b787da82a0eb626d49f3f6fa904b3c9049a",
+        "analysis/audit-contract.js": "37972c0fa37c47b452e802b6e732208f69e3aae7615db35455c3366329cd3f48",
+        "analysis/triage-state.js": "9a1882d39f326cec59abb33cc7c0cb24d3b22ceb979eec471e2bb00af42cce67",
+        "analysis/app.js": "c396ea6c05a81b106827be4e8531e083d65018795e3753689645cddd60b027b3"
+      },
+      "assetUrls": {
+        "http://127.0.0.1:4381/analysis/": "analysis/index.html",
+        "http://127.0.0.1:4381/analysis/styles.css": "analysis/styles.css",
+        "http://127.0.0.1:4381/analysis/analyzer.js": "analysis/analyzer.js",
+        "http://127.0.0.1:4381/analysis/artifact-schemas.js": "analysis/artifact-schemas.js",
+        "http://127.0.0.1:4381/analysis/security-context.js": "analysis/security-context.js",
+        "http://127.0.0.1:4381/analysis/audit-contract.js": "analysis/audit-contract.js",
+        "http://127.0.0.1:4381/analysis/triage-state.js": "analysis/triage-state.js",
+        "http://127.0.0.1:4381/analysis/app.js": "analysis/app.js"
+      }
+    },
+    "browserResponseHashes": {
+      "analysis/index.html": "6f2a744af3d72447f912e1f99618b63a47d4bfbbd21874320827e61caa90e0fe",
+      "analysis/styles.css": "66df41fc882d972bdd6cf270fafeaaf60dba06f02d6156c62317a4bdf283c8d2",
+      "analysis/artifact-schemas.js": "16ece6c513b0d2022f96b1ad8f7e3f7418a0c97cc00604d115825b0c140ddbb6",
+      "analysis/analyzer.js": "4a42d1721766adefa64cf74d571aed548c9b8b50b784407ad171d50b6a51798f",
+      "analysis/triage-state.js": "9a1882d39f326cec59abb33cc7c0cb24d3b22ceb979eec471e2bb00af42cce67",
+      "analysis/security-context.js": "305fb02732c3076983bc01eb7d0e4b787da82a0eb626d49f3f6fa904b3c9049a",
+      "analysis/audit-contract.js": "37972c0fa37c47b452e802b6e732208f69e3aae7615db35455c3366329cd3f48",
+      "analysis/app.js": "c396ea6c05a81b106827be4e8531e083d65018795e3753689645cddd60b027b3"
+    },
+    "verificationSourceHashes": {
+      "scripts/verify-dashboard.mjs": "ff88d8c50d429d6eff0cd0f923bcae98b956a1e66434dc4c0702b85b838c9fb7",
+      "scripts/dashboard-provenance.mjs": "8c1aabd2f7c85c9d37cc49c27057e84cdb418ab9ac09e00e519d929d236bd20b"
+    },
+    "serviceWorkers": "blocked",
+    "httpCache": "disabled by routing"
+  },
+  "checks": [
+    "preview HTML and linked scripts/styles match checkout before browser verification",
+    "group close hides reviewed children; closed items reopenable; original Markdown retains findings and review decision",
+    "same project and evidence restore close decisions after page reload",
+    "decision export/import roundtrip works through keyboard-accessible file chooser",
+    "importing an empty same-project backup preserves existing review decisions",
+    "independent decisions from two tabs remain present after each tab reloads",
+    "keyboard activates folder control and file input; automation loads directory fixture (native directory picker excluded)",
+    "module priority excludes another module and closed higher-risk siblings; disclosure and keyboard focus survive close; Escape returns focus",
+    "folder input scans CSS fixture; changed source reopens prior review without changing canonical baseline policy",
+    "cross-project import rejected without hiding current findings",
+    "no document horizontal overflow at 320px (dashboard only)",
+    "no document horizontal overflow at 390px (dashboard only)",
+    "no document horizontal overflow at 768px (dashboard only)",
+    "no document horizontal overflow at 1440px (dashboard only)",
+    "valid 137-character project ID with an unbroken suffix has no document overflow at 390px",
+    "normal clicks reach controls and verification request remains visible; no page errors",
+    "nested finding reason remains expanded and keyboard-focused after window focus refresh",
+    "scope refresh retains bound identity over unsubmitted text; window-focus refresh preserves group keyboard focus",
+    "a delayed earlier folder selection cannot overwrite the latest selected project",
+    "denied browser storage preserves in-memory review and export across a scope refresh",
+    "synthetic security versions render runtime/build/development evidence and one advisory parent with three module children",
+    "security parent close retains three exportable child decisions, closed findings remain inspectable, and 390px inventory does not overflow",
+    "browser responses and preview after scenarios still match initial checkout; service workers blocked and HTTP cache disabled"
+  ],
+  "pageErrors": [],
+  "exclusions": [
+    "production app routes",
+    "all screen states",
+    "real devices",
+    "native directory picker",
+    "visual regression baseline approval",
+    "deployment",
+    "GitHub issue writes"
+  ]
+}

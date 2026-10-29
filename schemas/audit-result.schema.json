@@ -764,7 +764,8 @@
             "freshness",
             "advisoryCount",
             "sources",
-            "liveLookup"
+            "liveLookup",
+            "timeZone"
           ],
           "properties": {
             "id": {
@@ -794,6 +795,9 @@
             },
             "liveLookup": {
               "const": false
+            },
+            "timeZone": {
+              "const": "Asia/Seoul"
             }
           }
         },

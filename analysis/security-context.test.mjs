@@ -227,3 +227,10 @@ test("PHP sources without runtime evidence surface one version gap and no invent
   assert.ok(pinned.coverage.limitations.some((item) => /package rebuild/.test(item)));
   assert.deepEqual(inspect([{ path: "README.md", content: "documentation only" }]).findings, []);
 });
+
+test('review date freshness uses its declared calendar timezone across UTC midnight', () => {
+  const result = inspectSecurityContext([], { now: '2026-10-29T15:30:00Z' });
+  assert.equal(result.snapshot.timeZone, 'Asia/Seoul');
+  assert.equal(result.snapshot.freshness, 'within-30-days');
+  assert.equal(inspectSecurityContext([], { now: '2026-10-29T14:59:00Z' }).snapshot.freshness, 'unverified-clock');
+});

@@ -158,7 +158,7 @@ node bin/frontend-agent-audit.mjs baseline \
   --output .frontend-audit/baseline.json
 ```
 
-호환되는 baseline이 없으면 finding은 `unbaselined`로 유지되며 새 회귀로 표현되지 않습니다. CI 기본값은 report-only이고 `finding:security.html-sink-boundary`, `severity:high`, `decision:verify-first`처럼 profile에 명시한 차단 selector와 일치하는 `new` 또는 `worsened` finding에만 exit `1`을 반환합니다. Severity selector는 해당 등급 이상을 포함하는 threshold이며 finding과 decision selector는 정확히 일치할 때만 적용됩니다. Exit `2`는 잘못된 입력 또는 analyzer 오류, exit `3`은 profile이 완전한 범위를 요구했지만 부분 분석이 된 경우입니다. Static CLI는 프로젝트 코드, package script 또는 config module을 실행하지 않으며 symlink를 따라가지 않습니다. 출력 확장자는 선택한 format과 일치해야 하며 기존 파일은 같은 analyzer artifact 형식으로 검증될 때만 덮어씁니다.
+baseline이 없으면 finding은 `unbaselined`, 호환되지 않는 baseline 비교는 `unverified`로 유지되며 새 회귀로 표현되지 않습니다. CI 기본값은 report-only이고 `finding:security.html-sink-boundary`, `severity:high`, `decision:verify-first`처럼 profile에 명시한 차단 selector와 일치하는 `new` 또는 `worsened` finding에만 exit `1`을 반환합니다. Severity selector는 해당 등급 이상을 포함하는 threshold이며 finding과 decision selector는 정확히 일치할 때만 적용됩니다. Exit `2`는 잘못된 입력 또는 analyzer 오류, exit `3`은 profile이 완전한 범위를 요구했지만 부분 분석이 된 경우입니다. Static CLI는 프로젝트 코드, package script 또는 config module을 실행하지 않으며 symlink를 따라가지 않습니다. 출력 확장자는 선택한 format과 일치해야 하며 기존 파일은 같은 analyzer artifact 형식으로 검증될 때만 덮어씁니다.
 
 계약은 [Analyzer v0.2 설계](docs/analyzer-v0.2-design.md)에 설명되어 있으며 [감사 결과](schemas/audit-result.schema.json), [감사 baseline](schemas/audit-baseline.schema.json), [프로젝트 profile](schemas/project-profile.schema.json) schema로 제공합니다. 현재 구현은 첫 단계입니다. Parser 기반 route coverage, 심층 Next.js metadata 분석, runtime 검증 및 SARIF import는 아직 계획 단계입니다.
 
