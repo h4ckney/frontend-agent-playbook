@@ -138,6 +138,10 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 빠른 로컬 검사를 실행하려면 [Frontend Audit 대시보드](analysis/index.html)를 열고 프로젝트의 검색 노출 범위를 선택한 뒤 폴더를 지정합니다. 대시보드는 관찰된 사실, 위험 가능성, 정보 부족 및 삭제 후보를 구분하고, SEO는 관련 있는 공개 범위에만 적용하며, 관련 항목을 위험 그룹으로 묶어 영향과 다음 확인 방법을 보여준 뒤 Markdown으로 내보냅니다. 그룹은 검토를 돕는 단위이며 동일 원인을 확정하지 않습니다. 파일은 브라우저 내부에 머무르고 민감한 값은 보고서에서 제외되지만 자동 탐지 결과는 여전히 수동 검증이 필요합니다.
 
+### 모듈·런타임 보안
+
+오프라인 대시보드·CLI는 npm/Composer lock과 Node/PHP 설정을 읽고 런타임·빌드·개발·미확인을 구분합니다. 날짜가 명시된 권고 스냅샷은 버전 일치와 실행 조건을 보여주며 실제 배포나 악용 가능성을 확정하지 않습니다. [보안 실행 문맥](docs/security-context.md), 패키지 메타데이터 전송을 명시한 [OSV 별도 조회](docs/dependency-advisories.md), [수정·아키텍처·근거·후속 작업](docs/audit-integrity-security-upgrade.md)을 참고하세요.
+
 ### Analyzer CLI 프리뷰
 
 미출시 `main` 브랜치는 브라우저와 같은 analyzer 및 정규화된 `AuditResult` 계약을 사용하는 외부 의존성 없는 CLI도 제공합니다.
@@ -243,12 +247,14 @@ node bin/frontend-agent-audit.mjs baseline \
 ```bash
 node scripts/validate-docs.mjs
 node scripts/sync-plugin-package.mjs --check
+node scripts/sync-artifact-schemas.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
+node --check analysis/security-context.js
 node --check bin/frontend-agent-audit.mjs
-node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs analysis/triage-state.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
+node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs scripts/query-osv.test.mjs scripts/dashboard-provenance.test.mjs
 ```
 
 문서 검증 스크립트는 로컬 Markdown 링크, 해결되지 않은 TODO 표시, 필수 규칙 및 워크플로우 섹션, 스킬 frontmatter, 스킬 UI 메타데이터 참조와 detector-rule 연결을 확인합니다. Package sync 검사는 설치용 plugin copy가 canonical source와 달라지는 것을 막습니다. GitHub Actions는 pull request와 `main` push에서 동일한 문서, package, analyzer, browser smoke, CLI, contract 및 approval gate 검사를 실행합니다.

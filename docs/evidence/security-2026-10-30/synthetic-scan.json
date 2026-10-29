@@ -1,0 +1,1551 @@
+{
+  "schemaVersion": "1",
+  "toolVersion": "0.2.0-dev",
+  "generatedAt": "2026-10-30T00:00:00Z",
+  "scopePolicyDigest": "static-lite-default-v1",
+  "engine": {
+    "analysisMode": "static-lite",
+    "capabilities": [
+      "route-path-inference",
+      "text-patterns"
+    ],
+    "detectorCatalogVersion": "3",
+    "profileDigest": null,
+    "externalTools": []
+  },
+  "project": {
+    "rootLabel": "synthetic-security-context",
+    "framework": "next",
+    "frameworkVersion": "^16.4.0",
+    "routerMode": "unknown",
+    "reactVersion": null,
+    "typescriptVersion": null,
+    "visibility": "unknown",
+    "profileSource": null
+  },
+  "scope": {
+    "selectedFiles": 5,
+    "includedFiles": 5,
+    "excludedFiles": 0,
+    "includedBytes": 702,
+    "excludedByReason": {},
+    "partial": false,
+    "partialReasons": []
+  },
+  "securityContext": {
+    "schemaVersion": "1",
+    "snapshot": {
+      "id": "security-context-2026-10-30-v1",
+      "checkedAt": "2026-10-30",
+      "freshness": "within-30-days",
+      "advisoryCount": 6,
+      "sources": [
+        "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+        "https://nodejs.org/en/about/previous-releases",
+        "https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w",
+        "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp",
+        "https://www.php.net/supported-versions.php",
+        "https://www.php.net/archive/2026.php",
+        "https://github.com/react/react/security/advisories/GHSA-fv66-9v8q-g76r",
+        "https://github.com/react/react/security/advisories/GHSA-xqc2-xf4c-x3h3",
+        "https://github.com/vercel/next.js/security/advisories/GHSA-673q-mjm6-r5xr",
+        "https://github.com/vercel/next.js/security/advisories/GHSA-2464-fhr4-w9xw"
+      ],
+      "liveLookup": false
+    },
+    "inventory": [
+      {
+        "ecosystem": "npm",
+        "name": "next",
+        "version": "^16.4.0",
+        "versionKind": "declared-range",
+        "manifest": "package.json",
+        "path": "dependencies/next",
+        "phase": "runtime",
+        "phaseEvidence": "manifest:dependencies; deployment not verified",
+        "direct": true,
+        "provenance": "manifest-declaration"
+      },
+      {
+        "ecosystem": "npm",
+        "name": "vite",
+        "version": "^6.0.0",
+        "versionKind": "declared-range",
+        "manifest": "package.json",
+        "path": "devDependencies/vite",
+        "phase": "build",
+        "phaseEvidence": "manifest:devDependencies; deployment not verified",
+        "direct": true,
+        "provenance": "manifest-declaration"
+      },
+      {
+        "ecosystem": "runtime",
+        "name": "php",
+        "version": "^8.4",
+        "versionKind": "declared-range",
+        "manifest": "composer.json",
+        "path": "require/php",
+        "phase": "runtime",
+        "phaseEvidence": "manifest:require; deployment not verified",
+        "direct": true,
+        "provenance": "manifest-declaration"
+      },
+      {
+        "ecosystem": "composer",
+        "name": "vendor/app",
+        "version": "^1.0",
+        "versionKind": "declared-range",
+        "manifest": "composer.json",
+        "path": "require/vendor/app",
+        "phase": "runtime",
+        "phaseEvidence": "manifest:require; deployment not verified",
+        "direct": true,
+        "provenance": "manifest-declaration"
+      },
+      {
+        "ecosystem": "composer",
+        "name": "vendor/test",
+        "version": "^2.0",
+        "versionKind": "declared-range",
+        "manifest": "composer.json",
+        "path": "require-dev/vendor/test",
+        "phase": "development",
+        "phaseEvidence": "manifest:require-dev; deployment not verified",
+        "direct": true,
+        "provenance": "manifest-declaration"
+      },
+      {
+        "ecosystem": "runtime",
+        "name": "node",
+        "version": "24.22.0",
+        "versionKind": "image-pin",
+        "manifest": "Dockerfile",
+        "path": "FROM@1:builder",
+        "phase": "build",
+        "phaseEvidence": "non-final Docker stage; may be used during build; custom --target not assessed",
+        "direct": true,
+        "provenance": "container-configuration"
+      },
+      {
+        "ecosystem": "runtime",
+        "name": "php",
+        "version": "8.4.26",
+        "versionKind": "image-pin",
+        "manifest": "Dockerfile",
+        "path": "FROM@3:production",
+        "phase": "runtime",
+        "phaseEvidence": "default final Docker stage or its FROM ancestor; custom --target not assessed",
+        "direct": true,
+        "provenance": "container-configuration"
+      },
+      {
+        "ecosystem": "npm",
+        "name": "next",
+        "version": "16.4.0",
+        "versionKind": "locked-exact",
+        "manifest": "package-lock.json",
+        "path": "node_modules/next",
+        "phase": "runtime",
+        "phaseEvidence": "npm lock dev flag; package install/deployment and runtime reachability not verified",
+        "direct": true,
+        "provenance": "lockfile"
+      },
+      {
+        "ecosystem": "npm",
+        "name": "react-server-dom-webpack",
+        "version": "19.3.0",
+        "versionKind": "locked-exact",
+        "manifest": "package-lock.json",
+        "path": "node_modules/react-server-dom-webpack",
+        "phase": "runtime",
+        "phaseEvidence": "npm lock dev flag; package install/deployment and runtime reachability not verified",
+        "direct": false,
+        "provenance": "lockfile"
+      },
+      {
+        "ecosystem": "npm",
+        "name": "react-server-dom-webpack",
+        "version": "19.3.0",
+        "versionKind": "locked-exact",
+        "manifest": "package-lock.json",
+        "path": "node_modules/worker/node_modules/react-server-dom-webpack",
+        "phase": "development",
+        "phaseEvidence": "npm lock dev flag; package install/deployment and runtime reachability not verified",
+        "direct": false,
+        "provenance": "lockfile"
+      },
+      {
+        "ecosystem": "npm",
+        "name": "vite",
+        "version": "6.0.0",
+        "versionKind": "locked-exact",
+        "manifest": "package-lock.json",
+        "path": "node_modules/vite",
+        "phase": "build",
+        "phaseEvidence": "npm lock dev flag; package install/deployment and runtime reachability not verified",
+        "direct": true,
+        "provenance": "lockfile"
+      },
+      {
+        "ecosystem": "composer",
+        "name": "vendor/app",
+        "version": "1.0.0",
+        "versionKind": "locked-exact",
+        "manifest": "composer.lock",
+        "path": "packages/vendor/app",
+        "phase": "runtime",
+        "phaseEvidence": "Composer lock package group; production installation not verified",
+        "direct": true,
+        "provenance": "lockfile"
+      },
+      {
+        "ecosystem": "composer",
+        "name": "vendor/test",
+        "version": "2.0.0",
+        "versionKind": "locked-exact",
+        "manifest": "composer.lock",
+        "path": "packages-dev/vendor/test",
+        "phase": "development",
+        "phaseEvidence": "Composer lock package group; production installation not verified",
+        "direct": true,
+        "provenance": "lockfile"
+      }
+    ],
+    "coverage": {
+      "complete": false,
+      "inventoryCount": 13,
+      "exactVersionCount": 8,
+      "advisoryMatchedOccurrences": 5,
+      "unresolvedVersionCount": 1,
+      "gaps": [],
+      "limitations": [
+        "Finite advisory snapshot, not a universal or live CVE database",
+        "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification",
+        "npm lock v2/v3 and Composer lock only; yarn/pnpm/bun and OS packages require external tools",
+        "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        "PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: https://www.php.net/archive/2026.php"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "id": "security.dependency-coverage",
+      "fingerprint": "security.dependency-coverage:composer.json",
+      "detectorId": "security.dependency-coverage",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "보안 버전 점검에 미확인 범위가 있음",
+      "area": "security",
+      "type": "gap",
+      "severity": "low",
+      "evidenceLevel": "unknown",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "composer.json"
+        ],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "control-unverified",
+          "security.dependency-coverage:composer.json"
+        ],
+        "reasons": [
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "composer.json"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "해석하지 못한 범위 0개; 미확정 버전·제약 1개; 스냅샷 2026-10-30 (within-30-days)",
+      "whyRisky": "버전 범위, 지원하지 않는 lock 형식과 오래된 권고 목록은 현재 설치·배포된 모듈의 보안 상태를 확정하지 못합니다.",
+      "possibleImpact": "확인되지 않은 의존성이나 런타임을 안전한 것으로 오해할 수 있습니다.",
+      "riskFactors": "고정 버전·실제 설치 내역·최신 외부 권고 비교가 없는 경우",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "지원 lockfile과 실행 버전, 최신 npm/Composer 감사 또는 SBOM 결과를 별도로 확보합니다. 이 분석기는 해당 명령을 자동 실행하지 않습니다.",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. ",
+      "clusterId": "security.dependency-coverage",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "security.next-image-svg-rce",
+      "fingerprint": "security.next-image-svg-rce:package-lock.json#node_modules/next",
+      "detectorId": "security.next-image-svg-rce",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "Next.js 이미지 처리 보안 권고와 버전이 일치함",
+      "area": "security",
+      "type": "risk",
+      "severity": "critical",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "package-lock.json"
+        ],
+        "routes": [],
+        "journeys": [],
+        "boundaryIds": [
+          "security.next-image-svg-rce"
+        ]
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "security.next-image-svg-rce:package-lock.json#node_modules/next"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "package-lock.json",
+          "label": "next@16.4.0 [runtime; locked-exact; node_modules/next]"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "CVE-2026-96889 / GHSA-2464-fhr4-w9xw: next@16.4.0 [runtime; lockfile; node_modules/next]",
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "glibc Linux에서 SVG를 사용하는 Image Optimization API와 실제 sharp 버전·선택 경로 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. Next.js 15.5.28 / 16.4.1; 권고의 우회 조건은 실제 사용 sharp >=0.35.5",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. https://github.com/vercel/next.js/security/advisories/GHSA-2464-fhr4-w9xw",
+      "clusterId": "security.next-image-svg-rce",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "security.node-brotli-2026",
+      "fingerprint": "security.node-brotli-2026:Dockerfile#FROM@1:builder",
+      "detectorId": "security.node-brotli-2026",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "Node.js Brotli 보안 권고와 버전이 일치함",
+      "area": "security",
+      "type": "risk",
+      "severity": "high",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "Dockerfile"
+        ],
+        "routes": [],
+        "journeys": [],
+        "boundaryIds": [
+          "security.node-brotli-2026"
+        ]
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "security.node-brotli-2026:Dockerfile#FROM@1:builder"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "Dockerfile",
+          "label": "node@24.22.0 [build; image-pin; FROM@1:builder]"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "CVE-2026-111497: node@24.22.0 [build; container-configuration; FROM@1:builder]",
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "공격자 제어 Brotli 입력을 해석하면 메모리 손상·정보 노출·코드 실행 가능성",
+      "riskFactors": "공격자가 제공한 Brotli 데이터를 node:zlib로 압축 해제하는 실행 경로",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. 22.23.4 / 24.22.1 / 26.12.1 이상인 해당 지원 계열",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+      "clusterId": "security.node-brotli-2026",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "security.php-oom-2026",
+      "fingerprint": "security.php-oom-2026:Dockerfile#FROM@3:production",
+      "detectorId": "security.php-oom-2026",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "PHP 요청 메모리 처리 보안 권고와 버전이 일치함",
+      "area": "security",
+      "type": "risk",
+      "severity": "critical",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "Dockerfile"
+        ],
+        "routes": [],
+        "journeys": [],
+        "boundaryIds": [
+          "security.php-oom-2026"
+        ]
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "security.php-oom-2026:Dockerfile#FROM@3:production"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "Dockerfile",
+          "label": "php@8.4.26 [runtime; image-pin; FROM@3:production]"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "CVE-2026-109618 / GHSA-w8hw-w9fx-j79w: php@8.4.26 [runtime; container-configuration; FROM@3:production]",
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "웹 요청을 처리하는 PHP SAPI와 OOM 경로. SAPI별 도달 가능성과 공급업체 백포트 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 이상인 해당 지원 계열",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w",
+      "clusterId": "security.php-oom-2026",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "security.php-stale-state-2026",
+      "fingerprint": "security.php-stale-state-2026:Dockerfile#FROM@3:production",
+      "detectorId": "security.php-stale-state-2026",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "PHP 요청 사이 상태 처리 보안 권고와 버전이 일치함",
+      "area": "security",
+      "type": "risk",
+      "severity": "critical",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "Dockerfile"
+        ],
+        "routes": [],
+        "journeys": [],
+        "boundaryIds": [
+          "security.php-stale-state-2026"
+        ]
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "security.php-stale-state-2026:Dockerfile#FROM@3:production"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "Dockerfile",
+          "label": "php@8.4.26 [runtime; image-pin; FROM@3:production]"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "CVE-2026-109619 / GHSA-6wmf-4rv5-p3rp: php@8.4.26 [runtime; container-configuration; FROM@3:production]",
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "동일 worker의 여러 웹 요청과 초기화 전 상태 소비 경로. PHP 8.5.12 등 패치 후에도 10월 23일 session upload progress 추가 권고를 별도 확인",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 이상인 해당 지원 계열",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp https://www.php.net/archive/2026.php",
+      "clusterId": "security.php-stale-state-2026",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "security.rsc-typed-array-rce",
+      "fingerprint": "security.rsc-typed-array-rce:package-lock.json#node_modules/next",
+      "detectorId": "security.rsc-typed-array-rce",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "RSC typed array 보안 권고와 버전이 일치함",
+      "area": "security",
+      "type": "risk",
+      "severity": "critical",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "package-lock.json"
+        ],
+        "routes": [],
+        "journeys": [],
+        "boundaryIds": [
+          "security.rsc-typed-array-rce"
+        ]
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "security.rsc-typed-array-rce:package-lock.json#node_modules/next"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "package-lock.json",
+          "label": "next@16.4.0 [runtime; locked-exact; node_modules/next]"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "GHSA-xqc2-xf4c-x3h3 / GHSA-673q-mjm6-r5xr: next@16.4.0 [runtime; lockfile; node_modules/next]",
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "RSC 응답의 여러 typed array와 공격자 제어 값. Next.js는 App Router·Cache Components의 use cache 반환 경로 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. RSC: 19.0.9 / 19.1.10 / 19.2.9 / 19.3.1; Next.js: 16.4.1 이상",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. https://github.com/react/react/security/advisories/GHSA-xqc2-xf4c-x3h3 https://github.com/vercel/next.js/security/advisories/GHSA-673q-mjm6-r5xr",
+      "clusterId": "security.rsc-typed-array-rce",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "security.rsc-typed-array-rce",
+      "fingerprint": "security.rsc-typed-array-rce:package-lock.json#node_modules/react-server-dom-webpack",
+      "detectorId": "security.rsc-typed-array-rce",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "RSC typed array 보안 권고와 버전이 일치함",
+      "area": "security",
+      "type": "risk",
+      "severity": "critical",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "package-lock.json"
+        ],
+        "routes": [],
+        "journeys": [],
+        "boundaryIds": [
+          "security.rsc-typed-array-rce"
+        ]
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "security.rsc-typed-array-rce:package-lock.json#node_modules/react-server-dom-webpack"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "package-lock.json",
+          "label": "react-server-dom-webpack@19.3.0 [runtime; locked-exact; node_modules/react-server-dom-webpack]"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "GHSA-xqc2-xf4c-x3h3 / GHSA-673q-mjm6-r5xr: react-server-dom-webpack@19.3.0 [runtime; lockfile; node_modules/react-server-dom-webpack]",
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "RSC 응답의 여러 typed array와 공격자 제어 값. Next.js는 App Router·Cache Components의 use cache 반환 경로 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. RSC: 19.0.9 / 19.1.10 / 19.2.9 / 19.3.1; Next.js: 16.4.1 이상",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. https://github.com/react/react/security/advisories/GHSA-xqc2-xf4c-x3h3 https://github.com/vercel/next.js/security/advisories/GHSA-673q-mjm6-r5xr",
+      "clusterId": "security.rsc-typed-array-rce",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "security.rsc-typed-array-rce",
+      "fingerprint": "security.rsc-typed-array-rce:package-lock.json#node_modules/worker/node_modules/react-server-dom-webpack",
+      "detectorId": "security.rsc-typed-array-rce",
+      "detectorVersion": "2026-10-30.1",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "RSC typed array 보안 권고와 버전이 일치함",
+      "area": "security",
+      "type": "risk",
+      "severity": "critical",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "package-lock.json"
+        ],
+        "routes": [],
+        "journeys": [],
+        "boundaryIds": [
+          "security.rsc-typed-array-rce"
+        ]
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "security.rsc-typed-array-rce:package-lock.json#node_modules/worker/node_modules/react-server-dom-webpack"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "package-lock.json",
+          "label": "react-server-dom-webpack@19.3.0 [development; locked-exact; node_modules/worker/node_modules/react-server-dom-webpack]"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "GHSA-xqc2-xf4c-x3h3 / GHSA-673q-mjm6-r5xr: react-server-dom-webpack@19.3.0 [development; lockfile; node_modules/worker/node_modules/react-server-dom-webpack]",
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "RSC 응답의 여러 typed array와 공격자 제어 값. Next.js는 App Router·Cache Components의 use cache 반환 경로 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. RSC: 19.0.9 / 19.1.10 / 19.2.9 / 19.3.1; Next.js: 16.4.1 이상",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. https://github.com/react/react/security/advisories/GHSA-xqc2-xf4c-x3h3 https://github.com/vercel/next.js/security/advisories/GHSA-673q-mjm6-r5xr",
+      "clusterId": "security.rsc-typed-array-rce",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "seo.indexing-intent-unknown",
+      "fingerprint": "seo.indexing-intent-unknown:repository",
+      "detectorId": "seo.indexing-intent",
+      "detectorVersion": "1",
+      "ruleRefs": [
+        "seo.applicability"
+      ],
+      "sourceRuleRefs": [],
+      "title": "프로젝트의 검색 노출 범위가 지정되지 않음",
+      "area": "seo",
+      "type": "gap",
+      "severity": "low",
+      "evidenceLevel": "unknown",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "unknown",
+        "reasons": [
+          "Search exposure scope is not confirmed."
+        ],
+        "missingContext": [
+          "public and internal route boundaries"
+        ]
+      },
+      "scope": {
+        "paths": [],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "control-unverified",
+          "seo.indexing-intent-unknown:repository"
+        ],
+        "reasons": [
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+      },
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "사용자 입력: 검색 노출 범위 미확인"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "프로젝트의 검색 노출 범위가 지정되지 않음",
+      "whyRisky": "공개 URL이 있는지 모르면 메타데이터·sitemap 부재를 결함으로 잘못 판단하거나 필요한 검색 노출 검증을 놓칠 수 있습니다.",
+      "possibleImpact": "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다.",
+      "riskFactors": "공개·내부 라우트가 섞여 있거나 배포 환경과 인증 경계가 문서화되지 않은 경우",
+      "mitigatingControls": "제품 소유자가 검색 노출 대상 URL과 내부 전용 경계를 명시한 경우",
+      "recommendation": "공개 검색 유입이 필요한 URL이 있는지 확인한 뒤 SEO 검사를 적용하거나 제외합니다.",
+      "limitation": "정적 분석으로 확인할 수 없는 설정, 데이터 출처 또는 실행 결과를 추가로 확인해야 함",
+      "clusterId": "seo.indexing-intent",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "testing.e2e-path-missing",
+      "fingerprint": "testing.e2e-path-missing:repository",
+      "detectorId": "testing.critical-journeys",
+      "detectorVersion": "2",
+      "ruleRefs": [
+        "testing.critical-journeys"
+      ],
+      "sourceRuleRefs": [],
+      "title": "E2E 설정 또는 테스트 소스 경로를 찾지 못함",
+      "area": "testing",
+      "type": "gap",
+      "severity": "medium",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "control-unverified",
+          "testing.e2e-path-missing:repository"
+        ],
+        "reasons": [
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "Playwright·Cypress 설정 및 E2E 테스트 소스 경로 미발견"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "E2E 설정 또는 테스트 소스 경로를 찾지 못함",
+      "whyRisky": "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 라우팅, 인증, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+      "possibleImpact": "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다.",
+      "riskFactors": "고위험 다단계 여정이 있는데 통합 테스트나 합성 모니터링 같은 대체 검증도 없는 경우",
+      "mitigatingControls": "해당 제품에 고위험 여정이 없거나 다른 계층의 반복 가능한 전체 경로 검증이 있는 경우",
+      "recommendation": "고위험 사용자 여정이 존재하는지 확인한 뒤 우선순위가 높은 하나부터 추가합니다.",
+      "limitation": "정적 근거를 바탕으로 위험 가능성을 추정한 것으로, 결함이 확인된 것은 아님",
+      "clusterId": "testing.critical-journeys",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "testing.test-foundation-missing",
+      "fingerprint": "testing.test-foundation-missing:`test` 스크립트와 test/spec 파일을 찾지 못함",
+      "detectorId": "testing.foundation",
+      "detectorVersion": "1",
+      "ruleRefs": [
+        "testing.test-foundation"
+      ],
+      "sourceRuleRefs": [],
+      "title": "테스트 기반을 찾지 못함",
+      "area": "testing",
+      "type": "gap",
+      "severity": "high",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "`test` 스크립트와 test/spec 파일을 찾지 못함"
+        ],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "testing.test-foundation-missing:`test` 스크립트와 test/spec 파일을 찾지 못함"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "`test` 스크립트와 test/spec 파일을 찾지 못함"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "테스트 기반을 찾지 못함",
+      "whyRisky": "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
+      "possibleImpact": "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다.",
+      "riskFactors": "변경이 잦거나 상태 전이가 복잡한데 CI에서 실행할 테스트 명령이 없는 경우",
+      "mitigatingControls": "상위 workspace나 외부 CI에서 검증하고 있어 선택한 폴더에서는 보이지 않는 경우",
+      "recommendation": "변경 위험이 큰 순수 로직이나 상태 전이부터 좁은 회귀 테스트를 추가합니다.",
+      "limitation": "정적 근거를 바탕으로 위험 가능성을 추정한 것으로, 결함이 확인된 것은 아님",
+      "clusterId": "testing.regression-safety-net",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    }
+  ],
+  "clusters": [
+    {
+      "id": "security.dependency-coverage",
+      "title": "보안 버전 점검에 미확인 범위가 있음",
+      "severity": "low",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "security.dependency-coverage"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "security.dependency-coverage"
+        ],
+        "reasons": [
+          "버전 범위, 지원하지 않는 lock 형식과 오래된 권고 목록은 현재 설치·배포된 모듈의 보안 상태를 확정하지 못합니다.",
+          "확인되지 않은 의존성이나 런타임을 안전한 것으로 오해할 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "whyRisky": "버전 범위, 지원하지 않는 lock 형식과 오래된 권고 목록은 현재 설치·배포된 모듈의 보안 상태를 확정하지 못합니다.",
+      "possibleImpact": "확인되지 않은 의존성이나 런타임을 안전한 것으로 오해할 수 있습니다.",
+      "riskFactors": "고정 버전·실제 설치 내역·최신 외부 권고 비교가 없는 경우",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
+      "recommendation": "지원 lockfile과 실행 버전, 최신 npm/Composer 감사 또는 SBOM 결과를 별도로 확보합니다. 이 분석기는 해당 명령을 자동 실행하지 않습니다.",
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "composer.json"
+        }
+      ]
+    },
+    {
+      "id": "security.next-image-svg-rce",
+      "title": "Next.js 이미지 처리 보안 권고와 버전이 일치함",
+      "severity": "critical",
+      "type": "risk",
+      "types": [
+        "risk"
+      ],
+      "findingIds": [
+        "security.next-image-svg-rce"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "security.next-image-svg-rce"
+        ],
+        "reasons": [
+          "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+          "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성"
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "glibc Linux에서 SVG를 사용하는 Image Optimization API와 실제 sharp 버전·선택 경로 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. Next.js 15.5.28 / 16.4.1; 권고의 우회 조건은 실제 사용 sharp >=0.35.5",
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "package-lock.json"
+        }
+      ]
+    },
+    {
+      "id": "security.node-brotli-2026",
+      "title": "Node.js Brotli 보안 권고와 버전이 일치함",
+      "severity": "high",
+      "type": "risk",
+      "types": [
+        "risk"
+      ],
+      "findingIds": [
+        "security.node-brotli-2026"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "security.node-brotli-2026"
+        ],
+        "reasons": [
+          "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+          "공격자 제어 Brotli 입력을 해석하면 메모리 손상·정보 노출·코드 실행 가능성"
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "공격자 제어 Brotli 입력을 해석하면 메모리 손상·정보 노출·코드 실행 가능성",
+      "riskFactors": "공격자가 제공한 Brotli 데이터를 node:zlib로 압축 해제하는 실행 경로",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. 22.23.4 / 24.22.1 / 26.12.1 이상인 해당 지원 계열",
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "Dockerfile"
+        }
+      ]
+    },
+    {
+      "id": "security.php-oom-2026",
+      "title": "PHP 요청 메모리 처리 보안 권고와 버전이 일치함",
+      "severity": "critical",
+      "type": "risk",
+      "types": [
+        "risk"
+      ],
+      "findingIds": [
+        "security.php-oom-2026"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "security.php-oom-2026"
+        ],
+        "reasons": [
+          "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+          "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성"
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "웹 요청을 처리하는 PHP SAPI와 OOM 경로. SAPI별 도달 가능성과 공급업체 백포트 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 이상인 해당 지원 계열",
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "Dockerfile"
+        }
+      ]
+    },
+    {
+      "id": "security.php-stale-state-2026",
+      "title": "PHP 요청 사이 상태 처리 보안 권고와 버전이 일치함",
+      "severity": "critical",
+      "type": "risk",
+      "types": [
+        "risk"
+      ],
+      "findingIds": [
+        "security.php-stale-state-2026"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "security.php-stale-state-2026"
+        ],
+        "reasons": [
+          "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+          "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성"
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "동일 worker의 여러 웹 요청과 초기화 전 상태 소비 경로. PHP 8.5.12 등 패치 후에도 10월 23일 session upload progress 추가 권고를 별도 확인",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 이상인 해당 지원 계열",
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "Dockerfile"
+        }
+      ]
+    },
+    {
+      "id": "security.rsc-typed-array-rce",
+      "title": "RSC typed array 보안 권고와 버전이 일치함",
+      "severity": "critical",
+      "type": "risk",
+      "types": [
+        "risk"
+      ],
+      "findingIds": [
+        "security.rsc-typed-array-rce"
+      ],
+      "occurrenceCount": 3,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "security.rsc-typed-array-rce"
+        ],
+        "reasons": [
+          "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+          "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성"
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "whyRisky": "명시된 버전 정보가 공개 보안 권고의 대상 범위와 일치합니다.",
+      "possibleImpact": "실행 조건이 충족되면 원격 코드 실행 등 심각한 서버 영향 가능성",
+      "riskFactors": "RSC 응답의 여러 typed array와 공격자 제어 값. Next.js는 App Router·Cache Components의 use cache 반환 경로 확인 필요",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
+      "recommendation": "공식 권고와 실제 실행 경로·설치 버전·공급업체 백포트를 확인하고 수정 버전으로 갱신합니다. RSC: 19.0.9 / 19.1.10 / 19.2.9 / 19.3.1; Next.js: 16.4.1 이상",
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "package-lock.json"
+        }
+      ]
+    },
+    {
+      "id": "seo.indexing-intent",
+      "title": "검색 노출 범위 확인",
+      "severity": "low",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "seo.indexing-intent-unknown"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "seo.indexing-intent"
+        ],
+        "reasons": [
+          "공개 URL이 있는지 모르면 메타데이터·sitemap 부재를 결함으로 잘못 판단하거나 필요한 검색 노출 검증을 놓칠 수 있습니다.",
+          "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+      },
+      "whyRisky": "공개 URL이 있는지 모르면 메타데이터·sitemap 부재를 결함으로 잘못 판단하거나 필요한 검색 노출 검증을 놓칠 수 있습니다.",
+      "possibleImpact": "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다.",
+      "riskFactors": "공개·내부 라우트가 섞여 있거나 배포 환경과 인증 경계가 문서화되지 않은 경우",
+      "mitigatingControls": "제품 소유자가 검색 노출 대상 URL과 내부 전용 경계를 명시한 경우",
+      "verification": "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다.",
+      "recommendation": "공개 검색 유입이 필요한 URL이 있는지 확인한 뒤 SEO 검사를 적용하거나 제외합니다.",
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "사용자 입력: 검색 노출 범위 미확인"
+        }
+      ]
+    },
+    {
+      "id": "testing.critical-journeys",
+      "title": "고위험 사용자 여정 검증",
+      "severity": "medium",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "testing.e2e-path-missing"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "testing.critical-journeys"
+        ],
+        "reasons": [
+          "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 라우팅, 인증, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+          "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+      },
+      "whyRisky": "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 라우팅, 인증, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+      "possibleImpact": "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다.",
+      "riskFactors": "고위험 다단계 여정이 있는데 통합 테스트나 합성 모니터링 같은 대체 검증도 없는 경우",
+      "mitigatingControls": "해당 제품에 고위험 여정이 없거나 다른 계층의 반복 가능한 전체 경로 검증이 있는 경우",
+      "verification": "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다.",
+      "recommendation": "고위험 사용자 여정이 존재하는지 확인한 뒤 우선순위가 높은 하나부터 추가합니다.",
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "Playwright·Cypress 설정 및 E2E 테스트 소스 경로 미발견"
+        }
+      ]
+    },
+    {
+      "id": "testing.regression-safety-net",
+      "title": "회귀 검증 기반 확인",
+      "severity": "high",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "testing.test-foundation-missing"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "testing.regression-safety-net"
+        ],
+        "reasons": [
+          "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
+          "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+      },
+      "whyRisky": "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
+      "possibleImpact": "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다.",
+      "riskFactors": "변경이 잦거나 상태 전이가 복잡한데 CI에서 실행할 테스트 명령이 없는 경우",
+      "mitigatingControls": "상위 workspace나 외부 CI에서 검증하고 있어 선택한 폴더에서는 보이지 않는 경우",
+      "verification": "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다.",
+      "recommendation": "변경 위험이 큰 순수 로직이나 상태 전이부터 좁은 회귀 테스트를 추가합니다.",
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "`test` 스크립트와 test/spec 파일을 찾지 못함"
+        }
+      ]
+    }
+  ],
+  "diff": {
+    "baselineId": null,
+    "unbaselined": [
+      "security.dependency-coverage:composer.json",
+      "security.next-image-svg-rce:package-lock.json#node_modules/next",
+      "security.node-brotli-2026:Dockerfile#FROM@1:builder",
+      "security.php-oom-2026:Dockerfile#FROM@3:production",
+      "security.php-stale-state-2026:Dockerfile#FROM@3:production",
+      "security.rsc-typed-array-rce:package-lock.json#node_modules/next",
+      "security.rsc-typed-array-rce:package-lock.json#node_modules/react-server-dom-webpack",
+      "security.rsc-typed-array-rce:package-lock.json#node_modules/worker/node_modules/react-server-dom-webpack",
+      "seo.indexing-intent-unknown:repository",
+      "testing.e2e-path-missing:repository",
+      "testing.test-foundation-missing:`test` 스크립트와 test/spec 파일을 찾지 못함"
+    ],
+    "new": [],
+    "worsened": [],
+    "unchanged": [],
+    "resolved": [],
+    "unverified": []
+  },
+  "diagnostics": [
+    {
+      "id": "project.context-missing",
+      "level": "info",
+      "message": "No approved project profile was provided; product-specific journeys, route policies, trust boundaries, and controls were not applied."
+    }
+  ]
+}

@@ -10,6 +10,7 @@ const {
   createAuditBundle,
   createBaseline,
   validateAuditResult,
+  validateBaseline,
   validateProjectProfile
 } = require("./audit-contract.js");
 
@@ -128,7 +129,7 @@ test("does not reuse the old E2E detector decision after its inventory semantics
   entry.detectorVersion = "1";
   const compared = compareWithBaseline(result, baseline);
   assert.ok(compared.diff.unverified.includes(entry.fingerprint));
-  assert.equal(result.engine.detectorCatalogVersion, "2");
+  assert.equal(result.engine.detectorCatalogVersion, "3");
 });
 
 test("renders a Korean browser report while preserving stable identifiers", () => {
@@ -250,7 +251,7 @@ test("does not treat action-label changes alone as worsening", () => {
   assert.ok(compared.diff.unchanged.includes(baseline.findings[0].fingerprint));
 });
 
-test("treats a same-detector path move as unverified instead of resolved plus new", () => {
+test("retains new occurrences without rename proof and leaves ambiguous removals unverified", () => {
   const result = audit();
   const baseline = createBaseline(result, { createdAt: generatedAt });
   const movedRecords = records.map((record) =>
@@ -265,9 +266,9 @@ test("treats a same-detector path move as unverified instead of resolved plus ne
 
   const compared = compareWithBaseline(moved, baseline);
   assert.ok(compared.diff.unverified.includes("security.html-sink-boundary:pages/checkout.tsx"));
-  assert.ok(compared.diff.unverified.includes("security.html-sink-boundary:pages/payment.tsx"));
+  assert.ok(!compared.diff.unverified.includes("security.html-sink-boundary:pages/payment.tsx"));
   assert.ok(!compared.diff.resolved.includes("security.html-sink-boundary:pages/checkout.tsx"));
-  assert.ok(!compared.diff.new.includes("security.html-sink-boundary:pages/payment.tsx"));
+  assert.ok(compared.diff.new.includes("security.html-sink-boundary:pages/payment.tsx"));
 });
 
 test("rejects partial baselines unless an explicit reason is supplied", () => {
@@ -358,4 +359,134 @@ test("does not classify Pages Router special files as the root route", () => {
 
   assert.deepEqual(finding.scope.routes, []);
   assert.deepEqual(finding.scope.journeys, []);
+});
+
+test("validates every reachable required field against the published artifact schemas", () => {
+  const result = audit();
+  const baseline = createBaseline(result, { createdAt: generatedAt });
+  // Include optional structures so their nested contracts get exercised too.
+  result.engine.externalTools = [{ name: 'fixture', version: '1', rulesetDigest: 'hash' }];
+  baseline.externalTools = result.engine.externalTools;
+  function probe(root, schema, validate) {
+    let checked = 0;
+    function visit(value, node, trail = []) {
+      if (node.$ref) node = schema.$defs[node.$ref.slice('#/$defs/'.length)];
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        for (const key of node.required || []) {
+          const copy = structuredClone(root);
+          const owner = trail.reduce((target, segment) => target[segment], copy);
+          delete owner[key];
+          assert.ok(validate(copy).length, [...trail, key].join('.') + ' must be rejected');
+          checked += 1;
+        }
+        for (const [key, child] of Object.entries(value)) if (node.properties?.[key]) visit(child, node.properties[key], [...trail, key]);
+      } else if (Array.isArray(value) && node.items) value.forEach((child, index) => visit(child, node.items, [...trail, index]));
+    }
+    visit(root, schema);
+    return checked;
+  }
+  assert.ok(probe(result, schemas.result, validateAuditResult) > 100);
+  assert.ok(probe(baseline, schemas.baseline, validateBaseline) > 30);
+});
+
+test("rejects malformed nested artifact values, unknown fields, dates, and baseline metadata", () => {
+  const mutations = [
+    (value) => { value.findings[0].title = 123; },
+    (value) => { value.findings[0].diffStatus = 'safe'; },
+    (value) => { value.engine.externalTools = [{ name: 123 }]; },
+    (value) => { value.findings[0].evidence[0].extra = true; },
+    (value) => { value.extraUnsupported = true; },
+    (value) => { value.scope.excludedByReason.bad = -1; },
+    (value) => { value.generatedAt = '2026-02-30T00:00:00Z'; },
+    (value) => { value.generatedAt = '2026-10-30'; }
+  ];
+  for (const mutate of mutations) {
+    const result = audit();
+    mutate(result);
+    assert.ok(validateAuditResult(result).length);
+  }
+  const baseline = createBaseline(audit(), { createdAt: generatedAt });
+  delete baseline.profileDigest;
+  assert.ok(validateBaseline(baseline).length);
+});
+
+test("direct/browser bundle excludes explicit generated headers with incomplete coverage", () => {
+  const before = audit();
+  const baseline = createBaseline(before, { createdAt: generatedAt });
+  const changed = records.map((record) => record.path === 'pages/checkout.tsx'
+    ? { ...record, content: '// @generated\n' + record.content } : record);
+  const result = audit({ records: changed });
+  assert.equal(result.scope.partial, true);
+  assert.equal(result.scope.includedFiles, changed.length - 1);
+  assert.ok(result.scope.partialReasons.includes('generated-header:1'));
+  const compared = compareWithBaseline(result, baseline);
+  assert.ok(compared.diff.unverified.includes('security.html-sink-boundary:pages/checkout.tsx'));
+  assert.ok(!compared.diff.resolved.includes('security.html-sink-boundary:pages/checkout.tsx'));
+});
+
+test("security advisories retain module children, phases, source identity and remain CI candidates", () => {
+  const fixtures = [
+    { path: 'Dockerfile', content: 'FROM node:24.22.0 AS builder\nFROM php:8.4.26-fpm\n' },
+    { path: 'package-lock.json', content: JSON.stringify({ lockfileVersion: 3, packages: {
+      '': {},
+      'node_modules/react-server-dom-webpack': { version: '19.3.0' },
+      'node_modules/next': { version: '16.4.0' },
+      'node_modules/tools/node_modules/react-server-dom-webpack': { version: '19.3.0', dev: true }
+    } }) }
+  ];
+  const result = createAuditBundle({ name: 'security-fixture', records: fixtures, generatedAt: '2026-10-30T00:00:00Z' }).audit;
+  assert.deepEqual(validateAuditResult(result), []);
+  assert.equal(result.securityContext.coverage.complete, false);
+  assert.equal(result.securityContext.snapshot.liveLookup, false);
+  const rsc = result.findings.filter((item) => item.id === 'security.rsc-typed-array-rce');
+  assert.equal(rsc.length, 3);
+  assert.equal(new Set(rsc.map((item) => item.fingerprint)).size, 3);
+  assert.ok(rsc.every((item) => item.scope.boundaryIds.includes(item.id)));
+  assert.ok(rsc.every((item) => item.evidenceLevel === 'inferred' && item.priority.decision === 'verify-first'));
+  assert.equal(new Set(rsc.map((item) => item.clusterId)).size, 1);
+  assert.match(rsc.map((item) => item.observedFact).join(' '), /development/);
+  assert.match(buildAuditMarkdown(result), /Phase evidence/);
+  assert.match(buildAuditMarkdown(result, { locale: 'ko' }), /실제 설치·배포·공격 경로는 미확인/);
+  const baseline = createBaseline(result);
+  const fixed = fixtures.map((item) => ({ ...item, content: item.content.replaceAll('19.3.0', '19.3.1').replace('16.4.0', '16.4.1') }));
+  const current = createAuditBundle({ name: 'security-fixture', records: fixed, generatedAt: '2026-10-30T00:00:00Z' }).audit;
+  const compared = compareWithBaseline(current, baseline);
+  assert.ok(rsc.every((item) => compared.diff.resolved.includes(item.fingerprint)));
+});
+
+test("missing findings from a different detector revision remain unverified", () => {
+  const baseline = createBaseline(audit());
+  const previous = baseline.findings.find((item) => item.detectorId === 'security.html-boundary');
+  previous.detectorVersion = 'older-revision';
+  const result = audit({ records: records.filter((item) => item.path !== 'pages/checkout.tsx') });
+  const compared = compareWithBaseline(result, baseline);
+  assert.ok(compared.diff.unverified.includes(previous.fingerprint));
+  assert.ok(!compared.diff.resolved.includes(previous.fingerprint));
+});
+
+test("lost or unsupported security version evidence cannot resolve a prior critical advisory", () => {
+  const lock = { lockfileVersion: 3, packages: { '': {}, 'node_modules/next': { version: '16.4.0' } } };
+  const fixture = [
+    { path: 'package.json', content: JSON.stringify({ dependencies: { next: '^16.4.0' } }) },
+    { path: 'package-lock.json', content: JSON.stringify(lock) }
+  ];
+  const bundle = (value, date = '2026-10-30T00:00:00Z') => createAuditBundle({ records: value, generatedAt: date }).audit;
+  const before = bundle(fixture);
+  const baseline = createBaseline(before);
+  const fingerprint = before.findings.find((item) => item.id === 'security.rsc-typed-array-rce').fingerprint;
+  for (const changed of [fixture.slice(0, 1), [fixture[0], { path: 'package-lock.json', content: JSON.stringify({ ...lock, lockfileVersion: 1 }) }]]) {
+    const compared = compareWithBaseline(bundle(changed), baseline);
+    assert.ok(compared.diff.unverified.includes(fingerprint));
+    assert.ok(!compared.diff.resolved.includes(fingerprint));
+  }
+  const fixed = fixture.map((item) => ({ ...item, content: item.content.replaceAll('16.4.0', '16.4.1') }));
+  assert.ok(compareWithBaseline(bundle(fixed), baseline).diff.resolved.includes(fingerprint));
+  const stale = compareWithBaseline(bundle(fixed, '2027-01-01T00:00:00Z'), baseline);
+  assert.ok(stale.diff.unverified.includes(fingerprint));
+});
+
+test("invalid falsy CI modes cannot silently turn a requested gate into report-only", () => {
+  for (const mode of [false, 0, '', null]) {
+    assert.ok(validateProjectProfile({ schemaVersion: '1', project: { id: 'x' }, ci: { mode, failOn: ['severity:high'] } }).length);
+  }
 });

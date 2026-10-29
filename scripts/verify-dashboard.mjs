@@ -6,20 +6,22 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { createRequire } from "node:module";
-import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { previewUrl, sha256, verifyDashboardPreview, hashVerificationSources } from "./dashboard-provenance.mjs";
 
 const values = Object.fromEntries(process.argv.slice(2).reduce((pairs, value, index, args) => {
   if (index % 2 === 0) pairs.push([value.replace(/^--/, ""), args[index + 1]]);
   return pairs;
 }, []));
 if (!values.url || !values.output) throw new Error("usage: node scripts/verify-dashboard.mjs --url http://127.0.0.1:PORT/analysis/ --output DIRECTORY [--channel chrome]");
-const url = new URL(values.url);
-if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) throw new Error("use a local HTTP preview of this dashboard");
+const url = previewUrl(values.url);
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 await fs.mkdir(values.output, { recursive: true });
 await fs.rm(path.join(values.output, "browser-result.json"), { force: true });
+const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const previewBefore = await verifyDashboardPreview(url, sourceRoot);
+const verificationSourcesBefore = await hashVerificationSources(sourceRoot);
 const fixture = await fs.mkdtemp(path.join(os.tmpdir(), "frontend-audit-ui-"));
 await fs.mkdir(path.join(fixture, "src"), { recursive: true });
 await fs.writeFile(path.join(fixture, "package.json"), JSON.stringify({ dependencies: { react: "19.0.0" }, scripts: { test: "node --test" } }));
@@ -29,9 +31,38 @@ const browser = await chromium.launch({ headless: true, ...(values.channel ? { c
 const errors = [];
 const checks = [];
 const recordCheck = (description) => { checks.push(description); process.stderr.write("verified: " + description + "\n"); };
+const responseChecks = [];
+const browserResponseHashes = {};
+async function newContext(options) {
+  const context = await browser.newContext({ ...options, serviceWorkers: "block" });
+  // Routing disables the HTTP cache, and new contexts have no persisted state.
+  await context.route("**/*", (route) => route.continue());
+  context.on("response", (response) => {
+    const file = previewBefore.assetUrls[response.url()];
+    if (!file) {
+      if (["document", "script", "stylesheet"].includes(response.request().resourceType())) {
+        errors.push("browser loaded an untracked dashboard asset: " + response.url());
+      }
+      return;
+    }
+    responseChecks.push((async () => {
+      assert.equal(response.status(), 200, "browser asset response: " + file);
+      const hash = sha256(await response.body());
+      assert.equal(hash, previewBefore.diskHashes[file], "browser received different asset: " + file);
+      browserResponseHashes[file] = hash;
+    })().catch((error) => errors.push(error.message)));
+  });
+  return context;
+}
+async function exportDocument(page) {
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#exportTriage").click();
+  return JSON.parse(await fs.readFile(await (await downloadPromise).path(), "utf8"));
+}
 let result;
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  recordCheck("preview HTML and linked scripts/styles match checkout before browser verification");
+  const context = await newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   page.on("pageerror", (error) => errors.push(error.message));
@@ -75,20 +106,72 @@ try {
   await page.keyboard.press("Enter");
   const chooser = await chooserPromise;
   await chooser.setFiles({ name: "triage.json", mimeType: "application/json", buffer: stateBuffer });
-  await page.waitForFunction(() => document.querySelector("#toast").textContent.includes("불러왔습니다"));
+  await page.waitForFunction(() => document.querySelector("#toast").textContent.includes("합쳤습니다"));
   recordCheck("decision export/import roundtrip works through keyboard-accessible file chooser");
+
+  const beforeEmptyImport = await exportDocument(page);
+  await page.locator("#toast").evaluate((node) => { node.textContent = ""; });
+  await page.locator("#importTriage").setInputFiles({
+    name: "old-empty-backup.json", mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({ schemaVersion: "1", projectKey: "synthetic/browser-verification", decisions: {} }))
+  });
+  await page.waitForFunction(() => document.querySelector("#toast").textContent.includes("합쳤습니다"));
+  assert.deepEqual(await exportDocument(page), beforeEmptyImport);
+  recordCheck("importing an empty same-project backup preserves existing review decisions");
+
+  // A second tab starts from a stale project view; independent decisions must
+  // both survive export and reload in either tab.
+  const tabB = await context.newPage();
+  tabB.on("pageerror", (error) => errors.push(error.message));
+  await tabB.goto(values.url);
+  await tabB.locator("#projectIdentity").fill("synthetic/two-tabs");
+  await tabB.getByRole("button", { name: "상태 연결", exact: true }).click();
+  await tabB.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  await page.locator("#projectIdentity").fill("synthetic/two-tabs");
+  await page.getByRole("button", { name: "상태 연결", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  const chooseRequest = async (target, id) => {
+    const group = target.locator(".issue-group").filter({ has: target.locator(".finding-item code", { hasText: id }) }).first();
+    if (await group.getAttribute("open") === null) await group.locator(":scope > summary").click();
+    await group.locator(".finding-item").filter({ has: target.locator("code", { hasText: id }) })
+      .getByRole("button", { name: "재검증 요청", exact: true }).first().click();
+  };
+  await chooseRequest(page, "security.html-sink-boundary");
+  await chooseRequest(tabB, "dead-code.marked-removal-candidate");
+  for (const target of [page, tabB]) {
+    await target.reload();
+    await target.locator("#projectIdentity").fill("synthetic/two-tabs");
+    await target.getByRole("button", { name: "상태 연결", exact: true }).click();
+    await target.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+    const exported = await exportDocument(target);
+    assert.equal(Object.keys(exported.decisions).length, 2);
+    assert.ok(Object.keys(exported.decisions).some((key) => key.startsWith("security.html-sink-boundary:")));
+    assert.ok(Object.keys(exported.decisions).some((key) => key.startsWith("dead-code.marked-removal-candidate:")));
+  }
+  await tabB.close();
+  recordCheck("independent decisions from two tabs remain present after each tab reloads");
 
   // Real directory selection, CSS candidate discovery, and source-change recheck.
   await fs.mkdir(path.join(fixture, "src", "public"), { recursive: true });
   await fs.writeFile(path.join(fixture, "src", "public", "modal.css"), ".modal{position:fixed;width:1200px}");
   await page.locator("#chooseFolder").focus();
-  const folderChooserPromise = page.waitForEvent("filechooser");
+  // Exercise the actual keyboard/button/input event path while preventing the
+  // native directory picker, whose automation interception varies by Chrome.
+  await page.evaluate(() => {
+    window.folderActivationCount = 0;
+    document.querySelector("#folderInput").addEventListener("click", (event) => {
+      event.preventDefault();
+      window.folderActivationCount += 1;
+    }, { once: true });
+  });
   await page.keyboard.press("Enter");
-  await (await folderChooserPromise).setFiles(fixture);
+  assert.equal(await page.evaluate(() => window.folderActivationCount), 1);
+  await page.locator("#folderInput").setInputFiles(fixture);
   await page.waitForFunction(() => document.querySelector("#projectName").textContent.startsWith("frontend-audit-ui-"));
   await page.locator("#projectIdentity").fill("synthetic/css-project");
   await page.getByRole("button", { name: "상태 연결", exact: true }).click();
   await page.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  recordCheck("keyboard activates folder control and file input; automation loads directory fixture (native directory picker excluded)");
   assert.ok(await page.locator(".finding-item").filter({ hasText: "styling.overlay-clipping-context" }).count());
   const cssGroup = page.locator(".issue-group").filter({ has: page.locator("summary small", { hasText: /^src$/ }) });
   await cssGroup.locator(":scope > summary").click();
@@ -132,12 +215,33 @@ try {
     await page.screenshot({ path: path.join(values.output, "dashboard-review-" + width + ".png") });
     recordCheck("no document horizontal overflow at " + width + "px (dashboard only)");
   }
+  await page.setViewportSize({ width: 390, height: 1000 });
+  const longProjectId = "review/" + "x".repeat(130);
+  assert.equal(longProjectId.length, 137);
+  await page.locator("#projectIdentity").fill(longProjectId);
+  await page.getByRole("button", { name: "상태 연결", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  const longIdOverflow = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
+  assert.ok(longIdOverflow.document <= longIdOverflow.viewport, JSON.stringify(longIdOverflow));
+  await page.locator("#triageStorageStatus").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(values.output, "dashboard-long-project-id-390.png") });
+  await page.locator("#projectIdentity").fill("synthetic/css-project");
+  await page.getByRole("button", { name: "상태 연결", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  recordCheck("valid 137-character project ID with an unbroken suffix has no document overflow at 390px");
   const group = page.locator(".issue-group").filter({ hasText: "styling.overlay-clipping-context" }).first();
   if (await group.getAttribute("open") === null) await group.locator(":scope > summary").click();
   await group.locator(".finding-item").filter({ hasText: "styling.overlay-clipping-context" }).getByRole("button", { name: "재검증 요청", exact: true }).click();
   assert.match(await page.locator("#findingsTable").textContent(), /재검증 요청/);
   assert.equal(errors.length, 0, errors.join("\n"));
   recordCheck("normal clicks reach controls and verification request remains visible; no page errors");
+  const reason = group.locator(".finding-reason").first();
+  if (await reason.getAttribute("open") === null) await reason.locator("summary").click();
+  await reason.locator("summary").focus();
+  await page.evaluate(() => dispatchEvent(new Event("focus")));
+  assert.notEqual(await reason.getAttribute("open"), null);
+  assert.equal(await reason.locator("summary").evaluate((node) => node === document.activeElement), true);
+  recordCheck("nested finding reason remains expanded and keyboard-focused after window focus refresh");
   await group.locator(":scope > summary").focus();
   await page.evaluate(() => dispatchEvent(new Event("focus")));
   assert.equal(await group.locator(":scope > summary").evaluate((node) => node === document.activeElement), true);
@@ -169,7 +273,7 @@ try {
   assert.equal(await page.locator("#projectName").textContent(), "latest-project");
   recordCheck("a delayed earlier folder selection cannot overwrite the latest selected project");
 
-  const blockedContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const blockedContext = await newContext({ viewport: { width: 390, height: 844 } });
   await blockedContext.addInitScript(() => Object.defineProperty(window, "localStorage", { get() { throw new Error("synthetic storage denial"); } }));
   const blockedPage = await blockedContext.newPage();
   blockedPage.on("pageerror", (error) => errors.push(error.message));
@@ -182,15 +286,28 @@ try {
   await blockedGroup.getByRole("button", { name: "재검증 요청", exact: true }).first().click();
   assert.match(await blockedPage.locator("#triageStorageStatus").textContent(), /보관하지 못했습니다/);
   assert.equal(await blockedPage.locator("#exportTriage").isEnabled(), true);
+  const deniedBeforeScope = await exportDocument(blockedPage);
+  assert.equal(Object.keys(deniedBeforeScope.decisions).length, 1);
+  await blockedPage.getByText("내부 전용", { exact: true }).click();
+  await blockedPage.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  assert.deepEqual(await exportDocument(blockedPage), deniedBeforeScope);
   assert.equal(errors.length, 0, errors.join("\n"));
-  recordCheck("denied browser storage preserves in-memory review and enables explicit export");
+  recordCheck("denied browser storage preserves in-memory review and export across a scope refresh");
   await blockedContext.close();
-  const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const sourceHashes = {};
-  for (const file of ["analysis/analyzer.js", "analysis/audit-contract.js", "analysis/triage-state.js", "analysis/app.js", "analysis/index.html", "analysis/styles.css", "scripts/verify-dashboard.mjs"]) {
-    sourceHashes[file] = createHash("sha256").update(await fs.readFile(path.join(sourceRoot, file))).digest("hex");
-  }
-  result = { verifiedAt: new Date().toISOString(), browser: browser.version(), platform: process.platform, target: "local audit dashboard with synthetic inputs", sourceHashes, checks, pageErrors: errors, exclusions: ["production app routes", "all screen states", "real devices", "visual regression baseline approval", "deployment", "GitHub issue writes"] };
+  await Promise.all(responseChecks);
+  assert.equal(errors.length, 0, errors.join("\n"));
+  assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");
+  const previewAfter = await verifyDashboardPreview(url, sourceRoot, previewBefore);
+  const verificationSourcesAfter = await hashVerificationSources(sourceRoot);
+  assert.deepEqual(verificationSourcesAfter, verificationSourcesBefore, "verification script changed during run");
+  recordCheck("browser responses and preview after scenarios still match initial checkout; service workers blocked and HTTP cache disabled");
+  const sourceHashes = { ...previewAfter.diskHashes, ...verificationSourcesAfter };
+  result = { verifiedAt: new Date().toISOString(), browser: browser.version(), platform: process.platform,
+    target: "local audit dashboard with synthetic inputs", sourceHashes,
+    provenance: { before: previewBefore, after: previewAfter, browserResponseHashes,
+      verificationSourceHashes: verificationSourcesAfter, serviceWorkers: "blocked", httpCache: "disabled by routing" },
+    checks, pageErrors: errors,
+    exclusions: ["production app routes", "all screen states", "real devices", "native directory picker", "visual regression baseline approval", "deployment", "GitHub issue writes"] };
   await fs.writeFile(path.join(values.output, "browser-result.json"), JSON.stringify(result, null, 2) + "\n");
   process.stdout.write(JSON.stringify(result, null, 2) + "\n");
 } finally {

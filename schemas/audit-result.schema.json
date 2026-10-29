@@ -62,6 +62,9 @@
       "items": {
         "$ref": "#/$defs/diagnostic"
       }
+    },
+    "securityContext": {
+      "$ref": "#/$defs/securityContext"
     }
   },
   "$defs": {
@@ -285,6 +288,12 @@
         },
         "journeys": {
           "$ref": "#/$defs/stringArray"
+        },
+        "boundaryIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -730,6 +739,184 @@
         },
         "detectorIds": {
           "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "snapshot",
+        "inventory",
+        "coverage"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1"
+        },
+        "snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "checkedAt",
+            "freshness",
+            "advisoryCount",
+            "sources",
+            "liveLookup"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date"
+            },
+            "freshness": {
+              "type": "string",
+              "enum": [
+                "unverified-clock",
+                "stale",
+                "within-30-days"
+              ]
+            },
+            "advisoryCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "liveLookup": {
+              "const": false
+            }
+          }
+        },
+        "inventory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ecosystem",
+              "name",
+              "version",
+              "versionKind",
+              "manifest",
+              "path",
+              "phase",
+              "phaseEvidence",
+              "direct",
+              "provenance"
+            ],
+            "properties": {
+              "ecosystem": {
+                "type": "string",
+                "enum": [
+                  "runtime",
+                  "npm",
+                  "composer"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "versionKind": {
+                "type": "string"
+              },
+              "manifest": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "phase": {
+                "type": "string",
+                "enum": [
+                  "runtime",
+                  "build",
+                  "development",
+                  "unknown"
+                ]
+              },
+              "phaseEvidence": {
+                "type": "string"
+              },
+              "direct": {
+                "type": "boolean"
+              },
+              "provenance": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "complete",
+            "inventoryCount",
+            "exactVersionCount",
+            "advisoryMatchedOccurrences",
+            "unresolvedVersionCount",
+            "gaps",
+            "limitations"
+          ],
+          "properties": {
+            "complete": {
+              "const": false
+            },
+            "inventoryCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "exactVersionCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "advisoryMatchedOccurrences": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unresolvedVersionCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "gaps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "reason"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     }
