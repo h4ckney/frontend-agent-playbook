@@ -20,13 +20,19 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24 action runtime
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0, Node 24 action runtime
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
+          package-manager-cache: false
+
+      - name: Record validation runtime
+        run: node --version
 
       - name: Validate browser artifact schemas
         run: node scripts/sync-artifact-schemas.mjs --check
