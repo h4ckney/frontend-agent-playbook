@@ -32,6 +32,7 @@ Node는 빌드 stage, PHP는 기본 최종 stage의 서비스 실행, 중첩 RSC
 - 실제 Chrome 156.0.8078.48에서 23개 시나리오와 page error 0을 확인했다. [브라우저 결과](security-2026-10-30/browser/browser-result.json)는 실행 전후 서버·디스크·브라우저 응답 해시를 포함한다. 초기 자동 승인 검토의 용량·시간 초과와 종료된 서버 문제는 재시도에서 해소했다. [137자 ID·390px 화면](security-2026-10-30/browser/dashboard-long-project-id-390.png)을 직접 확인했다. [보안 목록·390px](security-2026-10-30/browser/dashboard-security-390.png)에서 실행 단계·부모 권고와 하위 모듈 표시도 확인했다. 한국 날짜와 UTC 경계의 신선도 오판은 시간대가 명시된 날짜로 수정했다.
 - 실제 OSV API도 공개 패키지 `lodash@4.17.20` 하나를 합성 입력으로 조회했다. 요청 범위 완료, 권고 5묶음, 오류 0을 확인했다. [원본 응답 보고서](security-2026-10-30/osv-public-probe/dependency-advisories.json), [검토 문서](security-2026-10-30/osv-public-probe/dependency-advisories.md). 사용자 소스·실제 프로젝트 경로·사설 패키지는 전송하지 않았다. 이 저장소의 실제 제품 의존성이 취약하다는 판정이 아니다. 실패·페이지·한도 분기는 별도 주입 응답 테스트로 확인했다.
 - 로컬 검사 116개, 문서 63개와 동기화·diff 검사가 통과했다.
+- 검증 명령 Node와 액션 자체의 Node를 구분했다. 공식 checkout v7.0.1·setup-node v7.1.0의 릴리스 SHA와 Node 24 메타데이터를 확인해 workflow에 고정했고, 실제 검증 명령 버전은 원격 job의 별도 로그에 남긴다.
 - 원격 PR/CI·머지는 전달 시점에 별도로 확인한다. 공개 release, 서비스 배포, 운영 효과와 물리 기기 검증은 범위 밖이다.
 
 ## 재현 명령

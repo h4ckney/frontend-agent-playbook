@@ -51,6 +51,12 @@
 
 문제가 생기면 우선 해당 발견의 `observedFact`와 `securityContext.coverage.gaps`, 다음으로 `snapshot.checkedAt`과 원본 권고, 마지막으로 실제 설치·배포 버전과 실행 경로를 확인한다. 기록 문제는 검토 JSON을 먼저 내보내고 같은 프로젝트 ID·원본 v1 저장·journal을 확인한다.
 
+## CI 실행 버전의 구분
+
+검증 명령의 Node 버전과 JavaScript 액션 자체의 실행 Node는 별도다. 테스트 명령은 22/24/26 최신 패치로 실행하고 `node --version`을 로그에 남긴다. checkout v7.0.1과 setup-node v7.1.0은 공식 릴리스의 전체 commit SHA로 고정했으며 액션 메타데이터의 실행 환경은 Node 24다. checkout 인증정보 보관과 불필요한 패키지 캐시는 끈다. 액션 호스트의 세부 패치 버전은 GitHub runner가 관리하므로 테스트 명령 버전으로 대신 추정하지 않는다.
+
+[checkout 릴리스](https://github.com/actions/checkout/releases/tag/v7.0.1), [setup-node 릴리스](https://github.com/actions/setup-node/releases/tag/v7.1.0), [GitHub의 Node 24 실행 정책](https://github.blog/changelog/2026-09-23-node-20-is-no-longer-available-in-github-actions/). 공식 공지상 기존 액션도 runner에서 Node 24로 실행하므로 이전 4.x 태그만으로 현재 Node 20이 실행 중이었다고 주장하지 않는다.
+
 ## 후속 우선순위
 
 | 순서 | 남은 작업 | 시작에 필요한 근거 |
