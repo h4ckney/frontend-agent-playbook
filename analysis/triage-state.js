@@ -3,7 +3,10 @@
 
   // Local review decisions only. Never use this document as a baseline,
   // suppression profile, verified resolution, or permission to change code.
-  const SCHEMA_VERSION = "1";
+  const SCHEMA_VERSION = "2";
+  const SUPPORTED_SCHEMA_VERSIONS = new Set(["1", SCHEMA_VERSION]);
+  const STORAGE_PREFIX = "frontend-audit-triage-v1:";
+  const JOURNAL_PREFIX = "frontend-audit-triage-events-v1:";
   const MAX_DECISIONS = 2000;
   const MAX_DOCUMENT_BYTES = 2000000;
   const actions = new Set(["close", "request-verification", "reopen"]);
@@ -21,7 +24,7 @@
     if (!exactKeys(value, ["schemaVersion", "projectKey", "decisions"])) {
       errors.push("triage document fields are invalid");
     }
-    if (value.schemaVersion !== SCHEMA_VERSION) errors.push("unsupported triage schemaVersion");
+    if (!SUPPORTED_SCHEMA_VERSIONS.has(value.schemaVersion)) errors.push("unsupported triage schemaVersion");
     if (!validText(value.projectKey, 512)) errors.push("projectKey is required");
     if (expectedProjectKey !== undefined && value.projectKey !== expectedProjectKey) {
       errors.push("triage projectKey does not match the current project");
@@ -75,17 +78,107 @@
       disposition: isClose ? input.disposition : null,
       expires: isClose ? input.expires : null,
       updatedAt: new Date(now).toISOString(),
+      revision: (document.decisions[finding.fingerprint]?.revision || 0) + 1,
       signature: findingSignature(finding)
     };
     requireDocument(next);
     return next;
   }
 
+  // Additive merge: a stale backup never deletes an existing decision. For a
+  // conflicting fingerprint a later logical revision wins, then the review
+  // timestamp. Legacy v1 decisions start at revision zero. This lets an explicit
+  // local reopen supersede a backup whose clock was ahead. Exact-time ties keep
+  // findings visible, with a stable order independent of tab arrival.
+  function mergeDocuments(current, incoming) {
+    requireDocument(current);
+    const errors = validateDocument(incoming, current.projectKey);
+    if (errors.length) throw new Error(errors.join("; "));
+    const next = createDocument(current.projectKey);
+    applyDecisions(next, current);
+    applyDecisions(next, incoming);
+    requireDocument(next);
+    return next;
+  }
+
+  function applyDecisions(target, incoming) {
+    for (const [fingerprint, decision] of Object.entries(incoming.decisions)) {
+      const previous = target.decisions[fingerprint];
+      if (!previous || compareDecisions(decision, previous) > 0) {
+        target.decisions[fingerprint] = { ...decision };
+      }
+    }
+  }
+
+  function compareDecisions(a, b) {
+    const revision = (a.revision || 0) - (b.revision || 0);
+    if (revision) return revision;
+    const time = parseDateTime(a.updatedAt) - parseDateTime(b.updatedAt);
+    if (time) return time;
+    const visibility = { close: 0, "request-verification": 1, reopen: 2 };
+    const state = visibility[a.action] - visibility[b.action];
+    if (state) return state;
+    const left = stableStringify(a);
+    const right = stableStringify(b);
+    return left === right ? 0 : left > right ? 1 : -1;
+  }
+
+  function journalPrefix(projectKey) {
+    requireProjectKey(projectKey);
+    return JOURNAL_PREFIX + encodeURIComponent(projectKey) + ":";
+  }
+
+  function readStoredDocument(storage, projectKey) {
+    let document = createDocument(projectKey);
+    const read = (key) => {
+      const serialized = storage.getItem(key);
+      if (serialized === null) return;
+      if (serialized.length > MAX_DOCUMENT_BYTES) throw new Error("oversized stored triage state");
+      const parsed = JSON.parse(serialized);
+      const errors = validateDocument(parsed, projectKey);
+      if (errors.length) throw new Error(errors.join("; "));
+      applyDecisions(document, parsed);
+    };
+    // Existing v1 snapshots remain readable; all new writes are immutable
+    // journal entries. Independent tabs never replace the same storage key.
+    read(STORAGE_PREFIX + projectKey);
+    const prefix = journalPrefix(projectKey);
+    const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index))
+      .filter((key) => typeof key === "string" && key.startsWith(prefix));
+    for (const key of keys) read(key);
+    requireDocument(document);
+    return document;
+  }
+
+  function saveStoredDocument(storage, document, previous, operationId) {
+    requireDocument(document);
+    const errors = validateDocument(previous, document.projectKey);
+    if (errors.length) throw new Error(errors.join("; "));
+    if (!validText(operationId, 200) || !/^[a-z0-9-]+$/i.test(operationId)) {
+      throw new Error("valid unique operationId is required");
+    }
+    // Validate the combined state before adding a journal entry. A full store
+    // remains exportable rather than accepting an unreadable merged document.
+    mergeDocuments(document, readStoredDocument(storage, document.projectKey));
+    const delta = createDocument(document.projectKey);
+    for (const [fingerprint, decision] of Object.entries(document.decisions)) {
+      if (stableStringify(decision) !== stableStringify(previous.decisions[fingerprint])) {
+        delta.decisions[fingerprint] = { ...decision };
+      }
+    }
+    if (Object.keys(delta.decisions).length) {
+      const key = journalPrefix(document.projectKey) + operationId;
+      if (storage.getItem(key) !== null) throw new Error("triage operationId already exists");
+      storage.setItem(key, JSON.stringify(delta));
+    }
+    return mergeDocuments(document, readStoredDocument(storage, document.projectKey));
+  }
+
   function getDecision(document, finding, nowValue = new Date().toISOString()) {
     requireFinding(finding);
     // Full import validation belongs at the persistence boundary. Validate the
     // root and selected entry here without walking the whole document per row.
-    if (!plainObject(document) || document.schemaVersion !== SCHEMA_VERSION
+    if (!plainObject(document) || !SUPPORTED_SCHEMA_VERSIONS.has(document.schemaVersion)
       || !validText(document.projectKey, 512) || !plainObject(document.decisions)) {
       throw new Error("invalid triage document");
     }
@@ -134,7 +227,7 @@
       },
       occurrenceCount: finding.occurrenceCount,
       evidence: (finding.evidence || []).map((entry) => ({
-        kind: entry.kind, path: entry.path, symbol: entry.symbol
+        kind: entry.kind, path: entry.path, label: entry.label, symbol: entry.symbol
       })).sort((a, b) => stableStringify(a).localeCompare(stableStringify(b))),
       flow: {
         status: finding.flow?.status,
@@ -187,10 +280,14 @@
   function validateDecision(value) {
     const errors = [];
     if (!plainObject(value)) return ["decision must be an object"];
-    if (!exactKeys(value, ["action", "reason", "disposition", "expires", "updatedAt", "signature"])) {
+    if (!exactKeys(value, ["action", "reason", "disposition", "expires", "updatedAt", "signature", "revision"],
+      ["action", "reason", "disposition", "expires", "updatedAt", "signature"])) {
       errors.push("decision fields are invalid");
     }
     if (!actions.has(value.action)) errors.push("unsupported triage action");
+    if (value.revision !== undefined && (!Number.isSafeInteger(value.revision) || value.revision < 1)) {
+      errors.push("decision revision is invalid");
+    }
     if (typeof value.reason !== "string" || value.reason.length > 1000) errors.push("decision reason is invalid");
     if (!validTimestamp(value.updatedAt)) errors.push("decision updatedAt is invalid");
     if (typeof value.signature !== "string" || !/^metadata-v1:[0-9a-f]{16}$/.test(value.signature)) {
@@ -289,8 +386,9 @@
   }
 
   const api = Object.freeze({
-    SCHEMA_VERSION, MAX_DECISIONS, MAX_DOCUMENT_BYTES,
-    createDocument, validateDocument, setDecision, getDecision, findingSignature, groupFindings
+    SCHEMA_VERSION, MAX_DECISIONS, MAX_DOCUMENT_BYTES, STORAGE_PREFIX,
+    createDocument, validateDocument, setDecision, getDecision, findingSignature, groupFindings,
+    mergeDocuments, journalPrefix, readStoredDocument, saveStoredDocument
   });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else globalThis.FrontendTriage = api;

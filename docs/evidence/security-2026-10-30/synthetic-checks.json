@@ -1,0 +1,53 @@
+{
+  "target": "synthetic fixture; no installed or deployed package evidence",
+  "snapshot": "security-context-2026-10-30-v1",
+  "inventory": 13,
+  "findings": [
+    {
+      "id": "security.dependency-coverage",
+      "fingerprint": "security.dependency-coverage:composer.json",
+      "observedFact": "해석하지 못한 범위 0개; 미확정 버전·제약 1개; 스냅샷 2026-10-30 (within-30-days)"
+    },
+    {
+      "id": "security.next-image-svg-rce",
+      "fingerprint": "security.next-image-svg-rce:package-lock.json#node_modules/next",
+      "observedFact": "CVE-2026-96889 / GHSA-2464-fhr4-w9xw: next@16.4.0 [runtime; lockfile; node_modules/next]"
+    },
+    {
+      "id": "security.node-brotli-2026",
+      "fingerprint": "security.node-brotli-2026:Dockerfile#FROM@1:builder",
+      "observedFact": "CVE-2026-111497: node@24.22.0 [build; container-configuration; FROM@1:builder]"
+    },
+    {
+      "id": "security.php-oom-2026",
+      "fingerprint": "security.php-oom-2026:Dockerfile#FROM@3:production",
+      "observedFact": "CVE-2026-109618 / GHSA-w8hw-w9fx-j79w: php@8.4.26 [runtime; container-configuration; FROM@3:production]"
+    },
+    {
+      "id": "security.php-stale-state-2026",
+      "fingerprint": "security.php-stale-state-2026:Dockerfile#FROM@3:production",
+      "observedFact": "CVE-2026-109619 / GHSA-6wmf-4rv5-p3rp: php@8.4.26 [runtime; container-configuration; FROM@3:production]"
+    },
+    {
+      "id": "security.rsc-typed-array-rce",
+      "fingerprint": "security.rsc-typed-array-rce:package-lock.json#node_modules/next",
+      "observedFact": "GHSA-xqc2-xf4c-x3h3 / GHSA-673q-mjm6-r5xr: next@16.4.0 [runtime; lockfile; node_modules/next]"
+    },
+    {
+      "id": "security.rsc-typed-array-rce",
+      "fingerprint": "security.rsc-typed-array-rce:package-lock.json#node_modules/react-server-dom-webpack",
+      "observedFact": "GHSA-xqc2-xf4c-x3h3 / GHSA-673q-mjm6-r5xr: react-server-dom-webpack@19.3.0 [runtime; lockfile; node_modules/react-server-dom-webpack]"
+    },
+    {
+      "id": "security.rsc-typed-array-rce",
+      "fingerprint": "security.rsc-typed-array-rce:package-lock.json#node_modules/worker/node_modules/react-server-dom-webpack",
+      "observedFact": "GHSA-xqc2-xf4c-x3h3 / GHSA-673q-mjm6-r5xr: react-server-dom-webpack@19.3.0 [development; lockfile; node_modules/worker/node_modules/react-server-dom-webpack]"
+    }
+  ],
+  "checks": [
+    "advisory identifiers retained",
+    "one parent advisory with three module occurrences",
+    "runtime/build/development distinguished",
+    "offline and incomplete coverage explicit"
+  ]
+}

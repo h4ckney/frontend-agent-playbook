@@ -13,15 +13,29 @@ jobs:
   documentation-and-analyzer:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24, 26]
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24 action runtime
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0, Node 24 action runtime
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Record validation runtime
+        run: node --version
+
+      - name: Validate browser artifact schemas
+        run: node scripts/sync-artifact-schemas.mjs --check
 
       - name: Validate documentation
         run: node scripts/validate-docs.mjs
@@ -35,10 +49,12 @@ jobs:
           node --check analysis/analyzer.js
           node --check analysis/audit-contract.js
           node --check analysis/triage-state.js
+          node --check analysis/security-context.js
+          node --check analysis/artifact-schemas.js
           node --check bin/frontend-agent-audit.mjs
 
       - name: Test analyzer
-        run: node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/triage-state.test.mjs analysis/browser-smoke.test.mjs bin/frontend-agent-audit.test.mjs
+        run: node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/dashboard-provenance.test.mjs scripts/query-osv.test.mjs
 
       - name: Test guidance approval gate
         run: node --test scripts/guidance-approval.test.mjs

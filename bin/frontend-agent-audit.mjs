@@ -234,7 +234,7 @@ async function collectRecords(root, excludedArtifacts) {
   const includedBytes = records.reduce((sum, record) => sum + record.size, 0);
   const excludedFiles = selectedFiles - records.length;
   const partialReasons = [
-    "directory-read-failed", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
+    "directory-read-failed", "generated-header", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
   ]
     .filter((reason) => excludedByReason[reason]);
   return {

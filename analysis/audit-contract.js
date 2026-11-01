@@ -4,15 +4,23 @@
   const analyzer = typeof module !== "undefined" && module.exports
     ? require("./analyzer.js")
     : globalThis.FrontendAnalyzer;
+  const artifactSchemas = typeof module !== "undefined" && module.exports
+    ? require("./artifact-schemas.js")
+    : globalThis.FrontendArtifactSchemas;
+  const security = typeof module !== "undefined" && module.exports
+    ? require("./security-context.js")
+    : globalThis.FrontendSecurityContext;
 
   if (!analyzer) {
     throw new Error("FrontendAnalyzer must be loaded before FrontendAuditContract");
   }
+  if (!artifactSchemas) throw new Error("Artifact schemas must be loaded before FrontendAuditContract");
+  if (!security) throw new Error("Security context must be loaded before FrontendAuditContract");
 
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "2";
+  const DETECTOR_CATALOG_VERSION = "3";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -21,6 +29,9 @@
   const applicabilityRank = { "not-applicable": 0, unknown: 1, conditional: 2, applicable: 3 };
 
   const detectorCatalog = Object.freeze({
+    ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-10-30.1")
+    ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
     "security.html-trust-boundary-unknown": detector("security.html-trust-boundary", ["security-privacy.html-injection"]),
@@ -52,7 +63,19 @@
 
   function createAuditBundle(input) {
     const options = input || {};
-    const records = Array.isArray(options.records) ? options.records : [];
+    const inputRecords = Array.isArray(options.records) ? options.records : [];
+    const generatedRecords = inputRecords.filter((record) => analyzer.isGeneratedRecord(record));
+    const records = inputRecords.filter((record) => !analyzer.isGeneratedRecord(record));
+    const scanScope = { ...(options.scope || {}) };
+    if (generatedRecords.length) {
+      scanScope.excludedByReason = { ...(scanScope.excludedByReason || {}) };
+      scanScope.excludedByReason["generated-header"] = (scanScope.excludedByReason["generated-header"] || 0) + generatedRecords.length;
+      scanScope.selected ??= inputRecords.length;
+      scanScope.excluded = (scanScope.excluded || 0) + generatedRecords.length;
+      scanScope.analyzed = records.length;
+      scanScope.analyzedBytes = records.reduce((sum, record) => sum + (record.size ?? new TextEncoder().encode(record.content).byteLength), 0);
+      scanScope.partial = true;
+    }
     const profile = options.profile || null;
     const profileErrors = validateProjectProfile(profile);
     if (profileErrors.length) {
@@ -62,14 +85,18 @@
     const seoScope = resolveSeoScope(options.context?.seoScope, profile);
     const context = { ...(options.context || {}), seoScope };
     const findings = analyzer.analyzeRecords(records, { seoScope });
+    const securityReport = security.inspectSecurityContext(records, { now: options.now || options.generatedAt });
+    findings.push(...securityReport.findings);
     const legacy = analyzer.createAuditResult(
       options.name || "project",
       findings,
       records.length,
       options.meta || "",
-      options.scope || {},
+      scanScope,
       context
     );
+    const { findings: advisoryFindings, ...securityContext } = securityReport;
+    legacy.securityContext = securityContext;
     const audit = normalizeLegacyAudit(legacy, records, {
       ...options,
       context,
@@ -153,6 +180,7 @@
       },
       project,
       scope,
+      ...(legacy.securityContext ? { securityContext: legacy.securityContext } : {}),
       findings,
       clusters,
       diff: emptyDiff(null, findings.map((item) => item.fingerprint)),
@@ -167,6 +195,16 @@
   }
 
   function normalizeFindingOccurrences(item, context, profile) {
+    if (item.securityOccurrences?.length) {
+      return item.securityOccurrences.map((entry) => normalizeFinding(item, context, profile, {
+        fingerprintScope: entry.manifest + "#" + entry.path,
+        evidence: [{ kind: "path", path: normalizeRelativePath(entry.manifest),
+          label: entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.versionKind + "; " + entry.path + "]" }],
+        occurrenceCount: 1,
+        observedFact: (item.advisoryIds?.length ? item.advisoryIds.join(" / ") + ": " : "") + entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.provenance + "; " + entry.path + "]",
+        boundaryIds: [item.id]
+      }));
+    }
     const rawEvidence = item.allEvidence || item.evidence;
     const pathEvidence = uniqueSorted(rawEvidence.filter(looksLikePath).map(normalizeRelativePath));
     if (pathEvidence.length) {
@@ -256,7 +294,8 @@
       scope: {
         paths: uniqueSorted(paths),
         routes,
-        journeys
+        journeys,
+        ...(occurrence.boundaryIds ? { boundaryIds: occurrence.boundaryIds } : {})
       },
       flow,
       priority: {
@@ -277,7 +316,7 @@
       },
       evidence,
       occurrenceCount: occurrence.occurrenceCount,
-      observedFact: item.observedFact,
+      observedFact: occurrence.observedFact || item.observedFact,
       whyRisky: item.whyRisky,
       possibleImpact: item.possibleImpact,
       riskFactors: item.riskFactors,
@@ -431,7 +470,7 @@
   function normalizeScope(scope) {
     const partialReasons = Object.entries(scope.excludedByReason || {})
       .filter(([reason]) => [
-        "directory-read-failed", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
+        "directory-read-failed", "generated-header", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
       ].includes(reason))
       .map(([reason, count]) => reason + ":" + count)
       .sort();
@@ -676,24 +715,28 @@
       }
     }
 
-    const activeDetectors = new Set(Object.values(detectorCatalog).map((item) => item.id));
-    const pairedCurrentFingerprints = new Set();
+    const activeDetectors = new Map(Object.values(detectorCatalog).map((item) => [item.id, item.version]));
+    const versionDetectors = new Set(security.DETECTOR_IDS.filter((id) => id !== "security.dependency-coverage"));
+    const versionCoverage = result.securityContext;
+    const versionComparisonIncomplete = !versionCoverage
+      || versionCoverage.coverage.gaps.length > 0
+      || versionCoverage.coverage.unresolvedVersionCount > 0
+      || versionCoverage.snapshot.freshness !== "within-30-days";
     for (const previous of baseline.findings) {
       if (currentMap.has(previous.fingerprint)) continue;
-      if (!activeDetectors.has(previous.detectorId) || result.scope.partial) {
+      if (activeDetectors.get(previous.detectorId) !== previous.detectorVersion || result.scope.partial
+        || (versionDetectors.has(previous.detectorId) && versionComparisonIncomplete)) {
         diff.unverified.push(previous.fingerprint);
       } else {
-        const possibleMove = output.findings.find((item) =>
+        const ambiguousRemoval = output.findings.some((item) =>
           item.diffStatus === "new"
-          && !pairedCurrentFingerprints.has(item.fingerprint)
           && item.detectorId === previous.detectorId
           && item.detectorVersion === previous.detectorVersion
         );
-        if (possibleMove) {
-          possibleMove.diffStatus = "unverified";
-          pairedCurrentFingerprints.add(possibleMove.fingerprint);
-          diff.new = diff.new.filter((fingerprint) => fingerprint !== possibleMove.fingerprint);
-          diff.unverified.push(previous.fingerprint, possibleMove.fingerprint);
+        if (ambiguousRemoval) {
+          // Detector identity cannot prove a rename. Keep additions new so CI
+          // still evaluates them; only the missing old occurrence is uncertain.
+          diff.unverified.push(previous.fingerprint);
         } else {
           diff.resolved.push(previous.fingerprint);
         }
@@ -814,6 +857,9 @@
         "  - Decision: " + item.priority.decision,
         "  - Effective decision: " + item.priority.effectiveDecision,
         "  - Evidence: " + formatEvidence(item.evidence),
+        "  - Observed fact: " + sanitizeLabel(item.observedFact),
+        "  - Conditions: " + sanitizeLabel(item.riskFactors),
+        "  - Recommended action: " + sanitizeLabel(item.recommendation),
         "  - Limitation: " + sanitizeLabel(item.limitation),
         "  - Verification: " + sanitizeLabel(item.priority.verification),
         ""
@@ -827,6 +873,7 @@
     result.diagnostics.forEach((item) => {
       lines.push("- **" + item.id + "**: " + sanitizeLabel(item.message), "");
     });
+    lines.push(...securityMarkdown(result, false));
     return lines.join("\n");
   }
 
@@ -917,6 +964,9 @@
         "  - 기본 판단: " + (decisionLabels[item.priority.decision] || item.priority.decision),
         "  - 적용된 판단: " + (decisionLabels[item.priority.effectiveDecision] || item.priority.effectiveDecision),
         "  - 근거 위치: " + formatEvidenceKo(item.evidence),
+        "  - 관찰한 근거: " + sanitizeLabel(item.observedFact),
+        "  - 위험이 성립하는 조건: " + sanitizeLabel(item.riskFactors),
+        "  - 권고 조치: " + sanitizeLabel(item.recommendation),
         "  - 분석 한계: " + sanitizeLabel(item.limitation),
         "  - 다음으로 확인할 것: " + sanitizeLabel(item.priority.verification),
         ""
@@ -927,7 +977,27 @@
     result.diagnostics.forEach((item) => {
       lines.push("- **" + item.id + "**: " + formatContractTextKo(sanitizeLabel(item.message)), "");
     });
+    lines.push(...securityMarkdown(result, true));
     return lines.join("\n");
+  }
+
+  function securityMarkdown(result, korean) {
+    const context = result.securityContext;
+    if (!context) return [];
+    const cell = (value) => String(value ?? "").replace(/[&<>]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char]))
+      .replace(/[\\|`\[\]()!]/g, " ").replace(/[\r\n]+/g, " ");
+    const lines = ["", korean ? "## 모듈·런타임 보안 근거" : "## Dependency and runtime security evidence", "",
+      (korean ? "권고 스냅샷: " : "Advisory snapshot: ") + cell(context.snapshot.id) + " / " + cell(context.snapshot.checkedAt) + " / " + cell(context.snapshot.freshness), "",
+      korean ? "유한한 오프라인 권고 목록입니다. 일치 없음은 안전 판정이 아니며, 실제 설치·배포·공격 경로는 미확인입니다." : "Finite offline advisory snapshot. No match is not a clean security result; installation, deployment and vulnerable data flow remain unverified.", "",
+      "| " + (korean ? "모듈 | 버전 | 버전 근거 | 단계 | 파일·위치 | 단계 판정 근거" : "Module | Version | Version evidence | Phase | File/location | Phase evidence") + " |",
+      "| --- | --- | --- | --- | --- | --- |"];
+    for (const item of context.inventory) lines.push("| " + [item.name, item.version, item.versionKind, item.phase, item.manifest + "#" + item.path, item.phaseEvidence].map(cell).join(" | ") + " |");
+    lines.push("", korean ? "확인하지 못한 범위:" : "Coverage limitations:", "");
+    for (const item of context.coverage.gaps) lines.push("- " + cell(item.path) + ": " + cell(item.reason));
+    for (const item of context.coverage.limitations) lines.push("- " + cell(item));
+    lines.push("", korean ? "공식 근거:" : "Official sources:", "");
+    for (const source of context.snapshot.sources) lines.push("- " + source);
+    return lines;
   }
 
   function formatContractTextKo(value) {
@@ -1032,8 +1102,60 @@
     ].join("\n");
   }
 
-  function validateAuditResult(value) {
+  // This deliberately supports only the keywords used by the two published
+  // artifact schemas. The generator rejects new keywords until implemented.
+  function validateArtifactSchema(value, rootSchema) {
     const errors = [];
+    const typeMatches = (item, type) => ({
+      object: () => isObject(item), array: () => Array.isArray(item),
+      integer: () => Number.isInteger(item), number: () => typeof item === "number" && Number.isFinite(item),
+      null: () => item === null, string: () => typeof item === "string", boolean: () => typeof item === "boolean"
+    }[type]?.() || false);
+    function visit(item, schema, location) {
+      if (schema === false) { errors.push(location + " is not allowed"); return; }
+      if (schema === true) return;
+      if (schema.$ref) {
+        const name = schema.$ref.slice("#/$defs/".length).replace(/~1/g, "/").replace(/~0/g, "~");
+        if (!schema.$ref.startsWith("#/$defs/") || !Object.hasOwn(rootSchema.$defs || {}, name)) {
+          errors.push(location + " has an unsupported schema reference");
+          return;
+        }
+        visit(item, rootSchema.$defs[name], location);
+      }
+      if (schema.type && ![].concat(schema.type).some((type) => typeMatches(item, type))) {
+        errors.push(location + " has an invalid type");
+        return;
+      }
+      if (Object.hasOwn(schema, "const") && item !== schema.const) errors.push(location + " has an invalid constant");
+      if (schema.enum && !schema.enum.includes(item)) errors.push(location + " has an invalid enum value");
+      if (typeof item === "string") {
+        if (schema.minLength !== undefined && [...item].length < schema.minLength) errors.push(location + " is too short");
+        if (schema.format === "date" && !validDate(item)) errors.push(location + " must be a date");
+        if (schema.format === "date-time") {
+          const match = /^(\d{4}-\d{2}-\d{2})[tT](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[zZ]|([+-])(\d{2}):(\d{2}))$/.exec(item);
+          if (!match || !validDate(match[1]) || +match[2] > 23 || +match[3] > 59 || +match[4] > 60 || +(match[6] || 0) > 23 || +(match[7] || 0) > 59) {
+            errors.push(location + " must be a date-time");
+          }
+        }
+      }
+      if (typeof item === "number" && schema.minimum !== undefined && item < schema.minimum) errors.push(location + " is below minimum");
+      if (Array.isArray(item) && schema.items) item.forEach((child, index) => visit(child, schema.items, location + "[" + index + "]"));
+      if (isObject(item)) {
+        for (const key of schema.required || []) if (!Object.hasOwn(item, key)) errors.push(location + "." + key + " is required");
+        for (const [key, child] of Object.entries(item)) {
+          if (Object.hasOwn(schema.properties || {}, key)) visit(child, schema.properties[key], location + "." + key);
+          else if (schema.additionalProperties === false) errors.push(location + "." + key + " is unsupported");
+          else if (isObject(schema.additionalProperties)) visit(child, schema.additionalProperties, location + "." + key);
+        }
+      }
+    }
+    visit(value, rootSchema, "$root");
+    return uniqueSorted(errors);
+  }
+
+  function validateAuditResult(value) {
+    const errors = validateArtifactSchema(value, artifactSchemas.result);
+    if (errors.length) return errors;
     if (!isObject(value)) return ["result must be an object"];
     if (value.schemaVersion !== AUDIT_SCHEMA_VERSION) errors.push("unsupported schemaVersion");
     if (!nonEmpty(value.toolVersion)) errors.push("toolVersion is required");
@@ -1107,7 +1229,8 @@
   }
 
   function validateBaseline(value) {
-    const errors = [];
+    const errors = validateArtifactSchema(value, artifactSchemas.baseline);
+    if (errors.length) return errors;
     if (!isObject(value)) return ["baseline must be an object"];
     if (value.schemaVersion !== AUDIT_SCHEMA_VERSION) errors.push("unsupported schemaVersion");
     if (!nonEmpty(value.toolVersion)) errors.push("toolVersion is required");
@@ -1281,7 +1404,7 @@
         errors.push("ci must be an object");
       } else {
         rejectUnknownFields(value.ci, new Set(["mode", "failOn", "requireComplete"]), "ci", errors);
-        if (!["report-only", "blocking"].includes(value.ci.mode || "report-only")) {
+        if (value.ci.mode !== undefined && !["report-only", "blocking"].includes(value.ci.mode)) {
           errors.push("ci.mode is invalid");
         }
         if (value.ci.failOn !== undefined && !Array.isArray(value.ci.failOn)) {

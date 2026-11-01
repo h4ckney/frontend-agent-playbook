@@ -136,6 +136,10 @@ Dashboard Markdown exports include stable finding IDs and an Audit Handoff table
 
 For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html), choose the project's search-exposure scope, and select a project folder. It separates observed facts, risk hypotheses, information gaps, and removal candidates, applies SEO checks only to relevant public scope, groups related findings into risk clusters, explains possible impact and the next verification, then exports the result as Markdown. Clusters are review aids rather than proof of one root cause. Files remain in the browser, sensitive values are excluded from reports, and automated findings still require manual verification.
 
+### Dependency and Runtime Security
+
+The offline dashboard/CLI now inventories npm/Composer lockfiles and Node/PHP configuration, preserving runtime, build, development, or unknown phases. A dated advisory snapshot reports version matches with execution conditions; it never proves deployment or exploitability. [Security context](docs/security-context.md) explains coverage; [explicit OSV lookup](docs/dependency-advisories.md) compares locked package coordinates with current advisories and discloses metadata transmission. See the [integrity and security upgrade](docs/audit-integrity-security-upgrade.md) for fixes, architecture, evidence, and remaining work.
+
 ### Analyzer CLI Preview
 
 The unreleased `main` branch also provides a dependency-free CLI that uses the same analyzer and normalized `AuditResult` contract as the browser:
@@ -152,7 +156,7 @@ node bin/frontend-agent-audit.mjs baseline \
   --output .frontend-audit/baseline.json
 ```
 
-Without a compatible baseline, findings remain `unbaselined`; they are not presented as new regressions. CI defaults to report-only and returns exit `1` only for `new` or `worsened` findings matching an explicit blocking profile selector such as `finding:security.html-sink-boundary`, `severity:high`, or `decision:verify-first`. Severity selectors are inclusive thresholds, while finding and decision selectors are exact. Exit `2` means invalid input or an analyzer error, while exit `3` means the profile required complete coverage but the scan was partial. The static CLI does not execute project code, package scripts, or configuration modules and does not follow symlinks. Output extensions must match the selected format, and an existing file is overwritten only when it validates as the same analyzer artifact type.
+Without a baseline, findings remain `unbaselined`; incompatible baseline comparisons are `unverified`. Neither state is presented as a new regression. CI defaults to report-only and returns exit `1` only for `new` or `worsened` findings matching an explicit blocking profile selector such as `finding:security.html-sink-boundary`, `severity:high`, or `decision:verify-first`. Severity selectors are inclusive thresholds, while finding and decision selectors are exact. Exit `2` means invalid input or an analyzer error, while exit `3` means the profile required complete coverage but the scan was partial. The static CLI does not execute project code, package scripts, or configuration modules and does not follow symlinks. Output extensions must match the selected format, and an existing file is overwritten only when it validates as the same analyzer artifact type.
 
 Contracts are documented in [Analyzer v0.2 design](docs/analyzer-v0.2-design.md) and published as [audit result](schemas/audit-result.schema.json), [audit baseline](schemas/audit-baseline.schema.json), and [project profile](schemas/project-profile.schema.json) schemas. This is a first implementation slice: parser-backed route coverage, deep Next.js metadata analysis, runtime verification, and SARIF import remain planned work.
 
@@ -241,12 +245,14 @@ Run the dependency-free validation commands before committing changes:
 ```bash
 node scripts/validate-docs.mjs
 node scripts/sync-plugin-package.mjs --check
+node scripts/sync-artifact-schemas.mjs --check
 node --check analysis/app.js
 node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
+node --check analysis/security-context.js
 node --check bin/frontend-agent-audit.mjs
-node --test analysis/analyzer.test.mjs analysis/audit-contract.test.mjs analysis/browser-smoke.test.mjs analysis/triage-state.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs
+node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs scripts/query-osv.test.mjs scripts/dashboard-provenance.test.mjs
 ```
 
 The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, skill UI metadata references, and detector-to-rule links. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, CLI, contract, and approval-gate checks for pull requests and pushes to `main`.

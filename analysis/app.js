@@ -10,9 +10,10 @@ const {
   buildAuditMarkdown,
   createAuditBundle
 } = globalThis.FrontendAuditContract;
-const { createDocument, validateDocument, setDecision, getDecision, groupFindings } = globalThis.FrontendTriage;
-const TRIAGE_STORAGE_PREFIX = "frontend-audit-triage-v1:";
+const { createDocument, validateDocument, setDecision, getDecision, groupFindings, mergeDocuments,
+  journalPrefix, readStoredDocument, saveStoredDocument, STORAGE_PREFIX } = globalThis.FrontendTriage;
 let triageDocument = null;
+let persistedTriage = null;
 let reviewDigests = null;
 let pendingClose = [];
 let showClosed = false;
@@ -70,6 +71,7 @@ input.addEventListener("change", async (event) => {
   identityGeneration += 1;
   scanPending = true;
   triageDocument = null;
+  persistedTriage = null;
   reviewDigests = null;
   pendingClose = [];
   document.querySelector("#triageDialog").close();
@@ -104,14 +106,15 @@ input.addEventListener("change", async (event) => {
 seoScopeInputs.forEach((control) => {
   control.addEventListener("change", () => {
     if (!control.checked) return;
-    const reconnect = triageDocument?.projectKey;
+    const retained = triageDocument;
+    const reconnect = retained?.projectKey;
     identityGeneration += 1;
     triageDocument = null;
     reviewDigests = null;
     selectedSeoScope = control.value;
     state = createState();
     render();
-    if (reconnect) void connectProject({ preventDefault() {} }, reconnect);
+    if (reconnect) void connectProject({ preventDefault() {} }, reconnect, retained);
   });
 });
 
@@ -280,9 +283,26 @@ function render() {
   document.querySelector("#exportTriage").disabled = !triageDocument;
   document.querySelector("#scopeExclusions").textContent = formatScope(state.scope);
   document.querySelector("#seoScopeStatus").textContent = formatSeoStatus(state.context.seoScope);
+  renderSecurityContext();
   renderPriority(activeFilter);
   renderCoverage();
   renderTable();
+}
+
+function renderSecurityContext() {
+  const security = currentAuditResult.securityContext;
+  if (!security) return;
+  const phases = { runtime: "서비스 실행", build: "빌드", development: "개발 도구", unknown: "실행 단계 미확인" };
+  const versions = { "locked-exact": "lockfile 버전", "declared-exact": "선언 버전", "declared-range": "선언 범위", "runtime-pin": "실행 버전 설정", "runtime-selector": "실행 버전 범위", "image-pin": "이미지 버전", "image-selector": "이미지 태그", "engine-constraint": "호환 조건", "platform-override": "가상 플랫폼 설정", "unresolved-lock-version": "버전 미확정" };
+  document.querySelector("#securityContext").innerHTML = '<p>권고 확인일 ' + escapeHtml(security.snapshot.checkedAt) +
+    ' · 오프라인 권고 ' + security.snapshot.advisoryCount + '개 · 버전 비교 가능 근거 ' + security.coverage.exactVersionCount + '개</p>' +
+    '<p>선언·lockfile·설정에서 수집한 목록입니다. 실제 설치·배포와 공격 경로는 추가 확인이 필요합니다. 빌드·개발 도구도 비밀정보나 배포 산출물에 영향을 줄 수 있습니다.</p>' +
+    (security.snapshot.freshness === "within-30-days" ? '' : '<p class="context-status">권고 목록의 시점 확인이 필요합니다. 최신 전체 취약점 목록과의 비교는 별도 실행해야 합니다.</p>') +
+    '<details><summary>버전 근거 ' + security.inventory.length + '개 보기 (최대 30개 표시)</summary><ul class="dependency-inventory">' +
+    security.inventory.slice(0, 30).map((entry) => '<li><strong>' + escapeHtml(entry.name + '@' + entry.version) + '</strong> · ' + phases[entry.phase] +
+      '<br><small>' + escapeHtml(versions[entry.versionKind] || entry.versionKind) + ' · ' + escapeHtml(entry.manifest + ' · ' + entry.path) + '</small></li>').join('') +
+    '</ul><p>전체 목록·실행 단계의 판정 근거·확인하지 못한 범위는 보고서에 포함됩니다.</p></details>' +
+    '<p>일치 항목이 없어도 안전 판정이 아닙니다. 지원하지 않는 lockfile, OS 패키지, 공급업체 패치와 최신 외부 권고는 별도 검토가 필요합니다.</p>';
 }
 
 function renderPriority(filter) {
@@ -360,21 +380,28 @@ function formatSeoStatus(seoScope) {
 function renderTable() {
   const table = document.querySelector("#findingsTable");
   const expanded = new Set(Array.from(table.querySelectorAll(".issue-group[open]"), (node) => node.dataset.groupId));
+  const expandedReasons = new Set(Array.from(table.querySelectorAll(".finding-reason[open]"),
+    (node) => node.closest(".finding-item")?.dataset.fingerprint));
   const focused = document.activeElement;
   const focusFingerprint = focused?.dataset?.fingerprint;
   const focusAction = focused?.dataset?.triageAction;
   const focusGroup = focused?.closest?.(".issue-group")?.dataset.groupId;
+  const focusReason = focused?.closest?.(".finding-reason")?.closest(".finding-item")?.dataset.fingerprint;
   const groups = currentGroups().filter((group) => group.visible.length);
   table.innerHTML = groups.length
     ? groups.map((group) => '<details class="issue-group" data-group-id="' + escapeHtml(group.id) + '"' + (expanded.has(group.id) ? ' open' : '') + '><summary><span>' + escapeHtml(group.cluster.title) + '</span><span class="count">' + group.open.length + '개 열림 / ' + group.findings.length + '개 발견</span><small>' + escapeHtml(group.scopeLabel) + '</small></summary>' +
       '<div class="group-body"><button class="secondary compact" data-triage-action="close-group" data-group-id="' + escapeHtml(group.id) + '"' + (group.open.length ? disabledTriage() : ' disabled') + '>열린 항목 묶음 닫기</button>' +
       group.visible.map(renderFinding).join("") + '</div></details>').join("")
     : '<div class="empty">표시할 열린 항목이 없습니다. 닫은 항목은 다시 펼칠 수 있으며, 미발견은 안전을 뜻하지 않습니다.</div>';
+  for (const node of table.querySelectorAll(".finding-reason")) {
+    node.open = expandedReasons.has(node.closest(".finding-item")?.dataset.fingerprint);
+  }
   if (focusAction || (focused?.tagName === "SUMMARY" && focusGroup)) {
     const action = Array.from(table.querySelectorAll("[data-triage-action]")).find((node) =>
       !node.disabled && node.dataset.triageAction === focusAction && node.dataset.fingerprint === focusFingerprint && node.closest(".issue-group")?.dataset.groupId === focusGroup);
     const group = Array.from(table.querySelectorAll(".issue-group")).find((node) => node.dataset.groupId === focusGroup);
-    (action || group?.querySelector("summary") || document.querySelector("#showClosed")).focus();
+    const reason = focusReason && Array.from(table.querySelectorAll(".finding-item")).find((node) => node.dataset.fingerprint === focusReason)?.querySelector(".finding-reason summary");
+    (reason || action || group?.querySelector("summary") || document.querySelector("#showClosed")).focus();
   }
 }
 
@@ -424,7 +451,7 @@ function renderFinding(finding) {
   const resurfaced = review.statusReason === "expired" ? " · 재검토 기한 만료" : review.statusReason === "changed" ? " · 근거 변경" : "";
   return '<article class="finding-item" data-fingerprint="' + escapeHtml(finding.fingerprint) + '"><div class="finding-meta"><span class="evidence-label ' + finding.evidenceLevel + '">' + evidenceLevels[finding.evidenceLevel] + '</span><span class="pill ' + finding.severity + '">' + finding.severity + '</span><span>' + labels[review.state] + resurfaced + '</span></div>' +
     '<h3>' + escapeHtml(finding.title) + '</h3><code>' + escapeHtml(finding.id) + '</code><p class="finding-path">' + escapeHtml(formatEvidence(finding)) + '</p>' +
-    '<details class="finding-reason"><summary>판단 근거</summary><p><b>왜 위험한가</b> ' + escapeHtml(finding.whyRisky) + '</p><p><b>다음으로 확인할 것</b> ' + escapeHtml(finding.verification) + '</p><p><b>분석 한계</b> ' + escapeHtml(finding.limitation) + '</p></details>' +
+    '<details class="finding-reason"><summary>판단 근거</summary><p><b>관찰한 근거</b> ' + escapeHtml(finding.observedFact) + '</p><p><b>왜 위험한가</b> ' + escapeHtml(finding.whyRisky) + '</p><p><b>위험이 성립하는 조건</b> ' + escapeHtml(finding.riskFactors) + '</p><p><b>권고 조치</b> ' + escapeHtml(finding.recommendation) + '</p><p><b>다음으로 확인할 것</b> ' + escapeHtml(finding.verification) + '</p><p><b>분석 한계</b> ' + escapeHtml(finding.limitation) + '</p></details>' +
     (review.decision?.reason ? '<p>검토 이유: ' + escapeHtml(review.decision.reason) + '</p>' : '') +
     (review.decision?.expires ? '<p>재검토 기한: ' + escapeHtml(review.decision.expires) + ' (UTC)</p>' : '') +
     '<div class="finding-actions">' + (review.state === "closed" ? actionButton("reopen", "다시 열기", finding) : actionButton("close", "검토 후 닫기", finding) + actionButton("request-verification", "재검증 요청", finding)) + '</div></article>';
@@ -434,7 +461,7 @@ function actionButton(action, label, finding) {
   return '<button class="secondary compact" data-triage-action="' + action + '" data-fingerprint="' + escapeHtml(finding.fingerprint) + '"' + disabledTriage() + '>' + label + '</button>';
 }
 
-async function connectProject(event, boundProjectKey) {
+async function connectProject(event, boundProjectKey, retainedDocument = triageDocument) {
   event.preventDefault();
   if (scanPending) return;
   const projectKey = boundProjectKey || document.querySelector("#projectIdentity").value.trim();
@@ -449,21 +476,19 @@ async function connectProject(event, boundProjectKey) {
     document.querySelector("#triageStorageStatus").textContent = "관련 근거를 확인하고 검토 상태를 불러오는 중입니다.";
     const digests = await computeReviewDigests(currentAudit.records, currentAuditResult);
     if (generation !== identityGeneration) return;
-    let documentValue = empty;
+    let documentValue = retainedDocument?.projectKey === projectKey
+      ? mergeDocuments(empty, retainedDocument) : empty;
+    let storedDocument = empty;
     let storageNote = "";
     try {
-      const stored = globalThis.localStorage.getItem(TRIAGE_STORAGE_PREFIX + projectKey);
-      if (stored) {
-        if (stored.length > 2_000_000) throw new Error("oversized state");
-        const parsed = JSON.parse(stored);
-        if (validateDocument(parsed, projectKey).length) throw new Error("invalid state");
-        documentValue = parsed;
-      }
+      storedDocument = readStoredDocument(globalThis.localStorage, projectKey);
+      documentValue = mergeDocuments(documentValue, storedDocument);
     } catch {
       storageNote = " 이전 상태를 읽지 못했습니다. 가져오기·내보내기를 사용할 수 있습니다.";
     }
     reviewDigests = digests;
     triageDocument = documentValue;
+    persistedTriage = storedDocument;
     state = createUiState(currentAuditResult, currentAudit.meta);
     render();
     document.querySelector("#triageStorageStatus").textContent = projectKey + "에 연결했습니다." + storageNote;
@@ -495,6 +520,9 @@ async function computeReviewDigests(records, audit) {
 function handleTriageAction(event) {
   const button = event.target.closest("[data-triage-action]");
   if (!button || !triageDocument) return;
+  // Read the latest logical revisions before applying an explicit local
+  // action, including when another tab's storage event has not arrived yet.
+  refreshStoredTriage(undefined, false);
   const action = button.dataset.triageAction;
   const findings = action === "close-group"
     ? currentGroups().find((group) => group.id === button.dataset.groupId)?.open || []
@@ -521,6 +549,7 @@ function closeFindings(event) {
   event.preventDefault();
   if (!triageDocument) return;
   try {
+    refreshStoredTriage(undefined, false);
     let next = triageDocument;
     for (const fingerprint of pendingClose) {
       const finding = state.findings.find((item) => item.fingerprint === fingerprint);
@@ -544,10 +573,28 @@ function closeFindings(event) {
 
 function persistTriage() {
   try {
-    globalThis.localStorage.setItem(TRIAGE_STORAGE_PREFIX + triageDocument.projectKey, JSON.stringify(triageDocument));
-    document.querySelector("#triageStorageStatus").textContent = "이 브라우저에 검토 상태를 보관했습니다. 원본 분석 결과와 CI 판정은 유지됩니다.";
+    const operationId = globalThis.crypto.randomUUID();
+    triageDocument = saveStoredDocument(globalThis.localStorage, triageDocument,
+      persistedTriage || createDocument(triageDocument.projectKey), operationId);
+    persistedTriage = triageDocument;
+    document.querySelector("#triageStorageStatus").textContent = "이 브라우저에 검토 상태를 보관했습니다. 다른 탭의 검토 기록도 합쳐 보관합니다. 원본 분석 결과와 CI 판정은 유지됩니다.";
   } catch {
     document.querySelector("#triageStorageStatus").textContent = "브라우저에 보관하지 못했습니다. 현재 상태를 내보내서 보관해주세요.";
+  }
+}
+
+function refreshStoredTriage(event, redraw = true) {
+  if (!triageDocument || scanPending) return;
+  const projectKey = triageDocument.projectKey;
+  if (event?.type === "storage" && event.key !== null
+    && event.key !== STORAGE_PREFIX + projectKey && !event.key?.startsWith(journalPrefix(projectKey))) return;
+  try {
+    const stored = readStoredDocument(globalThis.localStorage, projectKey);
+    triageDocument = mergeDocuments(triageDocument, stored);
+    persistedTriage = stored;
+    if (redraw) render();
+  } catch {
+    // A denied or damaged storage read must not replace unsaved review state.
   }
 }
 
@@ -563,10 +610,11 @@ async function importTriage(event) {
     if (!projectKey || !file || file.size > 2_000_000) throw new Error("project or state invalid");
     const parsed = JSON.parse(await file.text());
     if (generation !== identityGeneration || validateDocument(parsed, projectKey).length) throw new Error("project mismatch or state invalid");
-    triageDocument = parsed;
+    const before = triageDocument;
+    triageDocument = mergeDocuments(before, parsed);
     persistTriage();
     render();
-    notify("검토 상태를 불러왔습니다.");
+    notify("검토 상태를 합쳤습니다. 기존 항목은 유지하고 같은 항목은 검토 차수와 시간을 비교합니다.");
   } catch {
     notify("현재 프로젝트와 일치하는 유효한 상태 파일을 선택해주세요.");
   }
@@ -697,5 +745,6 @@ function notify(message) {
 }
 
 render();
-globalThis.addEventListener?.("focus", render);
+globalThis.addEventListener?.("focus", () => { refreshStoredTriage(); render(); });
+globalThis.addEventListener?.("storage", refreshStoredTriage);
 })();

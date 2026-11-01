@@ -6,7 +6,8 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const {
-  createDocument, validateDocument, setDecision, getDecision, groupFindings
+  createDocument, validateDocument, setDecision, getDecision, groupFindings, mergeDocuments,
+  readStoredDocument, saveStoredDocument, STORAGE_PREFIX, journalPrefix
 } = require("./triage-state.js");
 const { createAuditBundle } = require("./audit-contract.js");
 const now = "2026-10-25T12:00:00.000Z";
@@ -104,7 +105,7 @@ test("rejects cross-project, malformed, oversized and prototype-key imports", ()
   const document = close(createDocument(projectKey), fixture());
   assert.deepEqual(validateDocument(JSON.parse(JSON.stringify(document)), projectKey), []);
   assert.ok(validateDocument(document, "repository-b:static-lite-default-v1").length);
-  assert.ok(validateDocument({ ...document, schemaVersion: "2" }).length);
+  assert.ok(validateDocument({ ...document, schemaVersion: "3" }).length);
   assert.ok(validateDocument({ ...document, source: "unapproved" }).length);
   assert.ok(validateDocument({ ...document, decisions: [] }).length);
   const malformed = structuredClone(document);
@@ -169,4 +170,99 @@ test("exports the same API as an isolated browser script without Node dependenci
   vm.runInContext(source, context);
   assert.equal(typeof context.FrontendTriage.setDecision, "function");
   assert.equal(vm.runInContext('FrontendTriage.createDocument("browser").projectKey', context), "browser");
+});
+
+function memoryStorage(initial = []) {
+  const values = new Map(initial);
+  return {
+    get length() { return values.size; },
+    key(index) { return [...values.keys()][index] || null; },
+    getItem(key) { return values.get(key) ?? null; },
+    setItem(key, value) { values.set(key, value); }
+  };
+}
+
+test("independent stale tabs append decisions without overwriting another tab's writes", () => {
+  const storage = memoryStorage();
+  const first = fixture("src/public/first.tsx");
+  const second = fixture("src/admin/second.tsx");
+  const emptyA = readStoredDocument(storage, projectKey);
+  const emptyB = readStoredDocument(storage, projectKey);
+  const a = close(emptyA, first);
+  const b = setDecision(emptyB, second, { action: "request-verification" }, now);
+  saveStoredDocument(storage, a, emptyA, "tab-a-1");
+  const mergedB = saveStoredDocument(storage, b, emptyB, "tab-b-1");
+  assert.equal(storage.length, 2);
+  assert.deepEqual(Object.keys(mergedB.decisions).sort(), [first.fingerprint, second.fingerprint].sort());
+  assert.equal(getDecision(mergedB, first, now).state, "closed");
+  assert.equal(getDecision(readStoredDocument(storage, projectKey), second, now).state, "verification-requested");
+  assert.equal(Object.keys(JSON.parse(storage.getItem(journalPrefix(projectKey) + "tab-b-1")).decisions).length, 1);
+  assert.throws(() => saveStoredDocument(storage, b, emptyB, "tab-b-1"), /already exists/);
+});
+
+test("same-fingerprint conflicts converge by review timestamp and exact-time ties keep findings visible", () => {
+  const finding = fixture();
+  const empty = createDocument(projectKey);
+  const older = close(empty, finding);
+  const newer = setDecision(empty, finding, { action: "reopen" }, "2026-10-25T13:00:00.000Z");
+  for (const [a, b] of [[older, newer], [newer, older]]) {
+    const merged = mergeDocuments(a, b);
+    assert.equal(getDecision(merged, finding, now).statusReason, "reopened");
+  }
+  const requested = setDecision(empty, finding, { action: "request-verification" }, now);
+  assert.deepEqual(mergeDocuments(requested, older), mergeDocuments(older, requested));
+  assert.equal(getDecision(mergeDocuments(older, requested), finding, now).state, "verification-requested");
+  const storage = memoryStorage();
+  saveStoredDocument(storage, newer, empty, "newer");
+  saveStoredDocument(storage, older, empty, "older-arrives-later");
+  assert.equal(getDecision(readStoredDocument(storage, projectKey), finding, now).state, "open");
+});
+
+test("imports merge additively, preserve newer decisions and read existing v1 browser snapshots", () => {
+  const finding = fixture();
+  const current = setDecision(createDocument(projectKey), finding, { action: "reopen" }, "2026-10-25T13:00:00.000Z");
+  const oldBackup = close(createDocument(projectKey), finding);
+  assert.deepEqual(mergeDocuments(current, createDocument(projectKey)), current);
+  assert.deepEqual(mergeDocuments(current, oldBackup), current);
+  const storage = memoryStorage([[STORAGE_PREFIX + projectKey, JSON.stringify(current)]]);
+  const next = setDecision(current, fixture("src/admin/new.tsx"), { action: "request-verification" }, now);
+  saveStoredDocument(storage, next, current, "migration-update");
+  assert.equal(Object.keys(readStoredDocument(storage, projectKey).decisions).length, 2);
+  assert.equal(storage.getItem(STORAGE_PREFIX + projectKey), JSON.stringify(current));
+  assert.throws(() => mergeDocuments(current, createDocument("another-project")), /does not match/);
+});
+
+test("failed persistence leaves caller documents available for export and rejects malformed stored journals", () => {
+  const empty = createDocument(projectKey);
+  const current = close(empty, fixture());
+  const before = structuredClone(current);
+  const denied = memoryStorage();
+  denied.setItem = () => { throw new Error("quota denied"); };
+  assert.throws(() => saveStoredDocument(denied, current, empty, "failed-write"), /quota denied/);
+  assert.deepEqual(current, before);
+  assert.equal(getDecision(current, fixture(), now).state, "closed");
+  const damaged = memoryStorage([[journalPrefix(projectKey) + "broken", "{}"]]);
+  assert.throws(() => readStoredDocument(damaged, projectKey));
+});
+
+
+test("explicit local actions supersede future-clock backups without changing real expiry validation", () => {
+  const finding = fixture();
+  const empty = createDocument(projectKey);
+  const future = setDecision(empty, finding, { action: "close", reason: "clock skew", disposition: "accepted-risk", expires: "2028-01-01" }, "2027-01-01T00:00:00Z");
+  const storage = memoryStorage();
+  saveStoredDocument(storage, future, empty, "future-backup");
+  const reopened = setDecision(future, finding, { action: "reopen" }, now);
+  const saved = saveStoredDocument(storage, reopened, future, "explicit-reopen");
+  assert.equal(getDecision(saved, finding, now).state, "open");
+  const closedNow = close(saved, finding, now);
+  assert.equal(getDecision(saveStoredDocument(storage, closedNow, saved, "explicit-close"), finding, now).state, "closed");
+  assert.equal(closedNow.decisions[finding.fingerprint].expires, expires);
+  assert.equal(closedNow.decisions[finding.fingerprint].updatedAt, now);
+  const legacy = structuredClone(future);
+  legacy.schemaVersion = "1";
+  delete legacy.decisions[finding.fingerprint].revision;
+  assert.equal(validateDocument(legacy).length, 0);
+  assert.equal(mergeDocuments(legacy, reopened).schemaVersion, "2");
+  assert.equal(getDecision(mergeDocuments(legacy, reopened), finding, now).state, "open");
 });

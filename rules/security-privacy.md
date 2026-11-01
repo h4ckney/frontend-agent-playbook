@@ -72,6 +72,17 @@ Rule ID: `security-privacy.cross-window-messaging`
 - **MUST**: Flag changes that would break `HttpOnly` cookie benefits by moving sensitive state into JavaScript-accessible storage.
 - **SHOULD**: Consider clickjacking, mixed-content, and cross-origin embedding implications when changing auth or payment flows.
 
+## Dependency And Runtime Exposure
+
+Rule ID: `security-privacy.dependency-exposure`
+
+- **MUST**: Separate manifest ranges, lockfile versions, configured runtime versions, and verified deployed versions. A matching advisory is a review candidate until its execution conditions are checked.
+- **MUST**: State whether each occurrence belongs to runtime, build, development, or an unknown phase, and cite the evidence for that classification. Build tools can access CI credentials and alter shipped artifacts.
+- **MUST**: Group aliases and upstream/downstream matches for one advisory while retaining affected module paths as child occurrences. Do not mark a missing or unsupported lockfile as a clean security result.
+- **MUST**: Record advisory source, checked date, affected versions, patch guidance, and remaining conditions such as SAPI, OS, server APIs, vendor backports, and deployment targets.
+- **SHOULD**: Compare supported lockfile inventories with current advisories using an explicitly invoked metadata-only lookup or an approved external audit. Keep source files and credentials local.
+- **MUST**: Do not install dependencies, execute project scripts, probe production, or claim exploitability merely to classify a static version match.
+
 ## Change Requirements
 
 - **MUST**: Treat exposed secrets, sensitive storage misuse, unsafe HTML injection, or broken auth assumptions as blocking issues.
