@@ -10,6 +10,7 @@
   const security = typeof module !== "undefined" && module.exports
     ? require("./security-context.js")
     : globalThis.FrontendSecurityContext;
+  const lifecycle = typeof module !== "undefined" && module.exports ? require("./runtime-lifecycle.js") : globalThis.FrontendRuntimeLifecycle;
 
   if (!analyzer) {
     throw new Error("FrontendAnalyzer must be loaded before FrontendAuditContract");
@@ -20,7 +21,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "6";
+  const DETECTOR_CATALOG_VERSION = "7";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -30,7 +31,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-01.2")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-02.1")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -195,6 +196,7 @@
   }
 
   function workspaceLabel(entry) {
+    if (entry.lifecycleComponent) return " · " + lifecycle.STATES[entry.lifecycleState] + (entry.supportEnds ? " · " + entry.supportEnds + (entry.datePrecision === "month" ? "경 · 정확한 종료일 미공표" : "") : "") + " · " + entry.reason + " · policy " + entry.lifecyclePolicyFreshness;
     const context = (entry.lockContext === "boot" ? " · pnpm boot/build" : "") + (entry.modifications?.length ? " · modified registry base: " + entry.modifications.join(", ") + (entry.registryRevision ? " revision " + entry.registryRevision : "") + "; patch/revision contents not verified" : "");
     if (!entry.workspaceUsage?.length) return context;
     const usage = entry.workspaceUsage;
@@ -206,6 +208,10 @@
     const text = JSON.stringify(usage);
     for (let index = 0; index < text.length; index += 1) hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 1099511628211n);
     return context + " · " + summary + "; +" + (usage.length - 10) + " workspace uses; metadata-" + hash.toString(16);
+  }
+
+  function securitySubject(entry) {
+    return entry.name + (entry.lifecycleSupportScope === "product" ? "" : "@" + entry.version);
   }
 
   function normalizeFindingOccurrences(item, context, profile) {
@@ -221,13 +227,13 @@
       })];
     });
     if (item.securityOccurrences?.length) {
-      return item.securityOccurrences.map((entry) => normalizeFinding(item, context, profile, {
+      return item.securityOccurrences.map((entry) => normalizeFinding(entry.lifecycleSeverity ? { ...item, severity: entry.lifecycleSeverity } : item, context, profile, {
         fingerprintScope: entry.manifest + "#" + entry.path,
         evidence: [{ kind: "path", path: normalizeRelativePath(entry.manifest),
-          label: entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.versionKind + "; " + entry.path + "]" + workspaceLabel(entry) }],
+          label: securitySubject(entry) + " [" + entry.phase + "; " + entry.versionKind + "; " + entry.path + "]" + workspaceLabel(entry) }],
         occurrenceCount: 1,
-        observedFact: (item.advisoryIds?.length ? item.advisoryIds.join(" / ") + ": " : "") + entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.provenance + "; " + entry.path + "]" + workspaceLabel(entry),
-        boundaryIds: [item.id]
+        observedFact: (item.advisoryIds?.length ? item.advisoryIds.join(" / ") + ": " : "") + securitySubject(entry) + " [" + entry.phase + "; " + entry.provenance + "; " + entry.path + "]" + workspaceLabel(entry),
+        boundaryIds: [entry.lifecycleComponent ? item.id + ":" + entry.lifecycleComponent : item.id]
       }));
     }
     const rawEvidence = item.allEvidence || item.evidence;
@@ -495,7 +501,7 @@
   function normalizeScope(scope) {
     const partialReasons = Object.entries(scope.excludedByReason || {})
       .filter(([reason]) => [
-        "binary-lockfile", "directory-read-failed", "generated-header", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
+        "binary-lockfile", "unsupported-lockfile", "directory-read-failed", "generated-header", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
       ].includes(reason))
       .map(([reason, count]) => reason + ":" + count)
       .sort();
@@ -745,7 +751,10 @@
     }
 
     const activeDetectors = new Map(Object.values(detectorCatalog).map((item) => [item.id, item.version]));
-    const versionDetectors = new Set(security.DETECTOR_IDS.filter((id) => id !== "security.dependency-coverage"));
+    const lifecycleDetectors = new Set(security.LIFECYCLE_DETECTOR_IDS);
+    const versionDetectors = new Set(security.DETECTOR_IDS.filter((id) => id !== "security.dependency-coverage" && !lifecycleDetectors.has(id)));
+    const support = result.securityContext?.lifecycle;
+    const lifecycleByScope = new Map((support?.entries || []).map(entry => [entry.manifest + "#lifecycle/" + entry.component + "/" + entry.path, entry]));
     const versionCoverage = result.securityContext;
     const versionComparisonIncomplete = !versionCoverage
       || versionCoverage.coverage.gaps.length > 0
@@ -753,8 +762,13 @@
       || versionCoverage.snapshot.freshness !== "within-30-days";
     for (const previous of baseline.findings) {
       if (currentMap.has(previous.fingerprint)) continue;
+      const lifecycleScope = previous.fingerprint.slice(previous.fingerprint.indexOf(":") + 1);
+      const lifecycleEntry = lifecycleByScope.get(lifecycleScope);
+      const lifecycleIncomplete = lifecycleDetectors.has(previous.detectorId) && previous.detectorId !== "security.lifecycle-coverage" && (!support || support.policy.freshness !== "within-30-days"
+        || support.gaps.length || !lifecycleEntry || ["unknown", "not-released"].includes(lifecycleEntry.state)
+        || output.findings.some(item => lifecycleDetectors.has(item.detectorId) && item.fingerprint.endsWith(":" + lifecycleScope)));
       if (activeDetectors.get(previous.detectorId) !== previous.detectorVersion || result.scope.partial
-        || (versionDetectors.has(previous.detectorId) && versionComparisonIncomplete)) {
+        || (versionDetectors.has(previous.detectorId) && versionComparisonIncomplete) || lifecycleIncomplete) {
         diff.unverified.push(previous.fingerprint);
       } else {
         const ambiguousRemoval = output.findings.some((item) =>
@@ -1024,6 +1038,16 @@
     lines.push("", korean ? "확인하지 못한 범위:" : "Coverage limitations:", "");
     for (const item of context.coverage.gaps) lines.push("- " + cell(item.path) + ": " + cell(item.reason));
     for (const item of context.coverage.limitations) lines.push("- " + cell(item));
+    if (context.lifecycle && (context.lifecycle.entries.length || context.lifecycle.gaps.length)) {
+      const support = context.lifecycle;
+      lines.push("", korean ? "## 런타임·서비스 지원 상태" : "## Runtime and service lifecycle", "",
+        "As of: " + cell(support.asOf || "unknown") + " / policy checked: " + cell(support.policy.checkedAt) + " / " + cell(support.policy.freshness), "",
+        korean ? "공식 일정의 상태이며 실제 실행·배포·서비스 가동·공급업체 지원의 증명이 아닙니다. 월 단위 일정은 발표의 상대 기간에서 도출했으며 정확한 종료일이 아닙니다." : "Published policy only, not proof of execution, deployment, service availability or vendor support. Month estimates derive from announcement intervals, not exact shutdown dates.", "",
+        "| Component | Category | Scope | State | End | Precision | Phase | Version | File/location | Evidence |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+      for (const entry of support.entries) lines.push("| " + [lifecycle.COMPONENTS[entry.component], entry.category, entry.supportScope, korean ? lifecycle.STATES[entry.state] + (entry.endingSoon ? " · 종료 준비 필요" : "") : entry.state + (entry.endingSoon ? "; ending soon" : ""), entry.supportEnds || "not published", entry.datePrecision + "; " + entry.dateBasis, entry.phase, entry.version || "unknown", entry.manifest + "#" + entry.path, entry.reason].map(cell).join(" | ") + " |");
+      for (const gap of support.gaps) lines.push("- " + cell(gap.path) + ": " + cell(gap.reason));
+      for (const source of support.policy.sources) lines.push("- " + source);
+    }
     lines.push("", korean ? "공식 근거:" : "Official sources:", "");
     for (const source of context.snapshot.sources) lines.push("- " + source);
     return lines;

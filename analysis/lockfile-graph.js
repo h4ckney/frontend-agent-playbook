@@ -427,7 +427,8 @@
       return { graphs: [], inventory: [], gaps: [{ path: record.path, reason: "invalid-or-unsupported-pnpm-documents" }] };
     }
   }
-  const api = Object.freeze({ readLockGraph, readLockGraphs, displayVersion });
+  function parseJSONC(text) { load(text, true); return JSON.parse(jsonc(text)); }
+  const api = Object.freeze({ readLockGraph, readLockGraphs, displayVersion, parseJSONC, parseYamlConfig: load });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (typeof globalThis !== "undefined") globalThis.FrontendLockGraph = api;
 })();

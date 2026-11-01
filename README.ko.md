@@ -144,6 +144,8 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 오프라인 대시보드·CLI는 npm/Composer lock과 Node/PHP 설정을 읽고 런타임·빌드·개발·미확인을 구분합니다. 날짜가 명시된 권고 스냅샷은 버전 일치와 실행 조건을 보여주며 실제 배포나 악용 가능성을 확정하지 않습니다. [보안 실행 문맥](docs/security-context.md), 패키지 메타데이터 전송을 명시한 [OSV 별도 조회](docs/dependency-advisories.md), [수정·아키텍처·근거·후속 작업](docs/audit-integrity-security-upgrade.md)을 참고하세요.
 
+런타임 지원 수명은 취약점 스냅샷과 별도로 판단합니다. Deno Runtime·Deploy·Deploy Classic·JSR을 구분하고 Node/PHP는 계열별 달력, Bun은 공표된 지원 정책을 따릅니다. [지원 수명 정책·근거·한계](docs/runtime-service-lifecycle.md)를 참고하세요.
+
 ### Analyzer CLI 프리뷰
 
 pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [형식 범위·프로토콜 우선순위](docs/lock-protocol-priorities.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.
@@ -257,6 +259,7 @@ node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
 node --check analysis/security-context.js
+node --check analysis/runtime-lifecycle.js
 node --check bin/frontend-agent-audit.mjs
 node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs scripts/query-osv.test.mjs scripts/dashboard-provenance.test.mjs
 ```

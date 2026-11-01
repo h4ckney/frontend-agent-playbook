@@ -428,6 +428,74 @@ try {
   await page.waitForFunction(() => document.querySelector("#scopeExclusions").textContent.includes("Bun 바이너리 lock"));
   assert.match(await page.locator("#scopeExclusions").textContent(), /일부 파일/);
   recordCheck("Bun binary lock is explicitly excluded as incomplete coverage rather than a complete clean scan");
+
+  // The lifecycle calendar is deterministic; these are configured products,
+  // never proof that a real runtime or hosting account was used.
+  await page.clock.setFixedTime(new Date("2026-11-02T03:00:00Z"));
+  await fs.rm(path.join(fixture, "bun.lockb"));
+  await fs.rm(path.join(fixture, "Dockerfile"));
+  await fs.mkdir(path.join(fixture, ".github", "workflows"), { recursive: true });
+  await fs.writeFile(path.join(fixture, ".github", "workflows", "classic.yml"), "jobs:\n  deploy:\n    steps:\n      - uses: denoland/deployctl@v1\n");
+  await fs.writeFile(path.join(fixture, "deno.jsonc"), '{"deploy":{"app":"private-hosting-project"},"imports":{"assert":"jsr:@std/assert@^1"},}');
+  const pins = { ".deno-version": "2.9.8", ".node-version": "20.0.0", ".php-version": "8.2.35", ".bun-version": "1.4.4" };
+  for (const [name, version] of Object.entries(pins)) await fs.writeFile(path.join(fixture, name), version);
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelectorAll("[data-lifecycle-component]").length === 7);
+  await page.locator("#projectIdentity").fill("synthetic/runtime-lifecycle");
+  await page.getByRole("button", { name: "상태 연결", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  for (const [component, state, deadline] of [
+    ["deno-runtime", "end-announced", "2027-10"], ["deno-deploy", "end-announced", "2027-04"],
+    ["deno-deploy-classic", "ended", "2026-07-20"], ["jsr", "continuing", "공표된 종료일 근거 없음"],
+    ["node", "ended", "2026-04-30"], ["php", "security-only", "2026-12-31"], ["bun", "supported", "공표된 종료일 근거 없음"]
+  ]) {
+    const entry = page.locator('[data-lifecycle-component="' + component + '"]');
+    assert.equal(await entry.getAttribute("data-lifecycle-state"), state);
+    assert.ok((await entry.textContent()).includes(deadline), component + " deadline");
+  }
+  assert.doesNotMatch(await page.locator("body").textContent(), /private-hosting-project/);
+  const securityDetails = page.locator("#securityContext");
+  await securityDetails.evaluate(node => { node.open = true; });
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await securityDetails.scrollIntoViewIfNeeded();
+    await settleView(page);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "lifecycle overflow at " + width);
+    await page.locator('[data-lifecycle-component="deno-runtime"]').scrollIntoViewIfNeeded();
+    await settleView(page);
+    await page.screenshot({ path: path.join(values.output, "dashboard-lifecycle-" + width + ".png") });
+  }
+  recordCheck("seven independent lifecycle components show dated states and approximate Deno deadlines without leaking hosting configuration or overflowing 320/390px");
+  await page.locator("#showClosed").uncheck();
+  const runtimeGroup = page.locator(".issue-group").filter({ has: page.locator("code", { hasText: /^security\.support-ending$/ }) }).filter({ hasText: "Deno Runtime" });
+  assert.equal(await runtimeGroup.count(), 1);
+  await runtimeGroup.locator(":scope > summary").click();
+  await runtimeGroup.getByRole("button", { name: "열린 항목 묶음 닫기", exact: true }).click();
+  await page.locator("#closeReason").fill("Synthetic runtime retirement review; hosting is reviewed independently.");
+  await page.locator("#closeExpires").fill("2026-11-20");
+  await page.locator("#triageDialog").getByRole("button", { name: "검토 후 닫기", exact: true }).click();
+  assert.equal(await runtimeGroup.count(), 0);
+  assert.equal(await page.locator(".issue-group").filter({ has: page.locator("code", { hasText: /^security\.support-ending$/ }) }).filter({ hasText: "Deno Deploy" }).count(), 1);
+  assert.equal(Object.keys((await exportDocument(page)).decisions).length, 1);
+  recordCheck("closing the Deno Runtime parent leaves Deploy open and exports only that product's child decision");
+  await page.clock.setFixedTime(new Date("2027-11-02T03:00:00Z"));
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector('[data-lifecycle-component="deno-runtime"]')?.dataset.lifecycleState === "unknown");
+  assert.equal(await page.locator('[data-lifecycle-component="deno-deploy"]').getAttribute("data-lifecycle-state"), "unknown");
+  assert.match(await page.locator("#securityContext").textContent(), /최신 공식 공지를 재확인/);
+  recordCheck("elapsed relative Deno windows become unverified with a stale-policy notice rather than a fabricated confirmed shutdown");
+  await page.clock.setFixedTime(new Date("2026-11-02T03:00:00Z"));
+  for (const name of [...Object.keys(pins), "deno.jsonc", ".github/workflows/classic.yml"]) await fs.rm(path.join(fixture, name));
+  await fs.writeFile(path.join(fixture, "jsr.json"), '{"name":"@private/registry-only"}');
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelectorAll("[data-lifecycle-component]").length === 1);
+  assert.equal(await page.locator('[data-lifecycle-component="jsr"]').getAttribute("data-lifecycle-state"), "continuing");
+  assert.equal(await page.locator("code").filter({ hasText: /^security\.(support-ending|runtime-eol)$/ }).count(), 0);
+  await fs.writeFile(path.join(fixture, "deno.lock"), '{"version":"5"}');
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector("#scopeExclusions").textContent.includes("미지원 lockfile"));
+  assert.match(await page.locator("#scopeExclusions").textContent(), /일부 파일/);
+  recordCheck("JSR publishing alone creates no Deno runtime or hosting warning, while unsupported deno.lock stays partial coverage");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

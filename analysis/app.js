@@ -305,7 +305,25 @@ function renderSecurityContext() {
       (entry.modifications?.length ? '<br><small>' + escapeHtml(entry.modifications.map(kind => ({ patch: "패치", virtual: "별도 peer 컨텍스트", "registry-revision": "레지스트리 수정본" }[kind])).join(' · ') + (entry.registryRevision ? ' ' + entry.registryRevision : '') + ' · 원본 버전 비교, 수정 효과 미검증') + '</small>' : '') +
       '<br><small>' + escapeHtml(versions[entry.versionKind] || entry.versionKind) + ' · ' + escapeHtml(entry.manifest + ' · ' + entry.path) + (entry.workspaceUsage?.length ? '<br>' + escapeHtml(entry.workspaceUsage.slice(0, 10).map(usage => usage.manifest + ' [' + phases[usage.phase] + (usage.direct ? ' · 직접' : ' · 간접') + ']').join(', ') + (entry.workspaceUsage.length > 10 ? ' · 나머지 ' + (entry.workspaceUsage.length - 10) + '개는 JSON 보고서 참조' : '')) : '') + '</small></li>').join('') +
     '</ul><p>전체 목록·실행 단계의 판정 근거·확인하지 못한 범위는 보고서에 포함됩니다.</p></details>' +
-    '<p>일치 항목이 없어도 안전 판정이 아닙니다. 지원하지 않는 lockfile, OS 패키지, 공급업체 패치와 최신 외부 권고는 별도 검토가 필요합니다.</p>';
+    '<p>일치 항목이 없어도 안전 판정이 아닙니다. 지원하지 않는 lockfile, OS 패키지, 공급업체 패치와 최신 외부 권고는 별도 검토가 필요합니다.</p>' + renderLifecycleContext(security.lifecycle);
+}
+
+function renderLifecycleContext(support) {
+  if (!support || !support.entries.length && !support.gaps.length) return '';
+  const phases = { runtime: "서비스 실행 설정", build: "빌드 설정", development: "개발 설정", unknown: "사용 단계 미확인" };
+  const categories = { runtime: "런타임", hosting: "호스팅", registry: "패키지 저장소" };
+  const scopes = { product: "제품 전체", "release-line": "버전 계열", "major-family": "메이저 계열" };
+  return '<section class="lifecycle-context"><h3>런타임·서비스 지원 상태</h3><p>기준일 ' + escapeHtml(support.asOf || '시각 미확인') + ' · 정책 검토일 ' + escapeHtml(support.policy.checkedAt) +
+    '</p><p>제품과 버전 계열의 공식 일정을 구분합니다. 설정의 존재는 실제 실행·배포나 취약점 유무를 증명하지 않습니다.</p>' +
+    (support.policy.freshness === 'within-30-days' ? '' : '<p class="context-status">정책이 오래됐거나 기준 시각이 맞지 않아 최신 공식 공지를 재확인해야 합니다.</p>') +
+    '<ul class="dependency-inventory">' + support.entries.slice(0, 30).map(entry => '<li data-lifecycle-component="' + escapeHtml(entry.component) + '" data-lifecycle-state="' + escapeHtml(entry.state) + '"><strong>' +
+      escapeHtml(FrontendRuntimeLifecycle.COMPONENTS[entry.component]) + '</strong> · ' + escapeHtml(categories[entry.category] + ' · ' + scopes[entry.supportScope]) + '<br><b>' + escapeHtml(FrontendRuntimeLifecycle.STATES[entry.state]) +
+      (entry.endingSoon && entry.state !== 'end-announced' ? ' · 지원 종료 준비 필요' : '') + '</b> · ' + escapeHtml(entry.supportEnds ? entry.supportEnds + (entry.datePrecision === 'month' ? '경 (정확한 종료일 미공표)' : '') : '공표된 종료일 근거 없음') +
+      '<br><small>' + escapeHtml((entry.version && !entry.version.endsWith(':<source-redacted>') ? entry.version : '버전 미확인') + ' · ' + phases[entry.phase] + ' · ' + entry.manifest + ' · ' + entry.path) + '</small>' +
+      (entry.component === 'deno-runtime' ? '<br><small>공식팀의 개발 종료 예고입니다. 버전 숫자만으로 LTS 채널·개별 버전의 보안 지원을 확정하지 않습니다.</small>' : '') +
+      (entry.state === 'ended' ? '<br><small>공식 일정 기준입니다. 실제 서비스 가동 상태·공급업체 별도 지원은 추가 확인이 필요합니다.</small>' : '') +
+      '<br>' + entry.sources.filter(source => /^https:\/\//.test(source)).map(source => '<a href="' + escapeHtml(source) + '" target="_blank" rel="noopener noreferrer">공식 근거</a>').join(' · ') + '</li>').join('') +
+    '</ul><p>화면은 최대 30개를 표시합니다. 전체 근거와 미확인 범위는 보고서에 포함됩니다.</p></section>';
 }
 
 function renderPriority(filter) {
@@ -652,6 +670,7 @@ function formatScope(scope) {
     "excluded-path": "제외 경로",
     "unsupported-type": "지원하지 않는 파일 형식",
     "binary-lockfile": "Bun 바이너리 lock · 텍스트 변환 필요",
+    "unsupported-lockfile": "미지원 lockfile · 의존성 점검 미완료",
     oversized: "큰 파일",
     "input-budget": "분석 한도 초과",
     "read-failed": "읽기 실패"

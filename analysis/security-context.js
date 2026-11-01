@@ -4,6 +4,7 @@
   // Deliberately finite, offline advisory snapshot. Presence/version is evidence;
   // deployment, vendor backports and vulnerable data flow remain unverified.
   const lockGraph = typeof module !== "undefined" && module.exports ? require("./lockfile-graph.js") : globalThis.FrontendLockGraph;
+  const lifecycle = typeof module !== "undefined" && module.exports ? require("./runtime-lifecycle.js") : globalThis.FrontendRuntimeLifecycle;
   const CHECKED_AT = "2026-10-30";
   const SNAPSHOT_ID = "security-context-2026-10-30-v1";
   const MAX_INVENTORY = 20_000;
@@ -23,7 +24,7 @@
   const DETECTOR_IDS = Object.freeze([
     "security.node-brotli-2026", "security.php-oom-2026", "security.php-stale-state-2026",
     "security.react2shell", "security.rsc-typed-array-rce", "security.next-image-svg-rce",
-    "security.runtime-eol", "security.dependency-coverage"
+    "security.runtime-eol", "security.support-ending", "security.lifecycle-coverage", "security.dependency-coverage"
   ]);
   const BUILD_TOOLS = new Set(["vite", "webpack", "rollup", "esbuild", "typescript", "@swc/core", "@babel/core", "parcel"]);
   const ADVISORIES = [
@@ -191,29 +192,27 @@
             phaseEvidence: "Composer lock package group; production installation not verified",
             direct: Object.hasOwn(manifest.require || {}, item.name) || Object.hasOwn(manifest["require-dev"] || {}, item.name), provenance: "lockfile" });
         }
-      } else if (/(^|\/)(?:\.nvmrc|\.node-version|\.php-version)$/.test(record.path)) {
+      } else if (/(^|\/)(?:\.nvmrc|\.node-version|\.php-version|\.deno-version|\.bun-version)$/.test(record.path)) {
         const version = record.content.trim();
-        add({ ecosystem: "runtime", name: record.path.endsWith(".php-version") ? "php" : "node", version,
+        add({ ecosystem: "runtime", name: record.path.endsWith(".php-version") ? "php" : record.path.endsWith(".deno-version") ? "deno" : record.path.endsWith(".bun-version") ? "bun" : "node", version,
           versionKind: exactVersion(version) ? "runtime-pin" : "runtime-selector", manifest: record.path, path: "version",
           phase: "unknown", phaseEvidence: "version-manager configuration; build/server usage and execution not verified", direct: true, provenance: "version-file" });
       } else if (/(^|\/)Dockerfile(?:\.[^/]+)?$/.test(record.path)) {
         readDockerfile(record, add, addGap);
       } else if (/(^|\/)\.github\/workflows\/[^/]+\.ya?ml$/.test(record.path)) {
-        // Literal setup-node values only. Expressions/matrices/YAML aliases are deliberately unresolved.
-        if (/uses:\s*actions\/setup-node@/.test(record.content)) {
-          const fields = [...record.content.matchAll(/^[\t ]*(node-version|node-version-file):[\t ]*([^\r\n]*)/gm)];
-          if (!fields.length) addGap(record.path, "ci-node-version-unavailable");
-          for (const field of fields) {
-            const literal = /^(?:"([\dv.]+)"|'([\dv.]+)'|([\dv.]+))\s*(?:#.*)?$/.exec(field[2]);
-            if (field[1] !== "node-version" || !literal) {
-              addGap(record.path, "unresolved-ci-node-version");
-              continue;
-            }
-            const version = literal[1] || literal[2] || literal[3];
-            add({ ecosystem: "runtime", name: "node", version, versionKind: exactVersion(version) ? "runtime-pin" : "runtime-selector",
-              manifest: record.path, path: "node-version@" + (record.content.slice(0, field.index).split("\n").length), phase: "build",
-              phaseEvidence: "literal CI setup-node configuration; not production runtime", direct: true, provenance: "ci-configuration" });
-          }
+        const workflow = lifecycle.readSetupWorkflow(record);
+        workflow.inventory.forEach(add);
+        workflow.gaps.forEach(item => addGap(item.path, item.reason));
+      } else if (/(^|\/)\.tool-versions$/.test(record.path)) {
+        for (const [index, line] of record.content.split(/\r?\n/).entries()) {
+          const match = /^\s*(nodejs|node|php|deno|bun)\s+([^#]+?)(?:\s*#.*)?$/.exec(line);
+          if (!match) continue;
+          const version = match[2].trim();
+          const value = /^v?[\d.]+$/.test(version) ? version : "unresolved-selector";
+          if (value === "unresolved-selector") addGap(record.path, "unresolved-tool-version");
+          add({ ecosystem: "runtime", name: match[1] === "nodejs" ? "node" : match[1], version: value,
+            versionKind: exactVersion(value) ? "runtime-pin" : "runtime-selector", manifest: record.path, path: match[1] + "@" + (index + 1), phase: "unknown",
+            phaseEvidence: "version-manager configuration; installation and execution not verified", direct: true, provenance: "version-file" });
         }
       } else if (/(^|\/)(?:yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|Gemfile\.lock)$/.test(record.path)) {
         addGap(record.path, "unsupported-lock-format");
@@ -238,13 +237,40 @@
       occurrences.forEach((item) => matched.add(item));
       findings.push(advisoryFinding(advisory, occurrences));
     }
-    const eol = inventory.filter((item) => runtimeEol(item));
-    if (eol.length) findings.push(makeFinding({ id: "security.runtime-eol", severity: "medium", title: "지원 종료된 런타임 계열이 설정에 남아 있음",
-      occurrences: eol, sources: [SOURCES.nodeSupport, SOURCES.phpSupport],
-      observedFact: listVersions(eol), whyRisky: "지원 종료 계열은 프로젝트의 정기 보안 수정을 받지 못합니다.",
-      possibleImpact: "미수정 취약점이나 지원 도구와의 호환성 문제에 노출될 수 있습니다.",
-      riskFactors: "해당 설정으로 실제 빌드·서버가 실행되고 별도 공급업체 지원도 없는 경우",
-      recommendation: "실행 환경을 확인하고 지원 계열로 이동합니다. 배포업체 백포트 여부와 지원 계약을 별도로 확인합니다." }));
+    const { dependencyGaps, ...support } = lifecycle.inspectLifecycle(records, inventory, options);
+    dependencyGaps.forEach(item => addGap(item.path, item.reason));
+    const occurrencesFor = entries => entries.map(entry => ({ ecosystem: "runtime", name: lifecycle.COMPONENTS[entry.component],
+      version: entry.version || "version-unverified", versionKind: "lifecycle-policy", manifest: entry.manifest,
+      path: "lifecycle/" + entry.component + "/" + entry.path, phase: entry.phase, provenance: entry.sourceKind,
+      lifecycleComponent: entry.component, lifecycleState: entry.state, supportEnds: entry.supportEnds,
+      lifecycleSupportScope: entry.supportScope,
+      lifecyclePolicyFreshness: support.policy.freshness,
+      lifecycleSeverity: entry.state === "ended" && entry.category === "hosting" ? "high" : "medium",
+      datePrecision: entry.datePrecision, reason: entry.reason }));
+    const ended = support.entries.filter(entry => entry.state === "ended");
+    if (ended.length) findings.push(makeFinding({ id: "security.runtime-eol", lifecyclePolicy: support.policy, severity: ended.some(entry => entry.category === "hosting") ? "high" : "medium",
+      title: "공식 일정상 지원 종료된 런타임·서비스 설정이 있음", occurrences: occurrencesFor(ended), sources: [...new Set(ended.flatMap(entry => entry.sources))],
+      observedFact: "지원 정책 " + support.policy.checkedAt + "; 기준일 " + support.asOf,
+      whyRisky: "공식 지원 또는 서비스 운영 일정이 끝난 설정은 보안 수정과 정상 운영을 보장하지 못합니다.",
+      possibleImpact: "보안 수정 공백 또는 종료된 호스팅에 대한 배포 실패", riskFactors: "실제 사용·배포 여부와 공급업체 별도 지원을 확인해야 함",
+      recommendation: "제품과 버전 계열을 구분해 지원되는 실행 환경·호스팅으로 이전합니다. 기존 사용 경로와 공급업체 지원을 확인합니다." }));
+    const planned = support.entries.filter(entry => entry.state === "end-announced" || entry.endingSoon);
+    if (planned.length) findings.push(makeFinding({ id: "security.support-ending", lifecyclePolicy: support.policy, severity: "medium", title: "런타임·서비스의 지원 종료 준비가 필요함",
+      occurrences: occurrencesFor(planned), sources: [...new Set(planned.flatMap(entry => entry.sources))],
+      observedFact: "지원 정책 " + support.policy.checkedAt + "; 기준일 " + support.asOf,
+      whyRisky: "종료 예고와 가까운 지원 종료일을 놓치면 이전·검증 시간을 확보하기 어렵습니다.", possibleImpact: "지원 공백 또는 호스팅 이전 지연",
+      riskFactors: "제품 전체 종료와 버전 계열 종료, 개발 중단과 서비스 중단의 구분 필요",
+      recommendation: "공식 일정의 정밀도를 확인하고 이전 계획·대체 실행 환경·배포 검증을 준비합니다. 예정은 현재 종료를 의미하지 않습니다." }));
+    const unresolvedRuntimeEvidence = new Set(inventory.filter(item => item.ecosystem === "runtime" && (!exactVersion(item.version)
+      || item.provenance === "manifest-declaration")).map(item => item.manifest + "#" + item.path));
+    const unknown = support.entries.filter(entry => ["unknown", "not-released"].includes(entry.state)
+      && !unresolvedRuntimeEvidence.has(entry.manifest + "#" + entry.path));
+    if (unknown.length || support.gaps.length || support.entries.length && support.policy.freshness !== "within-30-days") findings.push(makeFinding({
+      id: "security.lifecycle-coverage", lifecyclePolicy: support.policy, severity: "low", title: "지원 상태에 재확인할 근거가 있음", evidenceLevel: "unknown", decision: "information-gap",
+      evidencePaths: [...new Set([...unknown.map(entry => entry.manifest), ...support.gaps.map(item => item.path), ...(support.policy.freshness !== "within-30-days" ? support.entries.map(entry => entry.manifest) : [])])],
+      sources: support.policy.sources, observedFact: "지원 상태 미확인 " + unknown.length + "개; 정책 " + support.policy.checkedAt + " (" + support.policy.freshness + ")",
+      whyRisky: "최신 정책이나 실제 실행 버전·채널 근거가 없으면 지원 상태를 확정할 수 없습니다.", possibleImpact: "지원 종료 오탐 또는 누락", riskFactors: "범위·가상 플랫폼·미출시 버전·경과한 상대 일정·오래된 정책",
+      recommendation: "공식 정책과 실제 설치·실행·배포 상태를 확인합니다. 미확인은 지원 중이나 해결 완료가 아닙니다." }));
 
     const lockKey = (item) => item.ecosystem + ":" + item.manifest.replace(/[^/]+$/, "") + ":" + item.name;
     const graphDeclarations = new Set();
@@ -263,7 +289,8 @@
     const hasLockEvidence = (item) => graphDeclarations.has(item.manifest + ":" + item.name) || legacyLockedNames.has(lockKey(item));
     const unresolved = inventory.filter((item) => {
       if (item.provenance === "manifest-declaration" && item.ecosystem !== "runtime" && hasLockEvidence(item)) return false;
-      return !exactVersion(item.version) || ["engine-constraint", "platform-override"].includes(item.versionKind);
+      return !exactVersion(item.version) || ["engine-constraint", "platform-override"].includes(item.versionKind)
+        || item.ecosystem === "runtime" && item.provenance === "manifest-declaration";
     });
     for (const item of inventory.filter((entry) => entry.provenance === "manifest-declaration" && entry.ecosystem !== "runtime")) {
       if (!hasLockEvidence(item)) {
@@ -296,7 +323,7 @@
     }
     return {
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
-      inventory, findings, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
+      inventory, findings, lifecycle: support, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
         limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
@@ -317,14 +344,15 @@
       runtimeAncestors.add(parent); index = parent;
     }
     stages.forEach((stage, stageIndex) => {
-      const image = /^(?:docker\.io\/)?(?:library\/)?(node|php)(?::([^@]+))?(?:@sha256:[a-f\d]+)?$/i.exec(stage.image);
+      const image = /^(?:docker\.io\/)?((?:library\/)?(?:node|php)|denoland\/deno|oven\/bun)(?::([^@]+))?(?:@sha256:[a-f\d]+)?$/i.exec(stage.image);
       if (!image) {
         if (/\$/.test(stage.image)) addGap(record.path, "unresolved-docker-image-variable");
         return;
       }
       const tag = image[2] || "unversioned-image";
-      const version = /^v?(\d+\.\d+\.\d+)(?:-[A-Za-z][\w.-]*)?$/.exec(tag)?.[1] || tag;
-      add({ ecosystem: "runtime", name: image[1].toLowerCase(), version,
+      const version = lifecycle.imageBranch(tag) || tag;
+      const imageName = image[1].toLowerCase().replace(/^library\//, "");
+      add({ ecosystem: "runtime", name: imageName === "denoland/deno" ? "deno" : imageName === "oven/bun" ? "bun" : imageName, version,
         versionKind: exactVersion(version) ? "image-pin" : "image-selector", manifest: record.path,
         path: "FROM@" + stage.line + (stage.alias ? ":" + stage.alias : ""), phase: runtimeAncestors.has(stageIndex) ? "runtime" : "build",
         phaseEvidence: runtimeAncestors.has(stageIndex) ? "default final Docker stage or its FROM ancestor; custom --target not assessed"
@@ -414,15 +442,6 @@
     return name.length <= 214 && /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name);
   }
 
-  function runtimeEol(item) {
-    if (item.ecosystem !== "runtime" || ["declared-range", "engine-constraint", "platform-override"].includes(item.versionKind)) return false;
-    const branch = /^v?(\d+)(?:\.(\d+))?(?:\.|$|-)/.exec(item.version);
-    if (!branch) return false;
-    const major = Number(branch[1]);
-    if (item.name === "node") return major <= 26 && ![22, 24, 26].includes(major);
-    return item.name === "php" && (major < 8 || (major === 8 && branch[2] != null && Number(branch[2]) < 2));
-  }
-
   function listVersions(occurrences) {
     return occurrences.map((item) => item.name + "@" + item.version + " [" + item.phase + "; " + item.versionKind + "; " + item.manifest + ":" + item.path + "]").join("; ");
   }
@@ -447,10 +466,10 @@
       riskFactors: value.riskFactors, mitigatingControls: "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
       verification: "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
       recommendation: value.recommendation,
-      limitation: "오프라인 권고 스냅샷 " + CHECKED_AT + "; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. " + (value.sources || []).join(" ") };
+      limitation: value.lifecyclePolicy ? "지원 정책 검토 " + value.lifecyclePolicy.checkedAt + " (" + value.lifecyclePolicy.freshness + "); 공식 일정 기준이며 실제 실행·배포·서비스 가동·공급업체 지원은 미확인. 월 단위 상대 일정의 실제 종료는 재확인해야 합니다. " + (value.sources || []).join(" ") : "오프라인 권고 스냅샷 " + CHECKED_AT + "; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. " + (value.sources || []).join(" ") };
   }
 
-  const api = Object.freeze({ inspectSecurityContext, displayVersion, DETECTOR_IDS });
+  const api = Object.freeze({ inspectSecurityContext, displayVersion, DETECTOR_IDS, LIFECYCLE_DETECTOR_IDS: ["security.runtime-eol", "security.support-ending", "security.lifecycle-coverage"] });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (typeof globalThis !== "undefined") globalThis.FrontendSecurityContext = api;
 })();

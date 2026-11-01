@@ -1122,6 +1122,212 @@
               }
             }
           }
+        },
+        "lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "asOf",
+            "policy",
+            "entries",
+            "gaps"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "1"
+            },
+            "asOf": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "policy": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "checkedAt",
+                "timeZone",
+                "freshness",
+                "warningWindowDays",
+                "sources"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "checkedAt": {
+                  "type": "string"
+                },
+                "timeZone": {
+                  "const": "Asia/Seoul"
+                },
+                "freshness": {
+                  "type": "string",
+                  "enum": [
+                    "within-30-days",
+                    "stale",
+                    "unverified-clock"
+                  ]
+                },
+                "warningWindowDays": {
+                  "const": 180
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "component",
+                  "category",
+                  "manifest",
+                  "path",
+                  "phase",
+                  "version",
+                  "sourceKind",
+                  "state",
+                  "supportEnds",
+                  "datePrecision",
+                  "dateBasis",
+                  "endingSoon",
+                  "reason",
+                  "sources",
+                  "supportScope"
+                ],
+                "properties": {
+                  "component": {
+                    "type": "string",
+                    "enum": [
+                      "node",
+                      "php",
+                      "bun",
+                      "deno-runtime",
+                      "deno-deploy",
+                      "deno-deploy-classic",
+                      "jsr"
+                    ]
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "runtime",
+                      "hosting",
+                      "registry"
+                    ]
+                  },
+                  "manifest": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "runtime",
+                      "build",
+                      "development",
+                      "unknown"
+                    ]
+                  },
+                  "version": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sourceKind": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "supported",
+                      "maintenance",
+                      "security-only",
+                      "end-announced",
+                      "ended",
+                      "continuing",
+                      "unknown",
+                      "not-released"
+                    ]
+                  },
+                  "supportEnds": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "datePrecision": {
+                    "type": "string",
+                    "enum": [
+                      "day",
+                      "month",
+                      "none"
+                    ]
+                  },
+                  "dateBasis": {
+                    "type": "string",
+                    "enum": [
+                      "official-date",
+                      "announcement-relative",
+                      "not-published"
+                    ]
+                  },
+                  "endingSoon": {
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "sources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "supportScope": {
+                    "type": "string",
+                    "enum": [
+                      "product",
+                      "release-line",
+                      "major-family"
+                    ]
+                  }
+                }
+              }
+            },
+            "gaps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "reason"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

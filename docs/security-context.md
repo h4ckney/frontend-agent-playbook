@@ -4,7 +4,7 @@
 
 ## 어떤 결과를 얻는가
 
-`analysis/security-context.js`의 `inspectSecurityContext(records, { now })`는 `snapshot`, `inventory`, `findings`, `coverage`와 해당 형식에서 선택적인 `graphs`를 반환합니다. `records`는 `{ path, content }` 배열입니다. Node CommonJS와 브라우저의 `FrontendSecurityContext`를 모두 지원합니다.
+`analysis/security-context.js`의 `inspectSecurityContext(records, { now })`는 `snapshot`, `inventory`, `findings`, `coverage`와 선택적인 `lifecycle`, 해당 형식에서 선택적인 `graphs`를 반환합니다. `records`는 `{ path, content }` 배열입니다. Node CommonJS와 브라우저의 `FrontendSecurityContext`를 모두 지원합니다.
 
 | 항목 | 의미 |
 | --- | --- |
@@ -27,9 +27,9 @@
 | Yarn Classic v1 | 일반 version stanza의 정확한 버전·grouped/scoped 이름 | 전체 graph·workspace 연결·실행 단계는 미확인 |
 | pnpm 5.0–5.4/v6/v9 · Yarn Berry metadata 4–10 · Bun text v1 | 명시적 workspace graph와 정확한 버전, workspace별 역할 | [다중 문서·patch·local 지원과 남은 범위](lock-protocol-priorities.md). 설치·배포·실제 코드 도달성 미확인 |
 | `composer.json`, `composer.lock` | require/require-dev, packages/packages-dev | PHP 실행 버전, 배포 시 `--no-dev` 적용 여부 |
-| `.nvmrc`, `.node-version`, `.php-version` | 정확한 pin과 selector 구분 | 빌드·서비스 중 어디서 사용했는지, 실제 바이너리 |
-| 공식 Node/PHP `Dockerfile` 이미지 | 마지막 기본 stage와 FROM 조상은 runtime, 다른 stage는 build | 사용자 지정 `--target`, ARG 치환, custom 이미지, 배포 digest |
-| GitHub Actions setup-node의 단순 literal | build 환경 설정 | matrix·표현식·YAML alias 해석, 실제 job 실행 |
+| `.nvmrc`, `.node-version`, `.php-version`, `.deno-version`, `.bun-version`, `.tool-versions` | 정확한 pin과 selector 구분 | 빌드·서비스 중 어디서 사용했는지, 실제 바이너리 |
+| 공식 Node/PHP/Deno/Bun `Dockerfile` 이미지 | 마지막 기본 stage와 FROM 조상은 runtime, 다른 stage는 build | 사용자 지정 `--target`, ARG 치환, custom 이미지, 배포 digest |
+| GitHub Actions setup-node/setup-deno/setup-bun의 단계별 literal | build 환경 설정 | matrix·표현식·YAML alias 해석, 실제 job 실행 |
 
 일부 알려진 개발 의존성(Vite·Webpack·Rollup·esbuild·TypeScript 등)은 build로 분류합니다. 나머지 dev 의존성은 development입니다. 이 분류는 **선언과 stage 구조에서 추론한 사용 단계**입니다. 런타임 목록에 있다는 이유만으로 서비스가 해당 모듈을 호출한다고 단정하지 않습니다.
 
@@ -56,7 +56,7 @@ PHP 소스가 있지만 비교할 실행 버전 설정이 없으면 버전 정�
 
 PHP는 2026-10-23에 session upload progress의 추가 조건부 위험을 안내했고, 10월 26일에는 Brotli를 갱신한 Windows 빌드(`-1`)를 공개했습니다. 이 두 조건은 현재 자동 매칭하지 않습니다. PHP runtime 숫자만으로 OS·배포 패키지 revision이나 설정의 안전성을 확정할 수 없습니다. [PHP 2026 보안 공지](https://www.php.net/archive/2026.php)
 
-지원 종료 판정도 검토일의 스냅샷입니다. Node 20·25 등 지원이 끝난 계열과 PHP 8.1 이하를 별도로 알립니다. PHP의 공급업체 백포트와 유료 지원은 확인이 필요합니다. [Node 지원 현황](https://nodejs.org/en/about/previous-releases), [PHP 지원 현황](https://www.php.net/supported-versions.php)
+지원 수명은 별도 정책 확인일 **2026-11-02**와 분석 기준일로 계산합니다. Deno Runtime·Deploy·Classic·JSR, Node·PHP·Bun의 일정·설정 근거·불확실성은 [런타임·서비스 지원 수명](runtime-service-lifecycle.md)을 따릅니다. PHP의 공급업체 백포트와 유료 지원은 별도 확인이 필요합니다.
 
 ## 현재 한계와 다음 확인
 
