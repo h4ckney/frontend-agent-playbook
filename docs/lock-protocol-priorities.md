@@ -24,7 +24,7 @@ pnpm은 bounded multi-document API로 읽는다. 지원하는 두 문서 배치�
 
 Yarn patch는 source locator를 제한된 깊이에서 해석해 실제 npm 이름과 정확한 버전을 확인한다. 항목의 version 필드 하나만으로 git/file/unknown origin을 npm으로 취급하지 않는다. patch/virtual별 식별자는 locator의 메타데이터 hash로 분리하며 원래 patch 경로나 인증 URL은 출력하지 않는다. 이 hash는 보안 서명이나 tarball 무결성 증명이 아니다.
 
-portal/file은 부모 workspace locator의 명시적인 binding에서 상대 경로를 계산한다. 선택된 lock root 밖으로 나가거나 부모·대상 manifest가 없으면 연결하지 않는다. local 노드는 workspace 설치 root로 추가하지 않으며, 소비 앱으로 local package의 dev 의존성을 전파하지 않는다. 로컬 모듈의 이름·version이 npm 패키지와 같아도 원래 registry 출처를 증명하지 못하므로 gap을 유지한다. 기존 registry 취약점을 같은 버전의 로컬 모듈로 교체한 것을 해결로 처리하지 않는다. file은 복사된 내용이 현재 소스와 같다고 증명할 수 없으므로 추가 gap이다. link는 package가 없는 폴더도 가리킬 수 있어 이번 package graph 해석 대상에 포함하지 않는다.
+portal/file은 부모 workspace locator의 명시적인 binding에서 상대 경로를 계산한다. 선택된 lock root 밖으로 나가거나 부모·대상 manifest가 없으면 연결하지 않는다. 같은 상대 selector라도 다른 workspace 부모에 bound된 local 노드를 빌려 연결하지 않는다. 이 경계를 반례로 재현하고 회귀 검사로 고정했다. local 노드는 workspace 설치 root로 추가하지 않으며, 소비 앱으로 local package의 dev 의존성을 전파하지 않는다. 로컬 모듈의 이름·version이 npm 패키지와 같아도 원래 registry 출처를 증명하지 못하므로 gap을 유지한다. 기존 registry 취약점을 같은 버전의 로컬 모듈로 교체한 것을 해결로 처리하지 않는다. file은 복사된 내용이 현재 소스와 같다고 증명할 수 없으므로 추가 gap이다. link는 package가 없는 폴더도 가리킬 수 있어 이번 package graph 해석 대상에 포함하지 않는다.
 
 `graphs[].document`, root의 선택적 build phase, local node kind, inventory/node의 modifications·registryRevision과 inventory.lockContext를 선택적으로 확장했다. 기존 AuditResult v1은 유효하며 schema와 브라우저 생성본을 함께 갱신한다. catalog는 6, 보안 detector revision은 2026-11-01.2다. 과거 의미의 닫기·baseline 판정을 그대로 재사용하지 않는다.
 

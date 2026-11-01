@@ -213,7 +213,7 @@
         }
       } else if (format === "yarn-berry") {
         if (!object(data.__metadata) || !/^(?:[4-9]|10)$/.test(data.__metadata.version)) { gap("unsupported-yarn-lock-format"); return { graph, inventory, gaps }; }
-        const pendingLocal = [];
+        const pendingLocal = [], localParents = new Map();
         const manifestRange = ref => typeof ref !== "string" ? ref : /^(?:portal|file):/.test(ref) ? ref.split("::")[0] : ref.replace(/^npm:/, "");
         for (const [header, item] of entries(data)) {
           if (header === "__metadata") continue;
@@ -255,7 +255,7 @@
             if (typeof item.version !== "string" || item.version !== manifest.version) { gap("stale-local-package-version"); continue; }
             const id = node("locals/" + match[2] + "-" + contextHash(item.resolution), match[1], item.version, "local", location);
             if (!id) continue;
-            locations.set(id, location); raw.set(id, item);
+            locations.set(id, location); localParents.set(id, parent); raw.set(id, item);
             gap("local-package-registry-origin-unverified");
             if (match[2] === "file") gap("local-package-copy-unverified");
             groups(manifest, (name, ref, scope) => {
@@ -270,6 +270,10 @@
         }
         if (!raw.size) gap("missing-yarn-entries");
         const descriptor = (name, ref) => name + "@" + (/^[a-z][a-z0-9+.-]*:/i.test(ref) ? ref : "npm:" + ref);
+        const checkedLocalParent = (from, target) => {
+          if (target && nodes.get(target).kind === "local" && localParents.get(target) !== from) { gap("unresolved-yarn-local-parent"); return null; }
+          return target;
+        };
         for (const [id, item] of raw) {
           const local = nodes.get(id).kind === "workspace", location = local ? locations.get(id) : null;
           const manifest = local && manifestAt(location);
@@ -279,13 +283,13 @@
               if (scope === "peer") { gap("unresolved-workspace-peer"); return; }
               const lockedRef = item.dependencies?.[name];
               if (typeof ref !== "string" || typeof lockedRef !== "string" || descriptor(name, manifestRange(ref)) !== descriptor(name, manifestRange(lockedRef))) { gap("stale-workspace-declaration"); return; }
-              const target = aliases.get(descriptor(name, lockedRef)) || aliases.get(id + "::" + descriptor(name, manifestRange(lockedRef)));
+              const target = checkedLocalParent(id, aliases.get(id + "::" + descriptor(name, manifestRange(lockedRef))) || aliases.get(descriptor(name, lockedRef)));
               if (target) edge(id, target, name, scope); else gap("unresolved-dependency-edge");
             }, true);
           } else if (!local) groups(item, (name, ref, scope) => {
             // Peer ranges do not identify a concrete Yarn virtual instance.
             if (scope === "peer") { gap("unresolved-package-peer"); return; }
-            const target = typeof ref === "string" && aliases.get(descriptor(name, ref));
+            const target = typeof ref === "string" && checkedLocalParent(id, aliases.get(descriptor(name, ref)));
             if (target) edge(id, target, name, scope); else gap("unresolved-dependency-edge");
           });
         }

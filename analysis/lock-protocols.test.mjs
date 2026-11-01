@@ -258,3 +258,29 @@ test('malformed manifest dependency maps and non-string selectors cannot hide lo
     assert.ok(compareWithBaseline(after, baseline).diff.unverified.includes(fingerprint));
   }
 });
+
+test('an unbound local selector cannot borrow another workspace parent binding', () => {
+  const records = [record('package.json', { name: 'root' }),
+    record('one/app/package.json', { name: 'one', dependencies: { local: 'portal:../local' } }),
+    record('two/app/package.json', { name: 'two', dependencies: { local: 'portal:../local' } }),
+    record('one/local/package.json', { name: 'local', version: '1.0.0', dependencies: { next: '^16.4.0' } }),
+    record('yarn.lock', `__metadata: {version: 8}
+"root@workspace:.": {resolution: "root@workspace:."}
+"one@workspace:one/app":
+  resolution: "one@workspace:one/app"
+  dependencies: {local: "portal:../local"}
+"two@workspace:two/app":
+  resolution: "two@workspace:two/app"
+  dependencies: {local: "portal:../local"}
+"local@portal:../local":
+  resolution: "local@portal:../local::locator=one%40workspace%3Aone/app"
+  version: 1.0.0
+  dependencies: {next: "npm:^16.4.0"}
+"next@npm:^16.4.0": {resolution: "next@npm:16.4.0", version: 16.4.0}
+`)];
+  const result = inspect(records);
+  const locked = result.inventory.find(item => item.name === 'next' && item.provenance === 'lockfile');
+  assert.ok(locked.workspaceUsage.some(item => item.manifest === 'one/app/package.json'));
+  assert.ok(!locked.workspaceUsage.some(item => item.manifest === 'two/app/package.json'));
+  assert.ok(result.coverage.gaps.some(gap => gap.reason === 'unresolved-yarn-local-parent'));
+});
