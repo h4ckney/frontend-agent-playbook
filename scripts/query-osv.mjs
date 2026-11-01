@@ -62,7 +62,8 @@ export async function queryInventory(scan, { fetchImpl = globalThis.fetch, now =
   const grouped = new Map();
   for (const item of scan.securityContext.inventory) {
     const ecosystem = item?.ecosystem === "npm" ? "npm" : item?.ecosystem === "composer" ? "Packagist" : null;
-    const version = typeof item?.version === "string" ? EXACT.exec(item.version)?.slice(1).map(Number).join(".") : null;
+    const parts = typeof item?.version === "string" ? EXACT.exec(item.version)?.slice(1).map(Number) : null;
+    const version = parts?.every(Number.isSafeInteger) ? parts.join(".") : null;
     const nameValid = typeof item?.name === "string" && item.name.length <= 214 && (ecosystem === "npm"
       ? /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(item.name)
       : /^[a-z0-9_.-]+\/[a-z0-9_.-]+$/.test(item.name));

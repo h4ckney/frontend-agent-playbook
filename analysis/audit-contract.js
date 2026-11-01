@@ -30,7 +30,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-10-30.1")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-10-30.2")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),

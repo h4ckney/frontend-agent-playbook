@@ -257,13 +257,15 @@ node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidan
 
 The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, skill UI metadata references, and detector-to-rule links. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, CLI, contract, and approval-gate checks for pull requests and pushes to `main`.
 
-Optional real-browser verification uses caller-provided Playwright and an already running local server; it adds no repository runtime dependency and is separate from the default CI checks:
+The separate `dashboard-browser` CI job installs pinned Playwright tooling outside the checkout and runs real Chromium verification for PR/main after the dependency-free checks. Source/served/browser hashes and screenshots are retained as a seven-day artifact. This covers the audit dashboard with synthetic inputs, not deployed product routes or physical devices. Local verification can also use caller-provided Playwright and an existing server:
 
 ```bash
 node scripts/verify-dashboard.mjs --url http://127.0.0.1:4381/analysis/ --output docs/evidence/browser --channel chrome
 ```
 
 The [evidence record](docs/evidence/audit-upgrade-2026-10-25.md) separates dashboard verification with synthetic inputs from target-service rendering, real-device checks, and release status.
+
+[Follow-up priorities and browser CI](docs/followup-priorities.md)
 
 ## Version
 

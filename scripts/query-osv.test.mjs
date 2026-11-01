@@ -174,3 +174,13 @@ test("same-directory manifest declarations are provenance without duplicating lo
   assert.equal(unbacked.declarations.length, 0);
   assert.equal(unbacked.skipped.length, 2);
 });
+
+test('unsafe numeric versions are skipped without transmitting rounded coordinates', async () => {
+  let requests = 0;
+  const result = await queryInventory(scan([item({ version: '9'.repeat(100) + '.1.0' })]), {
+    fetchImpl: async () => { requests++; throw new Error('must not query'); }
+  });
+  assert.equal(requests, 0);
+  assert.equal(result.coverage.status, 'not-run');
+  assert.equal(result.skipped[0].reason, 'invalid-package-or-version');
+});
