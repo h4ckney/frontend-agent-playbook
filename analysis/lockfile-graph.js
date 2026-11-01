@@ -3,7 +3,7 @@
   const yaml = typeof module !== "undefined" && module.exports ? require("./vendor/js-yaml-5.5.0.js") : globalThis.jsyaml;
   const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
   const entries = value => object(value) ? Object.entries(value) : [];
-  const exact = value => typeof value === "string" && /^\d+\.\d+\.\d+$/.test(value) && value.split(".").every(part => Number.isSafeInteger(Number(part)));
+  const exact = value => typeof value === "string" && /^v?\d+\.\d+\.\d+$/.test(value) && value.replace(/^v/, "").split(".").every(part => Number.isSafeInteger(Number(part)));
   const nameOK = name => typeof name === "string" && name.length <= 214 && /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name);
   const pathOK = path => typeof path === "string" && path.length <= 1200 && !/[\\\x00-\x1f:?#]/.test(path) && !path.startsWith("/") && path.split("/").every(part => part && part !== "." && part !== "..");
   const scopes = [["dependencies", "runtime"], ["optionalDependencies", "optional"], ["devDependencies", "development"], ["peerDependencies", "peer"]];

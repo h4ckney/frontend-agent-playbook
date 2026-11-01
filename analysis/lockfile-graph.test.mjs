@@ -254,3 +254,9 @@ test('workspace and registry package identities never collide when both are name
   assert.ok(result.findings.some(item => item.id === 'security.rsc-typed-array-rce'));
   assert.equal(result.inventory.find(item => item.provenance === 'lockfile').workspaceUsage[0].manifest, 'package.json');
 });
+
+test('npm v-prefixed exact versions retain the previous advisory matching behavior', () => {
+  const result = inspect([record('package.json', {}), record('package-lock.json', { lockfileVersion: 3, packages: { '': {}, 'node_modules/next': { version: 'v16.4.0' } } })]);
+  assert.ok(result.findings.some(item => item.id === 'security.rsc-typed-array-rce'));
+  assert.equal(result.inventory[0].versionKind, 'locked-exact');
+});
