@@ -138,6 +138,8 @@ For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html)
 
 ### Dependency and Runtime Security
 
+[Workspace isolation and lockfile coverage](docs/workspace-lock-analysis.md)
+
 The offline dashboard/CLI now inventories npm/Composer lockfiles and Node/PHP configuration, preserving runtime, build, development, or unknown phases. A dated advisory snapshot reports version matches with execution conditions; it never proves deployment or exploitability. [Security context](docs/security-context.md) explains coverage; [explicit OSV lookup](docs/dependency-advisories.md) compares locked package coordinates with current advisories and discloses metadata transmission. See the [integrity and security upgrade](docs/audit-integrity-security-upgrade.md) for fixes, architecture, evidence, and remaining work.
 
 ### Analyzer CLI Preview

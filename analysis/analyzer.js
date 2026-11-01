@@ -270,7 +270,44 @@ function selectFilesWithinBudget(files) {
   };
 }
 
+// Each file belongs to its nearest package.json; sibling/root tooling is not proof for a child.
+function workspacePartitions(records) {
+  const roots = [...new Set(records.filter(r => /(^|\/)package\.json$/i.test(r.path))
+    .map(r => r.path.replace(/package\.json$/i, "")))].sort((a, b) => b.length - a.length || a.localeCompare(b));
+  const groups = new Map();
+  for (const record of records) {
+    const root = roots.find(root => record.path.startsWith(root)) ?? "";
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(record);
+  }
+  return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([root, records]) => ({ root, records: records.slice().sort((a, b) => a.path.localeCompare(b.path)) }));
+}
+
 function analyzeRecords(inputRecords, options = {}) {
+  const records = inputRecords.filter(record => !isGeneratedRecord(record));
+  const groups = workspacePartitions(records);
+  if (groups.length <= 1 && (!groups.length || groups[0].root === "")) return analyzePackageRecords(records, options);
+  const merged = new Map();
+  for (const { root, records: owned } of groups) {
+    if (!owned.some(r => /(^|\/)package\.json$/i.test(r.path) || SOURCE_FILE_PATTERN.test(r.path) || /\.(css|scss|html)$/i.test(r.path))) continue;
+    const local = owned.map(record => ({ ...record, path: record.path.slice(root.length) }));
+    const localPaths = new Set(local.map(record => record.path));
+    for (const item of analyzePackageRecords(local, options)) {
+      const remap = value => root && (localPaths.has(value) || /^(?:app|pages)\/$/.test(value)) ? root + value : value;
+      const evidence = item.allEvidence.map(remap);
+      const child = { ...item, workspaceRoot: root, workspaceManifest: owned.find(record => /(^|\/)package\.json$/i.test(record.path))?.path || owned.find(record => SOURCE_FILE_PATTERN.test(record.path))?.path || owned[0].path, workspacePaths: evidence.filter(value => owned.some(record => record.path === value) || /\/(?:app|pages)\/$/.test(value)), allEvidence: evidence, evidence: evidence.slice(0, 5) };
+      if (!merged.has(item.id)) merged.set(item.id, { ...child, workspaceOccurrences: [] });
+      merged.get(item.id).workspaceOccurrences.push(child);
+    }
+  }
+  return [...merged.values()].map(item => ({ ...item,
+    allEvidence: [...new Set(item.workspaceOccurrences.flatMap(child => child.allEvidence))],
+    evidence: [...new Set(item.workspaceOccurrences.flatMap(child => child.allEvidence))].slice(0, 5),
+    occurrenceCount: item.workspaceOccurrences.reduce((sum, child) => sum + child.occurrenceCount, 0)
+  }));
+}
+
+function analyzePackageRecords(inputRecords, options = {}) {
   const records = inputRecords.filter((record) => !isGeneratedRecord(record));
   const seoScope = seoScopeLabels[options.seoScope] ? options.seoScope : "unknown";
   const paths = records.map((record) => record.path.toLowerCase());
@@ -282,6 +319,7 @@ function analyzeRecords(inputRecords, options = {}) {
   if (packageFile) {
     try {
       pkg = JSON.parse(packageFile.content);
+      if (!pkg || typeof pkg !== "object" || Array.isArray(pkg)) { pkg = {}; throw new Error("package object required"); }
     } catch {
       findings.push(finding({
         id: "rules.package-json-invalid",
@@ -948,6 +986,7 @@ function formatExcludedReasons(reasons) {
 
 const analyzerApi = {
   analysisLimits,
+  workspacePartitions,
   analyzeRecords,
   buildMarkdown,
   createRiskClusters,

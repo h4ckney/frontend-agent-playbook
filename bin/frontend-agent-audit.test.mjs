@@ -254,3 +254,20 @@ test("an unrelated new risk still blocks when an old finding with the same detec
   assert.ok(parsed.diff.unverified.includes("security.browser-auth-storage:pages/legacy.ts"));
   assert.ok(!parsed.diff.unverified.includes("security.browser-auth-storage:pages/checkout.ts"));
 });
+
+test('CLI retains workspace gaps and reads Yarn Classic plus npm v1 without exposing resolved credentials', async t => {
+  const root = await fixture();
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, 'apps/untested/pages'), { recursive: true });
+  await fs.writeFile(path.join(root, 'apps/untested/package.json'), '{}');
+  await fs.writeFile(path.join(root, 'apps/untested/pages/index.tsx'), 'export {}');
+  await fs.writeFile(path.join(root, 'yarn.lock'), '# yarn lockfile v1\nnext@^16.4.0:\n  version "16.4.0"\n  resolved "https://user:private-token@example.invalid/archive"\n');
+  await fs.writeFile(path.join(root, 'apps/untested/package-lock.json'), JSON.stringify({ lockfileVersion: 1, dependencies: { 'react-server-dom-webpack': { version: '19.3.0', dev: true } } }));
+  const output = run(['scan', '--root', '.', '--format', 'json'], root);
+  assert.equal(output.status, 0, output.stderr);
+  const result = JSON.parse(output.stdout);
+  assert.ok(result.findings.some(f => f.id === 'testing.test-foundation-missing' && f.scope.paths.includes('apps/untested/package.json')));
+  assert.equal(result.findings.filter(f => f.id === 'security.rsc-typed-array-rce').length, 2);
+  assert.ok(result.securityContext.inventory.some(item => item.manifest === 'yarn.lock' && item.phase === 'unknown'));
+  assert.doesNotMatch(output.stdout, /private-token|example.invalid/);
+});

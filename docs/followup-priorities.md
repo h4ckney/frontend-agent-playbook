@@ -14,6 +14,8 @@
 | P2 | 권고 목록 갱신·외부 이슈 동기화 | 갱신 소유자·수집 범위·전송 정책·동일성/재개/종료 계약 확정 후 구현. 예약 자동화는 생성하지 않음 |
 | P3 | 검토 journal 용량·가져오기 개선 | 저장 실패 시 내보내기는 유지. 동시 탭 데이터 보존을 증명하는 압축·삭제 계약이 생긴 뒤 구현 |
 
+현재 [workspace·npm v1·Yarn Classic 확장](workspace-lock-analysis.md)을 추가 구현했다. 아래 최초 우선순위 중 package 경계 분리와 두 형식이 해당하며 전체 workspace graph·pnpm/Berry/Bun은 남은 범위다.
+
 ## 확인한 중간 이상 문제와 수정
 
 **확인된 결함:** `9`가 100자리인 major 버전 등의 숫자가 JavaScript Number 변환에서 지수 표현으로 바뀌는데도 `runtime-pin`으로 인정됐다. 정상 Node 버전에서 이 입력으로 바꾸면 권고가 사라지고 기존 Node Brotli 항목이 `resolved`로 바뀌었다. 실제 실행 버전의 근거가 없어진 것을 해결로 표현하는 경로다.

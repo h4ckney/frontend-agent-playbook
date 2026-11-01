@@ -68,7 +68,7 @@ test("resurfaces changed evidence scope, detector, impact, occurrence or control
   assert.equal(getDecision(document, movedLine, now).state, "closed");
   const modifications = [
     (f) => { f.scope.paths.push("src/public/new.tsx"); },
-    (f) => { f.detectorVersion = "2"; },
+    (f) => { f.detectorVersion += "-changed"; },
     (f) => { f.severity = "critical"; },
     (f) => { f.occurrenceCount += 1; },
     (f) => { f.controlState = "missing"; },

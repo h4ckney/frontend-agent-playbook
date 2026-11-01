@@ -341,6 +341,20 @@ try {
   assert.equal(Object.keys((await exportDocument(page)).decisions).length, 3);
   recordCheck("security parent close retains three exportable child decisions, closed findings remain inspectable, and 390px inventory does not overflow");
 
+  await fs.mkdir(path.join(fixture, "apps", "isolated", "pages"), { recursive: true });
+  await fs.writeFile(path.join(fixture, "apps", "isolated", "package.json"), "{}");
+  await fs.writeFile(path.join(fixture, "apps", "isolated", "pages", "index.tsx"), "element.innerHTML = html;");
+  await fs.writeFile(path.join(fixture, "package.json"), JSON.stringify({ scripts: { test: "vitest" }, dependencies: { dompurify: "3.0.0" } }));
+  await page.locator("#showClosed").uncheck();
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => Array.from(document.querySelectorAll(".finding-item"))
+    .some(node => node.textContent.includes("apps/isolated/package.json") && node.textContent.includes("testing.test-foundation-missing")));
+  const workspaceGap = page.locator(".finding-item").filter({ has: page.locator("code", { hasText: /^testing\.test-foundation-missing$/ }) });
+  assert.equal(await workspaceGap.count(), 1);
+  assert.match(await workspaceGap.textContent(), /apps\/isolated\/package\.json/);
+  const workspaceSink = page.locator(".finding-item").filter({ has: page.locator("code", { hasText: /^security\.html-sink-boundary$/ }) });
+  assert.match(await workspaceSink.textContent(), /찾지 못함/);
+  recordCheck("workspace child test gaps and HTML sanitization evidence remain isolated from the root package in the rendered dashboard");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");
