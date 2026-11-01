@@ -16,6 +16,8 @@
 
 현재 [workspace·npm v1·Yarn Classic 확장](workspace-lock-analysis.md)에 이어 [pnpm·Berry·Bun 및 공유 workspace graph](modern-lock-workspace-graphs.md)를 구현했다. 앞의 표는 최초 우선순위다. [미지원 protocol/format 우선순위와 후속 구현](lock-protocol-priorities.md)을 추가했다. 이후는 P3 형식의 실제 fixture, 설치 SBOM·배포 증거, 실제 workspace E2E 연결을 기준으로 진행한다. 검증·머지 상태는 해당 PR/CI를 따른다.
 
+2026-11-02에는 [런타임·서비스 지원 수명](runtime-service-lifecycle.md)을 추가했다. Deno 제품 분리와 Node/PHP/Bun 정책, 버전 근거 소실·prerelease 오판을 수정했다. 다음 우선순위는 실제 배포 근거, Deno lock graph·명시적 LTS 채널, 정책 갱신 체계다.
+
 ## 확인한 중간 이상 문제와 수정
 
 **확인된 결함:** `9`가 100자리인 major 버전 등의 숫자가 JavaScript Number 변환에서 지수 표현으로 바뀌는데도 `runtime-pin`으로 인정됐다. 정상 Node 버전에서 이 입력으로 바꾸면 권고가 사라지고 기존 Node Brotli 항목이 `resolved`로 바뀌었다. 실제 실행 버전의 근거가 없어진 것을 해결로 표현하는 경로다.

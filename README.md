@@ -142,6 +142,8 @@ For a quick local scan, open the [Frontend Audit dashboard](analysis/index.html)
 
 The offline dashboard/CLI now inventories npm/Composer lockfiles and Node/PHP configuration, preserving runtime, build, development, or unknown phases. A dated advisory snapshot reports version matches with execution conditions; it never proves deployment or exploitability. [Security context](docs/security-context.md) explains coverage; [explicit OSV lookup](docs/dependency-advisories.md) compares locked package coordinates with current advisories and discloses metadata transmission. See the [integrity and security upgrade](docs/audit-integrity-security-upgrade.md) for fixes, architecture, evidence, and remaining work.
 
+Runtime support is evaluated separately from the advisory snapshot: Deno Runtime, Deploy, Deploy Classic and JSR have independent policies; Node/PHP follow release calendars and Bun follows its published support policy. See [lifecycle policy, evidence and limits](docs/runtime-service-lifecycle.md).
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
@@ -255,6 +257,7 @@ node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
 node --check analysis/security-context.js
+node --check analysis/runtime-lifecycle.js
 node --check bin/frontend-agent-audit.mjs
 node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs scripts/query-osv.test.mjs scripts/dashboard-provenance.test.mjs
 ```

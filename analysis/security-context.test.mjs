@@ -132,10 +132,10 @@ test("unsupported locks, invalid input and bounded inventory never claim complet
 });
 
 test("EOL is snapshot-qualified and not inferred from a broad allowed engine constraint", () => {
-  const result = inspect([{ path: ".node-version", content: "20" }, { path: ".php-version", content: "8.1.30" }, json("package.json", { engines: { node: ">=18" } })]);
+  const result = inspect([{ path: ".node-version", content: "20" }, { path: ".php-version", content: "8.1.30" }, json("package.json", { engines: { node: ">=18" } })], { now: "2026-11-02T00:00:00Z" });
   const eol = result.findings.find((item) => item.id === "security.runtime-eol");
   assert.equal(eol.occurrenceCount, 2);
-  assert.match(eol.limitation, /2026-10-30/);
+  assert.match(eol.limitation, /2026-11-02/);
   assert.ok(!ids(result).includes("security.node-brotli-2026"));
   for (const selector of ["22", "24", "26", "30"]) {
     assert.ok(!ids(inspect([{ path: ".nvmrc", content: selector }])).includes("security.runtime-eol"), selector);
@@ -180,7 +180,7 @@ test("unresolved CI versions remain explicit gaps even beside another job's lite
     assert.ok(result.coverage.gaps.some((item) => item.reason === "unresolved-ci-node-version"), field);
     assert.ok(ids(result).includes("security.dependency-coverage"), field);
   }
-  const mixed = inspect([{ path: ".github/workflows/build.yml", content: setup + "node-version: '24.22.0' # exact build pin\n" + setup + "node-version: ${{ matrix.node }}" }]);
+  const mixed = inspect([{ path: ".github/workflows/build.yml", content: "jobs:\n  pinned:\n    " + (setup + "node-version: '24.22.0' # exact build pin").replaceAll("\n", "\n    ") + "\n  matrix:\n    " + (setup + "node-version: ${{ matrix.node }}").replaceAll("\n", "\n    ") }]);
   assert.equal(mixed.inventory.length, 1);
   assert.equal(mixed.inventory[0].version, "24.22.0");
   assert.ok(mixed.coverage.gaps.some((item) => item.reason === "unresolved-ci-node-version"));
