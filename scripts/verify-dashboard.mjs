@@ -355,6 +355,36 @@ try {
   const workspaceSink = page.locator(".finding-item").filter({ has: page.locator("code", { hasText: /^security\.html-sink-boundary$/ }) });
   assert.match(await workspaceSink.textContent(), /찾지 못함/);
   recordCheck("workspace child test gaps and HTML sanitization evidence remain isolated from the root package in the rendered dashboard");
+  await fs.rm(path.join(fixture, "package-lock.json"));
+  await fs.writeFile(path.join(fixture, "package.json"), '{"name":"root"}');
+  await fs.writeFile(path.join(fixture, "apps", "isolated", "package.json"), '{"name":"isolated","dependencies":{"next":"^16.4.0"}}');
+  const modernLocks = [
+    ["pnpm-lock.yaml", "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/isolated:\n    dependencies:\n      next: {specifier: ^16.4.0, version: 16.4.0}\npackages:\n  next@16.4.0: {}\nsnapshots:\n  next@16.4.0: {}\n"],
+    ["yarn.lock", '__metadata: {version: 8}\n"root@workspace:.":\n  resolution: "root@workspace:."\n"isolated@workspace:apps/isolated":\n  resolution: "isolated@workspace:apps/isolated"\n  dependencies: {next: "npm:^16.4.0"}\n"next@npm:^16.4.0":\n  version: 16.4.0\n  resolution: "next@npm:16.4.0"\n'],
+    ["bun.lock", '{"lockfileVersion":1,"workspaces":{"":{"name":"root"},"apps/isolated":{"name":"isolated","dependencies":{"next":"^16.4.0"}}},"packages":{"next":["next@16.4.0","",{}]},}']
+  ];
+  for (const [name, content] of modernLocks) {
+    await fs.writeFile(path.join(fixture, name), content);
+    await page.locator("#folderInput").setInputFiles(fixture);
+    await page.waitForFunction(lock => document.querySelector("#securityContext").textContent.includes(lock)
+      && document.querySelector("#securityContext").textContent.includes("apps/isolated/package.json"), name);
+    const inventory = await page.locator("#securityContext").textContent();
+    assert.match(inventory, /공유 lockfile 그래프 1개 · workspace 근거 2개/);
+    assert.match(inventory, /apps\/isolated\/package.json \[서비스 실행 · 직접\]/);
+    const finding = page.locator(".finding-item").filter({ has: page.locator("code", { hasText: /^security\.rsc-typed-array-rce$/ }) });
+    assert.equal(await finding.count(), 1);
+    assert.match(await finding.textContent(), /apps\/isolated\/package.json/);
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), name + " overflow at " + width);
+    }
+    await fs.rm(path.join(fixture, name));
+    recordCheck(name + " shared workspace graph, advisory child and phase evidence render without overflow at 320/390px");
+  }
+  await page.locator("#securityContext summary").click();
+  await page.locator("#securityContext").scrollIntoViewIfNeeded();
+  await settleView(page);
+  await page.screenshot({ path: path.join(values.output, "dashboard-workspace-graph-390.png") });
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

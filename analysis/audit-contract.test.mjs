@@ -129,7 +129,7 @@ test("does not reuse the old E2E detector decision after its inventory semantics
   entry.detectorVersion = "1";
   const compared = compareWithBaseline(result, baseline);
   assert.ok(compared.diff.unverified.includes(entry.fingerprint));
-  assert.equal(result.engine.detectorCatalogVersion, "4");
+  assert.equal(result.engine.detectorCatalogVersion, "5");
 });
 
 test("renders a Korean browser report while preserving stable identifiers", () => {
@@ -426,6 +426,7 @@ test("direct/browser bundle excludes explicit generated headers with incomplete 
 
 test("security advisories retain module children, phases, source identity and remain CI candidates", () => {
   const fixtures = [
+    { path: 'package.json', content: '{}' },
     { path: 'Dockerfile', content: 'FROM node:24.22.0 AS builder\nFROM php:8.4.26-fpm\n' },
     { path: 'package-lock.json', content: JSON.stringify({ lockfileVersion: 3, packages: {
       '': {},
@@ -465,7 +466,7 @@ test("missing findings from a different detector revision remain unverified", ()
 });
 
 test("lost or unsupported security version evidence cannot resolve a prior critical advisory", () => {
-  const lock = { lockfileVersion: 3, packages: { '': {}, 'node_modules/next': { version: '16.4.0' } } };
+  const lock = { lockfileVersion: 3, packages: { '': { dependencies: { next: '^16.4.0' } }, 'node_modules/next': { version: '16.4.0' } } };
   const fixture = [
     { path: 'package.json', content: JSON.stringify({ dependencies: { next: '^16.4.0' } }) },
     { path: 'package-lock.json', content: JSON.stringify(lock) }

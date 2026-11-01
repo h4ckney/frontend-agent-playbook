@@ -271,3 +271,29 @@ test('CLI retains workspace gaps and reads Yarn Classic plus npm v1 without expo
   assert.ok(result.securityContext.inventory.some(item => item.manifest === 'yarn.lock' && item.phase === 'unknown'));
   assert.doesNotMatch(output.stdout, /private-token|example.invalid/);
 });
+
+test('CLI accepts all modern text locks and connects a shared exact package to the declaring workspace', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'frontend-modern-cli-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, 'apps/web'), { recursive: true });
+  await fs.writeFile(path.join(root, 'package.json'), '{"name":"root"}');
+  await fs.writeFile(path.join(root, 'apps/web/package.json'), '{"name":"web","dependencies":{"next":"^16.4.0"}}');
+  const locks = [
+    ['pnpm-lock.yaml', "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web:\n    dependencies:\n      next: {specifier: ^16.4.0, version: 16.4.0}\npackages:\n  next@16.4.0: {}\nsnapshots:\n  next@16.4.0: {}\n"],
+    ['yarn.lock', '__metadata: {version: 8}\n"root@workspace:.":\n  resolution: "root@workspace:."\n"web@workspace:apps/web":\n  resolution: "web@workspace:apps/web"\n  dependencies: {next: "npm:^16.4.0"}\n"next@npm:^16.4.0":\n  version: 16.4.0\n  resolution: "next@npm:16.4.0"\n'],
+    ['bun.lock', '{"lockfileVersion":1,"workspaces":{"":{"name":"root"},"apps/web":{"name":"web","dependencies":{"next":"^16.4.0"}}},"packages":{"next":["next@16.4.0","",{}]},}']
+  ];
+  for (const [name, content] of locks) {
+    await fs.writeFile(path.join(root, name), content);
+    const output = run(['scan', '--root', '.', '--format', 'json'], root);
+    assert.equal(output.status, 0, output.stderr);
+    const result = JSON.parse(output.stdout);
+    assert.equal(result.scope.partial, false, name);
+    assert.deepEqual(result.securityContext.coverage.gaps, [], name);
+    assert.equal(result.securityContext.graphs.length, 1);
+    const locked = result.securityContext.inventory.find(item => item.provenance === 'lockfile');
+    assert.equal(locked.workspaceUsage[0].manifest, 'apps/web/package.json');
+    assert.ok(result.findings.some(item => item.id === 'security.rsc-typed-array-rce' && item.observedFact.includes('apps/web/package.json')));
+    await fs.rm(path.join(root, name));
+  }
+});

@@ -859,6 +859,38 @@
               },
               "provenance": {
                 "type": "string"
+              },
+              "workspaceUsage": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "manifest",
+                    "phase",
+                    "direct"
+                  ],
+                  "properties": {
+                    "manifest": {
+                      "type": "string"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "runtime",
+                        "build",
+                        "development",
+                        "unknown"
+                      ]
+                    },
+                    "direct": {
+                      "type": "boolean"
+                    },
+                    "dependency": {
+                      "type": "string"
+                    }
+                  }
+                }
               }
             }
           }
@@ -918,6 +950,124 @@
               "type": "array",
               "items": {
                 "type": "string"
+              }
+            }
+          }
+        },
+        "graphs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "lockfile",
+              "format",
+              "complete",
+              "nodes",
+              "edges",
+              "roots"
+            ],
+            "properties": {
+              "lockfile": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "npm",
+                  "pnpm",
+                  "yarn-berry",
+                  "bun"
+                ]
+              },
+              "complete": {
+                "type": "boolean"
+              },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "name",
+                    "version",
+                    "kind"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "workspace",
+                        "package"
+                      ]
+                    },
+                    "manifest": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "from",
+                    "to",
+                    "dependency",
+                    "scope"
+                  ],
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "dependency": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "runtime",
+                        "optional",
+                        "development",
+                        "peer"
+                      ]
+                    }
+                  }
+                }
+              },
+              "roots": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "manifest",
+                    "node"
+                  ],
+                  "properties": {
+                    "manifest": {
+                      "type": "string"
+                    },
+                    "node": {
+                      "type": "string"
+                    }
+                  }
+                }
               }
             }
           }

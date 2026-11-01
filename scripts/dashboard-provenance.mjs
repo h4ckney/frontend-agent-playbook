@@ -48,8 +48,8 @@ export async function verifyDashboardPreview(input, sourceRoot, previous) {
   for (const reference of [...new Set(references)]) {
     const assetUrl = new URL(reference, url);
     assert.equal(assetUrl.origin, url.origin, "dashboard assets must use this local preview");
-    assert.match(assetUrl.pathname, /^\/analysis\/[\w.-]+\.(?:js|css)$/,
-      "only direct dashboard script/style files are supported");
+    assert.match(assetUrl.pathname, /^\/analysis\/(?:vendor\/)?[\w.-]+\.(?:js|css)$/,
+      "only dashboard and vendor script/style files are supported");
     assert.equal(assetUrl.search + assetUrl.hash, "", "dashboard asset URL must be stable");
     await readAsset(assetUrl, assetUrl.pathname.slice(1));
   }

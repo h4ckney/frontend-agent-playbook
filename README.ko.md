@@ -146,7 +146,9 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 ### Analyzer CLI 프리뷰
 
-미출시 `main` 브랜치는 브라우저와 같은 analyzer 및 정규화된 `AuditResult` 계약을 사용하는 외부 의존성 없는 CLI도 제공합니다.
+pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [문서의 형식 범위](docs/modern-lock-workspace-graphs.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.
+
+미출시 `main` 브랜치는 브라우저와 같은 analyzer 및 정규화된 `AuditResult` 계약을 사용하는 패키지 설치 없이 실행하는 CLI도 제공합니다.
 
 ```bash
 node bin/frontend-agent-audit.mjs scan \
@@ -172,9 +174,9 @@ baseline이 없으면 finding은 `unbaselined`, 호환되지 않는 baseline 비
 - `examples/`: 바로 사용할 수 있는 에이전트 지침 예시
 - `templates/`: 일반적인 프론트엔드 작업을 위한 작성형 요청 양식
 - `docs/`: 계획 및 프로젝트 문서
-- `scripts/`: 외부 의존성이 없는 저장소 검증 명령
-- `analysis/`: 외부 의존성이 없는 로컬 감사 대시보드 및 Markdown 보고서 생성기
-- `bin/`: 외부 의존성이 없는 analyzer CLI
+- `scripts/`: 패키지 설치 없이 실행하는 저장소 검증 명령
+- `analysis/`: 고정 YAML 파서를 포함한 로컬 감사 대시보드 및 Markdown 보고서 생성기
+- `bin/`: 별도 패키지 설치 없이 실행하는 analyzer CLI
 - `schemas/`: 감사 결과, baseline 및 project profile 계약
 - `playbooks/`: 별도 승인된 framework 및 runtime 마이그레이션 절차
 - `plugins/`: Claude Code와 Codex marketplace catalog가 사용하는 동기화된 설치 패키지
@@ -244,7 +246,7 @@ baseline이 없으면 finding은 `unbaselined`, 호환되지 않는 baseline 비
 
 ## 검증
 
-커밋 전에 다음과 같이 외부 의존성이 없는 검증 명령을 실행합니다.
+커밋 전에 다음 검증 명령을 실행합니다. YAML 파서는 저장소에 포함되어 별도 패키지 설치가 필요하지 않습니다.
 
 ```bash
 node scripts/validate-docs.mjs
