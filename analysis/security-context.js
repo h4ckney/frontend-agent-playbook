@@ -155,6 +155,10 @@
         const value = parse(record);
         if (!value) continue;
         const directory = record.path.replace(/[^/]+$/, "");
+        if (value.lockfileVersion === 1) {
+          readNpmV1(value, record, manifests.get("npm:" + directory) || {}, add, addGap);
+          continue;
+        }
         if (![2, 3].includes(value.lockfileVersion) || !value.packages || typeof value.packages !== "object" || Array.isArray(value.packages)) {
           addGap(record.path, "unsupported-npm-lock-format"); continue;
         }
@@ -177,6 +181,8 @@
             phaseEvidence: "npm lock dev flag; package install/deployment and runtime reachability not verified", direct,
             provenance: "lockfile" });
         }
+      } else if (/(^|\/)yarn\.lock$/.test(record.path)) {
+        readYarnClassic(record, add, addGap);
       } else if (/(^|\/)composer\.lock$/.test(record.path)) {
         const value = parse(record);
         if (!value) continue;
@@ -281,7 +287,7 @@
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
       inventory, findings, coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
-        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm lock v2/v3 and Composer lock only; yarn/pnpm/bun and OS packages require external tools", "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm lock v1/v2/v3, Yarn Classic and Composer lock; Yarn Berry/pnpm/bun and OS packages require external tools", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
     };
   }
@@ -313,6 +319,84 @@
         phaseEvidence: runtimeAncestors.has(stageIndex) ? "default final Docker stage or its FROM ancestor; custom --target not assessed"
           : "non-final Docker stage; may be used during build; custom --target not assessed", direct: true, provenance: "container-configuration" });
     });
+  }
+
+  function readNpmV1(value, record, manifest, add, gap) {
+    if (!value.dependencies || typeof value.dependencies !== "object" || Array.isArray(value.dependencies)) {
+      gap(record.path, "unsupported-npm-lock-format"); return;
+    }
+    function visit(dependencies, parent = "", inheritedDev = false, depth = 0) {
+      if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies) || depth > 32) {
+        gap(record.path, "malformed-or-deep-npm-v1-tree"); return;
+      }
+      for (const [name, entry] of Object.entries(dependencies)) {
+        if (!validNpmName(name) || !entry || typeof entry !== "object" || Array.isArray(entry)) { gap(record.path, "malformed-npm-lock-entry"); continue; }
+        const location = parent + "node_modules/" + name;
+        const dev = inheritedDev || entry.dev === true;
+        add({ ecosystem: "npm", name, version: typeof entry.version === "string" ? entry.version : "unknown",
+          versionKind: exactVersion(entry.version) ? "locked-exact" : "unresolved-lock-version",
+          manifest: record.path, path: location, phase: dev ? (BUILD_TOOLS.has(name) ? "build" : "development") : "runtime",
+          phaseEvidence: "npm v1 dependency tree and dev ancestry; installation/deployment not verified",
+          direct: !parent && ["dependencies", "optionalDependencies", "devDependencies"].some(key => Object.hasOwn(manifest[key] || {}, name)), provenance: "lockfile" });
+        if (entry.dependencies !== undefined) visit(entry.dependencies, location + "/", dev, depth + 1);
+      }
+    }
+    visit(value.dependencies);
+  }
+
+  function readYarnClassic(record, add, gap) {
+    if (!/^# yarn lockfile v1\s*$/m.test(record.content) || /^__metadata:/m.test(record.content)) {
+      gap(record.path, "unsupported-yarn-lock-format"); return;
+    }
+    let stanza = null;
+    const selectorVersions = new Map();
+    function finish() {
+      if (!stanza) return;
+      const versions = stanza.versions;
+      if (versions.length !== 1 || !exactVersion(versions[0])) { gap(record.path, "unresolved-yarn-lock-version"); return; }
+      for (const selector of stanza.selectors) {
+        if (selectorVersions.has(selector) && selectorVersions.get(selector) !== versions[0]) gap(record.path, "conflicting-yarn-selector");
+        selectorVersions.set(selector, versions[0]);
+      }
+      for (const name of stanza.names) {
+        const key = name + "@" + versions[0];
+        if (seen.has(key)) continue;
+        seen.add(key);
+        add({ ecosystem: "npm", name, version: versions[0], versionKind: "locked-exact",
+        manifest: record.path, path: "packages/" + name + "@" + versions[0], phase: "unknown",
+        phaseEvidence: "Yarn Classic version stanza; dependency graph and workspace usage not assessed",
+        direct: false, provenance: "lockfile" });
+      }
+    }
+    const seen = new Set();
+    for (const line of record.content.split(/\r?\n/)) {
+      if (!line.trim() || /^#/.test(line)) continue;
+      if (/^\S/.test(line)) {
+        finish(); stanza = null;
+        if (!line.endsWith(":")) { gap(record.path, "malformed-yarn-lock-entry"); continue; }
+        const header = line.slice(0, -1);
+        const tokens = header.match(/"(?:[^"\\]|\\.)*"|[^,]+/g) || [];
+        const selectors = [];
+        try { for (const token of tokens) selectors.push(token.trim().startsWith('"') ? JSON.parse(token.trim()) : token.trim()); }
+        catch { gap(record.path, "malformed-yarn-lock-entry"); continue; }
+        const names = [];
+        for (const selector of selectors) {
+          const match = /^((?:@[^/]+\/)?[^@]+)@(.+)$/.exec(selector);
+          if (!match || !validNpmName(match[1]) || /^(?:npm:|file:|link:|workspace:|https?:|git)/.test(match[2])) { gap(record.path, "unsupported-yarn-selector"); continue; }
+          names.push(match[1]);
+        }
+        if (!names.length) continue;
+        if (new Set(names).size !== 1) { gap(record.path, "ambiguous-yarn-entry"); continue; }
+        // Same name/version may have multiple selectors; preserve one stable occurrence.
+        stanza = { names: [...new Set(names)], selectors, versions: [] };
+      } else if (/^  version /.test(line)) {
+        const match = /^  version "([^"\\]+)"\s*$/.exec(line);
+        if (stanza) stanza.versions.push(match ? match[1] : "unknown");
+      }
+    }
+    finish();
+    // Deduplicate repeated selectors without storing URLs or source text.
+    // Conflicting selector versions remain an explicit coverage gap.
   }
 
   function validNpmName(name) {

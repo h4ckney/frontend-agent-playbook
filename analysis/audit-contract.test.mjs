@@ -129,7 +129,7 @@ test("does not reuse the old E2E detector decision after its inventory semantics
   entry.detectorVersion = "1";
   const compared = compareWithBaseline(result, baseline);
   assert.ok(compared.diff.unverified.includes(entry.fingerprint));
-  assert.equal(result.engine.detectorCatalogVersion, "3");
+  assert.equal(result.engine.detectorCatalogVersion, "4");
 });
 
 test("renders a Korean browser report while preserving stable identifiers", () => {
@@ -214,7 +214,7 @@ test("classifies new, worsened, unchanged, resolved, and unverified baseline sta
   resolvedBaseline.findings.push({
     fingerprint: "dead-code.marked-removal-candidate:src/legacy.ts",
     detectorId: "dead-code.markers",
-    detectorVersion: "1",
+    detectorVersion: "2",
     severity: "low",
     evidenceLevel: "candidate",
     applicability: "conditional",
@@ -501,5 +501,41 @@ test('unsafe version integers remain unverified instead of resolving a prior run
     const diff = compareWithBaseline(result, baseline).diff;
     assert.ok(diff.unverified.includes('security.node-brotli-2026:.node-version#version'));
     assert.deepEqual(diff.resolved, []);
+  }
+});
+
+test('workspace source evidence cannot clear siblings and routing context remains package-local', () => {
+  const records = [
+    { path: 'package.json', content: JSON.stringify({ workspaces: ['apps/*'], scripts: { test: 'run-all' }, dependencies: { dompurify: '3.0.0' } }) },
+    { path: 'apps/a/package.json', content: JSON.stringify({ dependencies: { next: '16.4.1', react: '19.3.1', dompurify: '3.0.0' }, scripts: { test: 'vitest' } }) },
+    { path: 'apps/a/app/page.tsx', content: 'export const metadata = {}; element.innerHTML = html;' },
+    { path: 'apps/a/e2e/smoke.spec.ts', content: 'export {}' },
+    { path: 'apps/b/package.json', content: JSON.stringify({ dependencies: { next: '15.5.28', react: '17.0.2' } }) },
+    { path: 'apps/b/pages/index.tsx', content: 'element.innerHTML = html;' },
+    { path: 'apps/b/deeper/package.json', content: '{}' },
+    { path: 'apps/b/deeper/src/child.ts', content: 'export {}' }
+  ];
+  const result = createAuditBundle({ records, context: { seoScope: 'public' } }).audit;
+  assert.deepEqual(validateAuditResult(result), []);
+  const find = (id, path) => result.findings.find(f => f.id === id && f.scope.paths.includes(path));
+  assert.ok(find('testing.test-foundation-missing', 'apps/b/package.json'));
+  assert.ok(find('testing.test-foundation-missing', 'apps/b/deeper/package.json'));
+  assert.ok(!find('testing.test-foundation-missing', 'apps/a/package.json'));
+  assert.ok(find('testing.e2e-path-missing', 'apps/b/package.json'));
+  assert.ok(find('seo.next-metadata-missing', 'apps/b/package.json'));
+  assert.ok(!find('seo.next-metadata-missing', 'apps/a/package.json'));
+  assert.match(find('security.html-sink-boundary', 'apps/b/pages/index.tsx').title, /찾지 못함/);
+  assert.match(find('security.html-sink-boundary', 'apps/a/app/page.tsx').title, /흔적은 있으나/);
+  assert.ok(find('rules.pre-react-18-version-branch', 'apps/b/package.json'));
+  assert.ok(!result.findings.some(f => f.id === 'rules.mixed-next-router'));
+  assert.equal(result.project.framework, null); // Root is an orchestrator, not the first child app.
+  const reordered = createAuditBundle({ records: [...records].reverse(), context: { seoScope: 'public' } }).audit;
+  assert.deepEqual(reordered.findings, result.findings);
+});
+
+test('a scalar package manifest is invalid evidence rather than an analyzer crash', () => {
+  for (const content of ['null', '[]', '1']) {
+    const result = createAuditBundle({ records: [{ path: 'apps/x/package.json', content }] }).audit;
+    assert.ok(result.findings.some(f => f.id === 'rules.package-json-invalid'));
   }
 });

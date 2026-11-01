@@ -234,3 +234,39 @@ test('review date freshness uses its declared calendar timezone across UTC midni
   assert.equal(result.snapshot.freshness, 'within-30-days');
   assert.equal(inspectSecurityContext([], { now: '2026-10-29T14:59:00Z' }).snapshot.freshness, 'unverified-clock');
 });
+
+test('npm v1 nested versions and dev ancestry remain separate and malformed trees stay incomplete', () => {
+  const result = inspect([json('package-lock.json', { lockfileVersion: 1, dependencies: {
+    next: { version: '16.4.0' },
+    vite: { version: '8.0.0', dev: true, dependencies: { 'react-server-dom-webpack': { version: '19.3.0' } } }
+  } })]);
+  assert.ok(ids(result).includes('security.rsc-typed-array-rce'));
+  const child = result.inventory.find(item => item.name === 'react-server-dom-webpack');
+  assert.equal(child.phase, 'development');
+  assert.equal(child.path, 'node_modules/vite/node_modules/react-server-dom-webpack');
+  assert.equal(result.inventory.find(item => item.name === 'vite').phase, 'build');
+  const malformed = inspect([json('package-lock.json', { lockfileVersion: 1, dependencies: [] })]);
+  assert.ok(malformed.coverage.gaps.length);
+});
+
+test('Yarn Classic grouped selectors and scopes retain exact versions without inventing execution phases', () => {
+  const content = '# yarn lockfile v1\n\n"next@^16.4.0", next@~16.4.0:\n  version "16.4.0"\n  resolved "https://user:secret@example.invalid/archive"\n\n"@scope/example@^1":\n  version "1.2.3"\n\nnext@16.4.0:\n  version "16.4.0"\n';
+  const result = inspect([{ path: 'yarn.lock', content }]);
+  assert.equal(result.inventory.length, 2);
+  assert.equal(result.inventory.find(item => item.name === 'next').phase, 'unknown');
+  assert.ok(ids(result).includes('security.rsc-typed-array-rce'));
+  assert.doesNotMatch(JSON.stringify(result), /secret|example.invalid/);
+  const berry = inspect([{ path: 'yarn.lock', content: '__metadata:\n  version: 8\n' }]);
+  assert.ok(berry.coverage.gaps.some(gap => gap.reason === 'unsupported-yarn-lock-format'));
+  const alias = inspect([{ path: 'yarn.lock', content: '# yarn lockfile v1\nalias@npm:next@16.4.0:\n  version "16.4.0"\n' }]);
+  assert.equal(alias.inventory.length, 0);
+  assert.ok(alias.coverage.gaps.length);
+});
+
+test('ambiguous Yarn names and conflicting selector versions remain coverage gaps', () => {
+  const mixed = inspect([{ path: 'yarn.lock', content: '# yarn lockfile v1\nnext@^16, unrelated@^16:\n  version "16.4.0"\n' }]);
+  assert.equal(mixed.inventory.length, 0);
+  assert.ok(mixed.coverage.gaps.some(gap => gap.reason === 'ambiguous-yarn-entry'));
+  const conflict = inspect([{ path: 'yarn.lock', content: '# yarn lockfile v1\nnext@^16:\n  version "16.4.0"\nnext@^16:\n  version "16.4.1"\n' }]);
+  assert.ok(conflict.coverage.gaps.some(gap => gap.reason === 'conflicting-yarn-selector'));
+});

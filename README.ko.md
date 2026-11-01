@@ -140,6 +140,8 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 ### 모듈·런타임 보안
 
+[Workspace 분리와 lockfile 지원 범위](docs/workspace-lock-analysis.md)
+
 오프라인 대시보드·CLI는 npm/Composer lock과 Node/PHP 설정을 읽고 런타임·빌드·개발·미확인을 구분합니다. 날짜가 명시된 권고 스냅샷은 버전 일치와 실행 조건을 보여주며 실제 배포나 악용 가능성을 확정하지 않습니다. [보안 실행 문맥](docs/security-context.md), 패키지 메타데이터 전송을 명시한 [OSV 별도 조회](docs/dependency-advisories.md), [수정·아키텍처·근거·후속 작업](docs/audit-integrity-security-upgrade.md)을 참고하세요.
 
 ### Analyzer CLI 프리뷰

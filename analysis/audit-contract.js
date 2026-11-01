@@ -20,7 +20,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "3";
+  const DETECTOR_CATALOG_VERSION = "4";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -30,7 +30,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-10-30.2")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-10-30.3")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -40,7 +40,7 @@
     "rules.mixed-next-router": detector("next.router-model", ["nextjs.router-boundary"], ["text-patterns", "route-path-inference"]),
     "rules.pre-react-18-version-branch": detector("react.version-context", ["react.version-context"]),
     "testing.test-foundation-missing": detector("testing.foundation", ["testing.test-foundation"]),
-    "testing.e2e-path-missing": detector("testing.critical-journeys", ["testing.critical-journeys"], ["text-patterns"], "2"),
+    "testing.e2e-path-missing": detector("testing.critical-journeys", ["testing.critical-journeys"], ["text-patterns"], "3"),
     "styling.overlay-clipping-context": detector("styling.overlay-clipping-context", ["design-system-styling.layer-boundaries"]),
     "styling.fixed-overlay-width": detector("styling.fixed-overlay-width", ["design-system-styling.responsive-layout"]),
     "seo.next-metadata-missing": detector("next.metadata-presence", ["nextjs.metadata", "seo.metadata"], ["text-patterns", "route-path-inference"]),
@@ -52,7 +52,7 @@
     "rules.framework-version-unknown": detector("context.framework-version", ["governance.codebase-context"])
   });
 
-  function detector(id, ruleRefs, capabilities = ["text-patterns"], version = "1") {
+  function detector(id, ruleRefs, capabilities = ["text-patterns"], version = "2") {
     return Object.freeze({
       id,
       version,
@@ -195,6 +195,17 @@
   }
 
   function normalizeFindingOccurrences(item, context, profile) {
+    if (item.workspaceOccurrences?.length) return item.workspaceOccurrences.flatMap(child => {
+      const paths = child.workspacePaths || [];
+      if (paths.length) return paths.map(path => normalizeFinding(child, context, profile, {
+        fingerprintScope: path, evidence: [{ kind: "path", path }], occurrenceCount: 1
+      }));
+      return [normalizeFinding(child, context, profile, {
+        fingerprintScope: child.workspaceManifest,
+        evidence: [{ kind: "path", path: child.workspaceManifest }, ...child.allEvidence.map(label => ({ kind: "context", label: sanitizeLabel(label) }))],
+        occurrenceCount: child.occurrenceCount
+      })];
+    });
     if (item.securityOccurrences?.length) {
       return item.securityOccurrences.map((entry) => normalizeFinding(item, context, profile, {
         fingerprintScope: entry.manifest + "#" + entry.path,
@@ -486,10 +497,14 @@
   }
 
   function detectProjectContext(records, name, profile, profileSource, context) {
-    const packageRecord = records.find((record) => /(^|\/)package\.json$/i.test(record.path));
+    const partitions = analyzer.workspacePartitions(records);
+    const selected = partitions.length > 1 ? partitions.find(group => group.root === "") : partitions[0];
+    records = selected ? selected.records.map(record => ({ ...record, path: record.path.slice(selected.root.length) })) : [];
+    const packageRecord = records.find((record) => record.path.toLowerCase() === "package.json");
     let pkg = {};
     try {
       pkg = packageRecord ? JSON.parse(packageRecord.content) : {};
+      if (!isObject(pkg)) pkg = {};
     } catch {
       pkg = {};
     }
