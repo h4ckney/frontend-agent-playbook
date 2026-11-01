@@ -3,6 +3,7 @@
 
   // Deliberately finite, offline advisory snapshot. Presence/version is evidence;
   // deployment, vendor backports and vulnerable data flow remain unverified.
+  const lockGraph = typeof module !== "undefined" && module.exports ? require("./lockfile-graph.js") : globalThis.FrontendLockGraph;
   const CHECKED_AT = "2026-10-30";
   const SNAPSHOT_ID = "security-context-2026-10-30-v1";
   const MAX_INVENTORY = 20_000;
@@ -104,6 +105,8 @@
     const records = Array.isArray(inputRecords) ? inputRecords.filter((item) => item && typeof item.path === "string" && typeof item.content === "string") : [];
     const inventory = [];
     const gaps = [];
+    const graphs = [];
+    const graphLocks = new Set();
     const manifests = new Map();
     const addGap = (path, reason) => gaps.push({ path, reason });
     const add = (item) => {
@@ -162,25 +165,9 @@
         if (![2, 3].includes(value.lockfileVersion) || !value.packages || typeof value.packages !== "object" || Array.isArray(value.packages)) {
           addGap(record.path, "unsupported-npm-lock-format"); continue;
         }
-        const manifest = manifests.get("npm:" + directory) || value.packages[""] || {};
-        for (const [location, item] of Object.entries(value.packages)) {
-          if (!location || !item || typeof item !== "object" || item.link) continue;
-          const pathName = /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)$/.exec(location)?.[1];
-          if (!pathName) continue;
-          const name = typeof item.name === "string" ? item.name : pathName;
-          if (!validNpmName(pathName) || !validNpmName(name) || location.startsWith("/") || location.includes("\\")
-            || location.split("/").some((part) => !part || part === "." || part === "..")) {
-            addGap(record.path, "malformed-npm-lock-entry"); continue;
-          }
-          const declared = ["dependencies", "optionalDependencies", "devDependencies", "peerDependencies"].some((key) => Object.hasOwn(manifest[key] || {}, pathName));
-          const direct = location === "node_modules/" + pathName && declared;
-          const scope = item.dev === true ? "development" : "runtime";
-          add({ ecosystem: "npm", name, version: typeof item.version === "string" ? item.version : "unknown",
-            versionKind: exactVersion(item.version) ? "locked-exact" : "unresolved-lock-version",
-            manifest: record.path, path: location, phase: scope === "development" && BUILD_TOOLS.has(name) ? "build" : scope,
-            phaseEvidence: "npm lock dev flag; package install/deployment and runtime reachability not verified", direct,
-            provenance: "lockfile" });
-        }
+        collectGraph(record);
+      } else if (/(^|\/)(?:pnpm-lock\.yaml|bun\.lock)$/.test(record.path) || /(^|\/)yarn\.lock$/.test(record.path) && /^__metadata:/m.test(record.content)) {
+        collectGraph(record);
       } else if (/(^|\/)yarn\.lock$/.test(record.path)) {
         readYarnClassic(record, add, addGap);
       } else if (/(^|\/)composer\.lock$/.test(record.path)) {
@@ -228,6 +215,13 @@
       }
     }
 
+    function collectGraph(record) {
+      const result = lockGraph.readLockGraph(record, manifests);
+      graphs.push(result.graph); graphLocks.add(record.path);
+      result.inventory.forEach(add);
+      result.gaps.forEach(item => addGap(item.path, item.reason));
+    }
+
     // Manifest declarations are retained, but a matching lock entry is the version
     // evidence used for matching. No range solving or registry access occurs here.
     const matchable = inventory.filter((item) => ["locked-exact", "runtime-pin", "image-pin"].includes(item.versionKind));
@@ -248,8 +242,19 @@
       recommendation: "실행 환경을 확인하고 지원 계열로 이동합니다. 배포업체 백포트 여부와 지원 계약을 별도로 확인합니다." }));
 
     const lockKey = (item) => item.ecosystem + ":" + item.manifest.replace(/[^/]+$/, "") + ":" + item.name;
-    const lockedNames = new Set(inventory.filter((item) => item.provenance === "lockfile" && item.versionKind === "locked-exact").map(lockKey));
-    const hasLockEvidence = (item) => lockedNames.has(lockKey(item));
+    const graphDeclarations = new Set();
+    for (const graph of graphs) {
+      const nodes = new Map(graph.nodes.map(node => [node.id, node]));
+      const roots = new Map(graph.roots.map(root => [root.node, root]));
+      for (const edge of graph.edges) {
+        const root = roots.get(edge.from);
+        if (!root) continue;
+        const target = nodes.get(edge.to);
+        if (target && (target.kind === "workspace" || exactVersion(target.version))) graphDeclarations.add(root.manifest + ":" + edge.dependency);
+      }
+    }
+    const legacyLockedNames = new Set(inventory.filter(item => item.provenance === "lockfile" && !graphLocks.has(item.manifest) && item.versionKind === "locked-exact").map(lockKey));
+    const hasLockEvidence = (item) => graphDeclarations.has(item.manifest + ":" + item.name) || legacyLockedNames.has(lockKey(item));
     const unresolved = inventory.filter((item) => {
       if (item.provenance === "manifest-declaration" && item.ecosystem !== "runtime" && hasLockEvidence(item)) return false;
       return !exactVersion(item.version) || ["engine-constraint", "platform-override"].includes(item.versionKind);
@@ -285,9 +290,9 @@
     }
     return {
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
-      inventory, findings, coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
+      inventory, findings, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
-        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm lock v1/v2/v3, Yarn Classic and Composer lock; Yarn Berry/pnpm/bun and OS packages require external tools", "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm v1/v2/v3, Yarn Classic/Berry, pnpm v6/v9, Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
     };
   }

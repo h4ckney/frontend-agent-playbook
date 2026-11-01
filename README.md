@@ -144,7 +144,9 @@ The offline dashboard/CLI now inventories npm/Composer lockfiles and Node/PHP co
 
 ### Analyzer CLI Preview
 
-The unreleased `main` branch also provides a dependency-free CLI that uses the same analyzer and normalized `AuditResult` contract as the browser:
+Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits](docs/modern-lock-workspace-graphs.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
+
+The unreleased `main` branch also provides a CLI requiring no package installation that uses the same analyzer and normalized `AuditResult` contract as the browser:
 
 ```bash
 node bin/frontend-agent-audit.mjs scan \
@@ -242,7 +244,7 @@ Existing patterns do not justify preserving known correctness, security, or acce
 
 ## Validation
 
-Run the dependency-free validation commands before committing changes:
+Run the validation commands before committing changes (the YAML parser is vendored; no package installation is required):
 
 ```bash
 node scripts/validate-docs.mjs
@@ -259,7 +261,7 @@ node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidan
 
 The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, skill UI metadata references, and detector-to-rule links. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, CLI, contract, and approval-gate checks for pull requests and pushes to `main`.
 
-The separate `dashboard-browser` CI job installs pinned Playwright tooling outside the checkout and runs real Chromium verification for PR/main after the dependency-free checks. Source/served/browser hashes and screenshots are retained as a seven-day artifact. This covers the audit dashboard with synthetic inputs, not deployed product routes or physical devices. Local verification can also use caller-provided Playwright and an existing server:
+The separate `dashboard-browser` CI job installs pinned Playwright tooling outside the checkout and runs real Chromium verification for PR/main after the checks that require no package installation. Source/served/browser hashes and screenshots are retained as a seven-day artifact. This covers the audit dashboard with synthetic inputs, not deployed product routes or physical devices. Local verification can also use caller-provided Playwright and an existing server:
 
 ```bash
 node scripts/verify-dashboard.mjs --url http://127.0.0.1:4381/analysis/ --output docs/evidence/browser --channel chrome

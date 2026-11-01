@@ -14,7 +14,7 @@
 | P2 | 권고 목록 갱신·외부 이슈 동기화 | 갱신 소유자·수집 범위·전송 정책·동일성/재개/종료 계약 확정 후 구현. 예약 자동화는 생성하지 않음 |
 | P3 | 검토 journal 용량·가져오기 개선 | 저장 실패 시 내보내기는 유지. 동시 탭 데이터 보존을 증명하는 압축·삭제 계약이 생긴 뒤 구현 |
 
-현재 [workspace·npm v1·Yarn Classic 확장](workspace-lock-analysis.md)을 추가 구현했다. 아래 최초 우선순위 중 package 경계 분리와 두 형식이 해당하며 전체 workspace graph·pnpm/Berry/Bun은 남은 범위다.
+현재 [workspace·npm v1·Yarn Classic 확장](workspace-lock-analysis.md)에 이어 [pnpm·Berry·Bun 및 공유 workspace graph](modern-lock-workspace-graphs.md)를 구현했다. 앞의 표는 최초 우선순위다. 다음은 미지원 protocol/format, 설치 SBOM·배포 증거, 실제 workspace E2E 연결 순으로 진행한다. 검증·머지 상태는 해당 PR/CI를 따른다.
 
 ## 확인한 중간 이상 문제와 수정
 
@@ -26,7 +26,7 @@
 
 ## 브라우저 CI의 범위와 실행
 
-기본 Node 22/24/26 검사 후 별도 `dashboard-browser` job이 Node 24에서 Playwright 1.64.1과 그 Chromium을 설치한다. 도구는 runner 임시 폴더에만 설치하며 프로젝트 의존성을 설치하거나 소스를 외부로 보내지 않는다. 기본 검사·로컬 CLI에는 외부 패키지 의존성을 추가하지 않는다.
+기본 Node 22/24/26 검사 후 별도 `dashboard-browser` job이 Node 24에서 Playwright 1.64.1과 그 Chromium을 설치한다. 도구는 runner 임시 폴더에만 설치하며 프로젝트 의존성을 설치하거나 소스를 외부로 보내지 않는다. 기본 검사·로컬 CLI에는 패키지 설치가 필요하지 않다. 이후 modern lock 확장에서는 검토한 YAML parser를 고정해 저장소에 포함하며 출처·라이선스·hash를 기록한다.
 
 [CI 실행기](../scripts/verify-dashboard-ci.mjs)는 이 체크아웃의 analysis 파일만 제공하는 loopback 임시 포트를 열고 [기존 브라우저 검사](../scripts/verify-dashboard.mjs)를 실행한다. 자식 검사 실패·신호 종료는 실패로 전파하고 서버를 닫는다. 브라우저 실행에는 4분, job에는 10분 한도를 둔다. 설치나 검사가 실패하면 성공으로 건너뛰지 않는다.
 

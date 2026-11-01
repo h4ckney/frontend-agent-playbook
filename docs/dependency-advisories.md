@@ -28,11 +28,11 @@ node scripts/query-osv.mjs --scan /path/to/project/audit.json --output /path/to/
 | --- | --- | --- |
 | npm lock v1/v2/v3·Yarn Classic의 `locked-exact` | `npm` 생태계의 같은 이름·버전으로 조회 | 설치·배포·호출 경로는 미검증 |
 | Composer lock의 `locked-exact` | OSV `Packagist`로 변환, 선행 `v` 제거 후 조회 | 실제 PHP 버전과 SAPI는 별도 확인 |
-| manifest의 정확한 버전·범위·workspace 참조 | 같은 디렉터리·생태계·이름의 lock 항목이 있으면 선언 근거로 따로 보존하고, 없으면 누락 사유 표시 | 선언은 설치된 버전의 증거가 아니며 버전 범위 호환성을 계산하지 않음 |
+| manifest의 정확한 버전·범위·workspace 참조 | 명시적 workspace graph의 직접 연결 또는 legacy 같은 디렉터리 lock 근거를 보존. 로컬 연결은 workspace-link | 선언은 설치된 버전의 증거가 아니며 버전 범위 호환성을 계산하지 않음 |
 | Node/PHP 버전 | 이 조회에서 제외 | 언어 런타임을 동명의 npm 모듈로 조회하면 잘못된 결과가 됨 |
 | 지원하지 않는 lock 형식·부분 스캔 | 입력의 누락을 유지 | 별도 설치 목록·SBOM 등 필요 |
 
-같은 디렉터리의 lock 근거가 있는 manifest 선언은 `covered-by-lock`으로 별도 보존하며 중복된 누락으로 집계하지 않습니다. 선언 버전과 잠긴 버전이 서로 호환된다는 뜻은 아닙니다. 다른 디렉터리 또는 lock에 없는 이름의 선언은 계속 미확인 범위로 남습니다.
+명시적 workspace graph의 직접 연결이 있는 선언은 `covered-by-lock`, 로컬 workspace 연결은 `workspace-link`로 별도 보존하며 중복 누락으로 집계하지 않습니다. legacy lock은 같은 디렉터리의 이름 근거를 유지합니다. 선언 범위와 잠긴 버전의 호환성·설치·배포를 증명하지 않습니다. graph가 없는 다른 디렉터리의 선언은 이름만으로 연결하지 않습니다. workspace 경로와 단계는 JSON/Markdown 보고서에 로컬 근거로 남으며 OSV에 전송하지 않습니다. [지원 범위](modern-lock-workspace-graphs.md)를 따릅니다.
 
 같은 생태계·이름·버전은 한 번만 조회하고 각 모듈의 원래 경로와 `runtime`, `build`, `development`, `unknown`은 모두 보존합니다. OSV가 같은 취약점을 뜻한다고 명시한 별칭은 하나의 부모 항목으로 모으고 원본 레코드를 함께 남깁니다. CVE/GHSA ID가 다르다는 이유만으로 같은 문제를 중복 집계하지 않습니다. 같은 이름의 다른 버전은 독립적으로 조회합니다.
 

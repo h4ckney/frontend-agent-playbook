@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const server = createServer(async (request, response) => {
-  const resource = request.url === '/analysis/' ? 'index.html' : /^\/analysis\/([\w.-]+\.(?:js|css|html))$/.exec(request.url)?.[1];
+  const resource = request.url === '/analysis/' ? 'index.html' : /^\/analysis\/((?:vendor\/)?[\w.-]+\.(?:js|css|html))$/.exec(request.url)?.[1];
   if (request.method !== 'GET' || !resource) { response.writeHead(404).end(); return; }
   try {
     const bytes = await readFile(path.join(root, 'analysis', resource));

@@ -1,5 +1,7 @@
 # Workspace 경계 분석과 lockfile 확장
 
+이 문서는 첫 확장의 기록이다. pnpm/Berry/Bun과 공유 npm graph의 현재 지원은 [후속 확장](modern-lock-workspace-graphs.md)을 따른다.
+
 2026-11-01 · 기준 `f550789` · 위험 수준 2: package별 누락 판정과 버전 근거의 의미를 변경한다.
 
 ## 확인한 문제와 수정

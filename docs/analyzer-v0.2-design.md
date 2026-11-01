@@ -1,5 +1,7 @@
 # Analyzer v0.2 Design
 
+현재 modern lock 해석은 [후속 구현 범위](modern-lock-workspace-graphs.md)를 따른다. YAML parser는 고정한 로컬 번들로 포함하며 브라우저/CLI에 패키지 설치가 필요하지 않다. 아래의 dependency-free 표기는 초기 설계 기록이며 현재 제3자 코드가 없다는 뜻으로 읽지 않는다. 소스 코드 AST·실제 실행 경로 분석과는 구분한다.
+
 이 문서는 현재 Frontend Audit 대시보드에서 확인된 구조적 한계를 해결하기 위한 구현 설계다. 목표는 정적 패턴을 더 많이 찾는 것이 아니라, 같은 분석 결과를 CLI, CI, 브라우저 UI와 Markdown 보고서에서 재현하고 각 우선순위의 근거를 설명할 수 있게 만드는 것이다.
 
 ## Implementation Status

@@ -4,7 +4,7 @@
 
 ## 어떤 결과를 얻는가
 
-`analysis/security-context.js`의 `inspectSecurityContext(records, { now })`는 `snapshot`, `inventory`, `findings`, `coverage`를 반환합니다. `records`는 `{ path, content }` 배열입니다. Node CommonJS와 브라우저의 `FrontendSecurityContext`를 모두 지원합니다.
+`analysis/security-context.js`의 `inspectSecurityContext(records, { now })`는 `snapshot`, `inventory`, `findings`, `coverage`와 해당 형식에서 선택적인 `graphs`를 반환합니다. `records`는 `{ path, content }` 배열입니다. Node CommonJS와 브라우저의 `FrontendSecurityContext`를 모두 지원합니다.
 
 | 항목 | 의미 |
 | --- | --- |
@@ -12,7 +12,8 @@
 | `versionKind` | lock의 정확한 버전, 선언 범위, 런타임 pin, 이미지 tag 등을 구분 |
 | `manifest`, `path`, `provenance` | 근거 파일, 그 안의 패키지 위치, 근거 종류 |
 | `phase`, `phaseEvidence` | `runtime`, `build`, `development`, `unknown`과 분류 이유 |
-| `direct` | 해당 manifest의 직접 의존성 여부. 배포·실행의 증거가 아님 |
+| `direct` | lock 근거가 있는 workspace 중 직접 연결이 있는지. workspace별 근거는 workspaceUsage. 배포·실행 증거 아님 |
+| `graphs` / `workspaceUsage` | 명시된 lock 연결·root와 workspace별 사용 역할. 전체 JSON에 보존, UI는 일부 요약 |
 | `coverage` | 해석하지 못한 파일·버전과 점검 한계. `complete`는 항상 `false` |
 
 동일 권고는 하나의 상위 이슈로 만들고 패키지·모듈·버전 근거는 하위 발생으로 남깁니다. 예를 들어 같은 typed array 문제의 React 상위 권고와 Next.js 하위 권고는 하나의 권고 묶음으로 취급합니다. 원인이 다른 CVE는 별도 이슈입니다. 검토 후 닫기는 버전 수정이나 보안 해결을 증명하지 않습니다.
@@ -22,8 +23,9 @@
 | 입력 | 현재 해석 | 확인하지 못하는 부분 |
 | --- | --- | --- |
 | `package.json` | dependencies, optional/dev/peer 구분, Node engines | 선언 범위만으로 설치 버전 확정 불가 |
-| npm lock v1/v2/v3, shrinkwrap | 정확한 버전, 중첩·scope 패키지, dev flag | 실제 설치·배포, 번들 포함 여부, 전체 workspace graph |
+| npm lock v1/v2/v3, shrinkwrap | 정확한 버전, 중첩·scope 패키지, dev flag | v2/v3의 명시적 link/가까운 node_modules graph 지원. 실제 설치·배포·번들 포함은 미확인 |
 | Yarn Classic v1 | 일반 version stanza의 정확한 버전·grouped/scoped 이름 | 전체 graph·workspace 연결·실행 단계는 미확인 |
+| pnpm v6/v9 · Yarn Berry metadata 4–10 · Bun text v1 | 명시적 workspace graph와 정확한 버전, workspace별 역할 | [세부 지원·미지원 범위](modern-lock-workspace-graphs.md). 설치·배포·실제 코드 도달성 미확인 |
 | `composer.json`, `composer.lock` | require/require-dev, packages/packages-dev | PHP 실행 버전, 배포 시 `--no-dev` 적용 여부 |
 | `.nvmrc`, `.node-version`, `.php-version` | 정확한 pin과 selector 구분 | 빌드·서비스 중 어디서 사용했는지, 실제 바이너리 |
 | 공식 Node/PHP `Dockerfile` 이미지 | 마지막 기본 stage와 FROM 조상은 runtime, 다른 stage는 build | 사용자 지정 `--target`, ARG 치환, custom 이미지, 배포 digest |
@@ -59,7 +61,7 @@ PHP는 2026-10-23에 session upload progress의 추가 조건부 위험을 안�
 ## 현재 한계와 다음 확인
 
 - 이 목록에 일치하지 않아도 안전 판정이 아닙니다. npm·Packagist의 전체 CVE와 악성 패키지, OS·컨테이너 의존성은 별도 검사 대상입니다.
-- Yarn Berry·pnpm·Bun 텍스트 lock은 해석하지 않았다고 표시합니다. Yarn Classic의 지원·미지원 stanza 범위는 [workspace·lock 확장](workspace-lock-analysis.md)을 따릅니다. 바이너리 `bun.lockb`는 텍스트 분석에서 `unsupported-type`으로 제외합니다. 지원 파일이더라도 입력 크기·읽기 제한으로 빠지면 상위 분석 범위가 부분 분석임을 유지해야 합니다.
+- pnpm·Berry·Bun 텍스트와 공유 npm graph는 [형식별 범위](modern-lock-workspace-graphs.md)를 따릅니다. 미지원 version·protocol·끊긴 연결은 gap입니다. Yarn Classic의 지원·미지원 stanza 범위는 [이전 workspace·lock 확장](workspace-lock-analysis.md)을 따릅니다. 바이너리 `bun.lockb`는 텍스트 분석에서 `unsupported-type`으로 제외합니다. 지원 파일이더라도 입력 크기·읽기 제한으로 빠지면 상위 분석 범위가 부분 분석임을 유지해야 합니다.
 - 버전 일치 결과는 `inferred` / `verify-first`입니다. 실제 배포 버전, 도달 가능한 API, SAPI·OS, 외부 노출과 공급업체 패치로 위험을 검증합니다.
 - 최신 전체 모듈 비교는 고정 설치 내역 또는 SBOM을 근거로 npm/Composer 감사·OSV 등 외부 도구와 연결하는 단계가 필요합니다. 외부 전송에는 패키지명·버전·개인 저장소 이름의 노출 범위를 먼저 명시해야 합니다.
 - 빌드 공격은 credential·산출물 변조를, 서버 공격은 외부 요청 처리 경로를, 브라우저 코드는 사용자 데이터·권한 경계를 검증합니다. 실행 단계는 위험을 해석하는 근거이며 자동 면제 조건이 아닙니다.

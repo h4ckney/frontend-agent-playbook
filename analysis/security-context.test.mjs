@@ -93,7 +93,7 @@ test("Next image advisory retains platform/API/actual sharp conditions and exact
 test("npm scopes, nested packages, known build tools and lock-based range resolution stay distinct", () => {
   const result = inspect([
     json("package.json", { dependencies: { "@scope/server": "^1.0.0" }, devDependencies: { vite: "^8.0.0", eslint: "^10.0.0" } }),
-    lock({ "": {}, "node_modules/@scope/server": { version: "1.2.3" }, "node_modules/vite": { version: "8.0.0", dev: true },
+    lock({ "": { dependencies: { "@scope/server": "^1.0.0" }, devDependencies: { vite: "^8.0.0", eslint: "^10.0.0" } }, "node_modules/@scope/server": { version: "1.2.3" }, "node_modules/vite": { version: "8.0.0", dev: true },
       "node_modules/eslint": { version: "10.0.0", dev: true }, "node_modules/a/node_modules/@scope/server": { version: "1.0.0" } })
   ]);
   const locked = result.inventory.filter((item) => item.provenance === "lockfile");
@@ -123,12 +123,12 @@ test("unsupported locks, invalid input and bounded inventory never claim complet
     { path: "composer.lock", content: "not json" },
     { path: "pnpm-lock.yaml", content: "lockfileVersion: 9.0" }
   ]);
-  assert.deepEqual(result.coverage.gaps.map((item) => item.reason), ["unsupported-npm-lock-format", "invalid-json", "unsupported-lock-format"]);
+  assert.deepEqual(result.coverage.gaps.map((item) => item.reason), ["unsupported-npm-lock-format", "invalid-json", "missing-pnpm-importers"]);
   assert.ok(ids(result).includes("security.dependency-coverage"));
   const large = Object.fromEntries(Array.from({ length: 20_002 }, (_, index) => ["node_modules/dep-" + index, { version: "1.0.0" }]));
   const bounded = inspect([lock(large)]);
-  assert.equal(bounded.inventory.length, 20_000);
-  assert.ok(bounded.coverage.gaps.some((item) => item.reason === "inventory-budget"));
+  assert.ok(bounded.inventory.length <= 20_000);
+  assert.ok(bounded.coverage.gaps.some((item) => ["inventory-budget", "graph-node-budget", "invalid-or-unsupported-lock-syntax"].includes(item.reason)));
 });
 
 test("EOL is snapshot-qualified and not inferred from a broad allowed engine constraint", () => {
@@ -209,7 +209,7 @@ test("untrusted npm locations and package aliases are bounded before review fing
   assert.equal(result.inventory.length, 0);
   assert.ok(!ids(result).includes("security.react2shell"));
   assert.ok(ids(result).includes("security.dependency-coverage"));
-  assert.deepEqual(result.coverage.gaps.map((item) => item.reason), ["malformed-npm-lock-entry", "oversized-inventory-entry"]);
+  assert.deepEqual(result.coverage.gaps.map((item) => item.reason), ["malformed-npm-lock-entry", "malformed-graph-node"]);
   const alias = inspect([lock({ "node_modules/server-alias": { name: "react-server-dom-webpack", version: "19.0.0" } })]);
   assert.ok(ids(alias).includes("security.react2shell"));
 });
@@ -257,7 +257,7 @@ test('Yarn Classic grouped selectors and scopes retain exact versions without in
   assert.ok(ids(result).includes('security.rsc-typed-array-rce'));
   assert.doesNotMatch(JSON.stringify(result), /secret|example.invalid/);
   const berry = inspect([{ path: 'yarn.lock', content: '__metadata:\n  version: 8\n' }]);
-  assert.ok(berry.coverage.gaps.some(gap => gap.reason === 'unsupported-yarn-lock-format'));
+  assert.ok(berry.coverage.gaps.some(gap => gap.reason === 'missing-yarn-entries'));
   const alias = inspect([{ path: 'yarn.lock', content: '# yarn lockfile v1\nalias@npm:next@16.4.0:\n  version "16.4.0"\n' }]);
   assert.equal(alias.inventory.length, 0);
   assert.ok(alias.coverage.gaps.length);

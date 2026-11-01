@@ -20,7 +20,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "4";
+  const DETECTOR_CATALOG_VERSION = "5";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -30,7 +30,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-10-30.3")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-01.1")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -194,6 +194,19 @@
     return result;
   }
 
+  function workspaceLabel(entry) {
+    if (!entry.workspaceUsage?.length) return "";
+    const usage = entry.workspaceUsage;
+    const summary = usage.slice(0, 10).map(item => item.manifest + " [" + item.phase + (item.direct ? "; direct" : "; transitive") + "]").join(", ");
+    if (usage.length <= 10) return " · " + summary;
+    // Bound review metadata without letting changes in omitted workspaces reuse
+    // a close decision. Full local references remain in securityContext JSON.
+    let hash = 14695981039346656037n;
+    const text = JSON.stringify(usage);
+    for (let index = 0; index < text.length; index += 1) hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 1099511628211n);
+    return " · " + summary + "; +" + (usage.length - 10) + " workspace uses; metadata-" + hash.toString(16);
+  }
+
   function normalizeFindingOccurrences(item, context, profile) {
     if (item.workspaceOccurrences?.length) return item.workspaceOccurrences.flatMap(child => {
       const paths = child.workspacePaths || [];
@@ -210,9 +223,9 @@
       return item.securityOccurrences.map((entry) => normalizeFinding(item, context, profile, {
         fingerprintScope: entry.manifest + "#" + entry.path,
         evidence: [{ kind: "path", path: normalizeRelativePath(entry.manifest),
-          label: entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.versionKind + "; " + entry.path + "]" }],
+          label: entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.versionKind + "; " + entry.path + "]" + workspaceLabel(entry) }],
         occurrenceCount: 1,
-        observedFact: (item.advisoryIds?.length ? item.advisoryIds.join(" / ") + ": " : "") + entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.provenance + "; " + entry.path + "]",
+        observedFact: (item.advisoryIds?.length ? item.advisoryIds.join(" / ") + ": " : "") + entry.name + "@" + entry.version + " [" + entry.phase + "; " + entry.provenance + "; " + entry.path + "]" + workspaceLabel(entry),
         boundaryIds: [item.id]
       }));
     }
@@ -1006,7 +1019,7 @@
       korean ? "유한한 오프라인 권고 목록입니다. 일치 없음은 안전 판정이 아니며, 실제 설치·배포·공격 경로는 미확인입니다." : "Finite offline advisory snapshot. No match is not a clean security result; installation, deployment and vulnerable data flow remain unverified.", "",
       "| " + (korean ? "모듈 | 버전 | 버전 근거 | 단계 | 파일·위치 | 단계 판정 근거" : "Module | Version | Version evidence | Phase | File/location | Phase evidence") + " |",
       "| --- | --- | --- | --- | --- | --- |"];
-    for (const item of context.inventory) lines.push("| " + [item.name, item.version, item.versionKind, item.phase, item.manifest + "#" + item.path, item.phaseEvidence].map(cell).join(" | ") + " |");
+    for (const item of context.inventory) lines.push("| " + [item.name, item.version, item.versionKind, item.phase, item.manifest + "#" + item.path, item.phaseEvidence + workspaceLabel(item)].map(cell).join(" | ") + " |");
     lines.push("", korean ? "확인하지 못한 범위:" : "Coverage limitations:", "");
     for (const item of context.coverage.gaps) lines.push("- " + cell(item.path) + ": " + cell(item.reason));
     for (const item of context.coverage.limitations) lines.push("- " + cell(item));
