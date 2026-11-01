@@ -293,14 +293,14 @@ function renderSecurityContext() {
   const security = currentAuditResult.securityContext;
   if (!security) return;
   const phases = { runtime: "서비스 실행", build: "빌드", development: "개발 도구", unknown: "실행 단계 미확인" };
-  const versions = { "locked-exact": "lockfile 버전", "declared-exact": "선언 버전", "declared-range": "선언 범위", "runtime-pin": "실행 버전 설정", "runtime-selector": "실행 버전 범위", "image-pin": "이미지 버전", "image-selector": "이미지 태그", "engine-constraint": "호환 조건", "platform-override": "가상 플랫폼 설정", "unresolved-lock-version": "버전 미확정" };
+  const versions = { "locked-exact": "lockfile 버전", "declared-exact": "선언 버전", "declared-range": "선언 범위", "runtime-pin": "실행 버전 설정", "runtime-selector": "실행 버전 범위", "image-pin": "이미지 버전", "image-selector": "이미지 태그", "engine-constraint": "호환 조건", "platform-override": "가상 플랫폼 설정", "unresolved-lock-version": "버전 미확정", "unresolved-lock-source": "패키지 출처·수정 내용 미검증" };
   document.querySelector("#securityContext").innerHTML = '<p>권고 확인일 ' + escapeHtml(security.snapshot.checkedAt) +
     ' · 오프라인 권고 ' + security.snapshot.advisoryCount + '개 · 버전 비교 가능 근거 ' + security.coverage.exactVersionCount + '개</p>' +
     '<p>선언·lockfile·설정에서 수집한 목록입니다. 실제 설치·배포와 공격 경로는 추가 확인이 필요합니다. 빌드·개발 도구도 비밀정보나 배포 산출물에 영향을 줄 수 있습니다.</p>' +
     (security.snapshot.freshness === "within-30-days" ? '' : '<p class="context-status">권고 목록의 시점 확인이 필요합니다. 최신 전체 취약점 목록과의 비교는 별도 실행해야 합니다.</p>') +
     (security.graphs?.length ? '<p>공유 lockfile 그래프 ' + security.graphs.length + '개 · workspace 근거 ' + security.graphs.reduce((sum, graph) => sum + graph.roots.filter(root => root.phase !== "build").length, 0) + '개 · 실제 코드 실행 경로는 미확인</p>' : '') +
     '<details><summary>버전 근거 ' + security.inventory.length + '개 보기 (최대 30개 표시)</summary><ul class="dependency-inventory">' +
-    security.inventory.slice(0, 30).map((entry) => '<li><strong>' + escapeHtml(entry.name + (entry.version.endsWith(':<source-redacted>') ? ' · 출처 지정(상세 값 생략)' : '@' + entry.version)) + '</strong> · ' + phases[entry.phase] +
+    security.inventory.slice(0, 30).map((entry) => '<li><strong>' + escapeHtml((entry.ecosystem === 'jsr' ? 'JSR · ' : '') + entry.name + (entry.version.endsWith(':<source-redacted>') ? ' · 출처 지정(상세 값 생략)' : '@' + entry.version)) + '</strong> · ' + phases[entry.phase] +
       (entry.lockContext === "boot" ? '<br><small>패키지 매니저·설정 도구의 버전 근거</small>' : '') +
       (entry.modifications?.length ? '<br><small>' + escapeHtml(entry.modifications.map(kind => ({ patch: "패치", virtual: "별도 peer 컨텍스트", "registry-revision": "레지스트리 수정본" }[kind])).join(' · ') + (entry.registryRevision ? ' ' + entry.registryRevision : '') + ' · 원본 버전 비교, 수정 효과 미검증') + '</small>' : '') +
       '<br><small>' + escapeHtml(versions[entry.versionKind] || entry.versionKind) + ' · ' + escapeHtml(entry.manifest + ' · ' + entry.path) + (entry.workspaceUsage?.length ? '<br>' + escapeHtml(entry.workspaceUsage.slice(0, 10).map(usage => usage.manifest + ' [' + phases[usage.phase] + (usage.direct ? ' · 직접' : ' · 간접') + ']').join(', ') + (entry.workspaceUsage.length > 10 ? ' · 나머지 ' + (entry.workspaceUsage.length - 10) + '개는 JSON 보고서 참조' : '')) : '') + '</small></li>').join('') +
@@ -320,6 +320,7 @@ function renderLifecycleContext(support) {
       escapeHtml(FrontendRuntimeLifecycle.COMPONENTS[entry.component]) + '</strong> · ' + escapeHtml(categories[entry.category] + ' · ' + scopes[entry.supportScope]) + '<br><b>' + escapeHtml(FrontendRuntimeLifecycle.STATES[entry.state]) +
       (entry.endingSoon && entry.state !== 'end-announced' ? ' · 지원 종료 준비 필요' : '') + '</b> · ' + escapeHtml(entry.supportEnds ? entry.supportEnds + (entry.datePrecision === 'month' ? '경 (정확한 종료일 미공표)' : '') : '공표된 종료일 근거 없음') +
       '<br><small>' + escapeHtml((entry.version && !entry.version.endsWith(':<source-redacted>') ? entry.version : '버전 미확인') + ' · ' + phases[entry.phase] + ' · ' + entry.manifest + ' · ' + entry.path) + '</small>' +
+      (entry.component === 'deno-lts' ? '<br><small>명시적 LTS 선택 · 검토된 계열 ' + escapeHtml(entry.releaseLine || '미확인') + ' · 실제 설치 패치 미확인. 이동 채널의 다음 계열은 자동 추정하지 않습니다.</small>' : '') +
       (entry.component === 'deno-runtime' ? '<br><small>공식팀의 개발 종료 예고입니다. 버전 숫자만으로 LTS 채널·개별 버전의 보안 지원을 확정하지 않습니다.</small>' : '') +
       (entry.state === 'ended' ? '<br><small>공식 일정 기준입니다. 실제 서비스 가동 상태·공급업체 별도 지원은 추가 확인이 필요합니다.</small>' : '') +
       '<br>' + entry.sources.filter(source => /^https:\/\//.test(source)).map(source => '<a href="' + escapeHtml(source) + '" target="_blank" rel="noopener noreferrer">공식 근거</a>').join(' · ') + '</li>').join('') +

@@ -493,9 +493,53 @@ try {
   assert.equal(await page.locator("code").filter({ hasText: /^security\.(support-ending|runtime-eol)$/ }).count(), 0);
   await fs.writeFile(path.join(fixture, "deno.lock"), '{"version":"5"}');
   await page.locator("#folderInput").setInputFiles(fixture);
-  await page.waitForFunction(() => document.querySelector("#scopeExclusions").textContent.includes("미지원 lockfile"));
-  assert.match(await page.locator("#scopeExclusions").textContent(), /일부 파일/);
-  recordCheck("JSR publishing alone creates no Deno runtime or hosting warning, while unsupported deno.lock stays partial coverage");
+  await page.waitForFunction(() => document.querySelector("#securityContext").textContent.includes("공유 lockfile 그래프 1개"));
+  assert.doesNotMatch(await page.locator("#scopeExclusions").textContent(), /미지원 lockfile/);
+  recordCheck("JSR publishing alone creates no Deno runtime or hosting warning and an empty Deno v5 lock is parsed");
+
+  await fs.rm(path.join(fixture, "jsr.json"));
+  await fs.writeFile(path.join(fixture, ".dvmrc"), "lts");
+  await fs.writeFile(path.join(fixture, "deno.jsonc"), '{"imports":{"app":"jsr:@example/app@^1"}}');
+  await fs.writeFile(path.join(fixture, "deno.lock"), JSON.stringify({version:"5", specifiers:{"jsr:@example/app@^1":"1.0.0", "npm:next@^16.4.0":"16.4.0"},
+    npm:{"next@16.4.0":{integrity:"synthetic"}}, jsr:{"@example/app@1.0.0":{integrity:"synthetic",dependencies:["npm:next"]}}, workspace:{dependencies:["jsr:@example/app@^1"]}}));
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector('[data-lifecycle-component="deno-lts"]')?.dataset.lifecycleState === "maintenance");
+  await page.locator("#projectIdentity").fill("synthetic/deno-lock-lts");
+  await page.getByRole("button", {name:"상태 연결",exact:true}).click();
+  await page.waitForFunction(() => !document.querySelector("#exportTriage").disabled);
+  const ltsEntry=page.locator('[data-lifecycle-component="deno-lts"]');
+  assert.match(await ltsEntry.textContent(), /2027-01-31/);
+  assert.match(await ltsEntry.textContent(), /2\.9/);
+  assert.match(await ltsEntry.textContent(), /실제 설치 패치 미확인/);
+  const denoAdvisory=page.locator(".finding-item").filter({has:page.locator("code",{hasText:/^security\.rsc-typed-array-rce$/})});
+  assert.equal(await denoAdvisory.count(),1);
+  assert.match(await denoAdvisory.textContent(), /deno\.lock/);
+  await page.locator("#securityContext").evaluate(node => {node.open=true;node.querySelectorAll("details").forEach(item=>item.open=true);});
+  assert.match(await page.locator("#securityContext").textContent(), /JSR · @example\/app/);
+  for(const width of [320,390]) {
+    await page.setViewportSize({width,height:1000});
+    await ltsEntry.scrollIntoViewIfNeeded();
+    await settleView(page);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "Deno LTS overflow at " + width);
+    await page.screenshot({path:path.join(values.output,"dashboard-deno-lts-"+width+".png")});
+  }
+  recordCheck("Deno v5 mixed JSR/npm graph renders its transitive advisory and an explicit LTS deadline without inventing an installed patch or overflowing 320/390px");
+  const ltsGroup=page.locator(".issue-group").filter({has:page.locator("code",{hasText:/^security\.support-ending$/})}).filter({hasText:"Deno LTS"});
+  assert.equal(await ltsGroup.count(),1);
+  await ltsGroup.locator(":scope > summary").click();
+  await ltsGroup.getByRole("button",{name:"열린 항목 묶음 닫기",exact:true}).click();
+  await page.locator("#closeReason").fill("Synthetic LTS channel review; product retirement is separate.");
+  await page.locator("#closeExpires").fill("2026-11-20");
+  await page.locator("#triageDialog").getByRole("button",{name:"검토 후 닫기",exact:true}).click();
+  assert.equal(await ltsGroup.count(),0);
+  assert.equal(await page.locator(".issue-group").filter({has:page.locator("code",{hasText:/^security\.support-ending$/})}).filter({hasText:"Deno Runtime"}).count(),1);
+  assert.equal(Object.keys((await exportDocument(page)).decisions).length,1);
+  recordCheck("LTS line review remains independent from the Deno product retirement parent and retains one exportable decision");
+  await page.clock.setFixedTime(new Date("2027-02-01T03:00:00Z"));
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector('[data-lifecycle-component="deno-lts"]')?.dataset.lifecycleState === "unknown");
+  assert.doesNotMatch(await page.locator('[data-lifecycle-component="deno-lts"]').textContent(), /2027-01-31/);
+  recordCheck("the moving LTS selector becomes unverified after its reviewed window instead of asserting an installed expired line");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

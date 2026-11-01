@@ -2,7 +2,7 @@ const TEXT_EXTENSIONS = new Set([
   "js", "jsx", "ts", "tsx", "mjs", "cjs", "json", "md", "mdx",
   "css", "scss", "html", "yml", "yaml", "php"
 ]);
-const SECURITY_INVENTORY_FILE_PATTERN = /^(?:composer\.lock|Dockerfile(?:\..+)?|\.nvmrc|\.node-version|\.php-version|\.deno-version|\.bun-version|\.tool-versions|deno\.jsonc|jsr\.jsonc|yarn\.lock|bun\.lock)$/i;
+const SECURITY_INVENTORY_FILE_PATTERN = /^(?:composer\.lock|Dockerfile(?:\..+)?|\.nvmrc|\.node-version|\.php-version|\.deno-version|\.dvmrc|deno\.lock|\.bun-version|\.tool-versions|deno\.jsonc|jsr\.jsonc|yarn\.lock|bun\.lock)$/i;
 const SKIPPED_SEGMENTS = [
   "/node_modules/", "/.git/", "/.next/", "/dist/", "/build/",
   "/coverage/", "/vendor/", "/generated/"
@@ -233,7 +233,6 @@ function fileExclusionReason(file) {
   if (GENERATED_FILE_PATTERN.test(path)) return "generated";
   if (SKIPPED_SEGMENTS.some((segment) => path.includes(segment))) return "excluded-path";
   if (/^bun\.lockb$/i.test(name)) return "binary-lockfile";
-  if (/^deno\.lock$/i.test(name)) return "unsupported-lockfile";
   if (!TEXT_EXTENSIONS.has(extension) && !SECURITY_INVENTORY_FILE_PATTERN.test(name)) return "unsupported-type";
   if (file.size > analysisLimits.maxFileSize) return "oversized";
   return null;

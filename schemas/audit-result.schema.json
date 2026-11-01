@@ -824,7 +824,8 @@
                 "enum": [
                   "runtime",
                   "npm",
-                  "composer"
+                  "composer",
+                  "jsr"
                 ]
               },
               "name": {
@@ -998,7 +999,8 @@
                   "npm",
                   "pnpm",
                   "yarn-berry",
-                  "bun"
+                  "bun",
+                  "deno"
                 ]
               },
               "complete": {
@@ -1050,6 +1052,13 @@
                     "registryRevision": {
                       "type": "integer",
                       "minimum": 1
+                    },
+                    "ecosystem": {
+                      "type": "string",
+                      "enum": [
+                        "npm",
+                        "jsr"
+                      ]
                     }
                   }
                 }
@@ -1215,7 +1224,8 @@
                       "deno-runtime",
                       "deno-deploy",
                       "deno-deploy-classic",
-                      "jsr"
+                      "jsr",
+                      "deno-lts"
                     ]
                   },
                   "category": {
@@ -1304,6 +1314,9 @@
                       "release-line",
                       "major-family"
                     ]
+                  },
+                  "releaseLine": {
+                    "type": "string"
                   }
                 }
               }

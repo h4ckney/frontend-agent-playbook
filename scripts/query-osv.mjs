@@ -57,7 +57,7 @@ export async function queryInventory(scan, { fetchImpl = globalThis.fetch, now =
     privacy: { endpoint: API, transmitted: ["ecosystem", "package name", "locked exact version", "OSV advisory IDs/page tokens"], note: "Source code, project names, local paths and phase metadata are not transmitted. Package names can reveal private dependencies." },
     coverage: { status: "not-run", inventoryEntries: scan.securityContext.inventory.length, uniqueLockedPackages: 0, queriedPackages: 0,
       limits: { maxPackages, maxDetails, maxPages }, errors: [], note: "Results cover returned OSV records for queried locked versions only. No result proves safety or runtime reachability." },
-    packages: [], advisories: [], declarations: [], skipped: [], limitations: ["Runtime Node/PHP versions are not npm/Packagist packages and are not queried here.", "Declared versions, ranges, unsupported lock formats and absent inventory remain unverified.", "Lockfile phase describes a declared installation role; production installation, actual runtime version, vulnerable call path and vendor backports require verification."]
+    packages: [], advisories: [], declarations: [], skipped: [], limitations: ["Runtime versions and JSR packages are not npm/Packagist coordinates and are not queried here.", "Declared versions, ranges, unsupported lock formats and absent inventory remain unverified.", "Lockfile phase describes a declared installation role; production installation, actual runtime version, vulnerable call path and vendor backports require verification."]
   };
   const grouped = new Map();
   for (const item of scan.securityContext.inventory) {

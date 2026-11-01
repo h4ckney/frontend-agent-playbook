@@ -26,8 +26,9 @@
     "8.4": { start: "2024-11-21", maintenance: "2026-12-31", end: "2028-12-31" },
     "8.5": { start: "2025-11-20", maintenance: "2027-12-31", end: "2029-12-31" }
   };
+  const DENO_LTS = [{line:"2.1", start:"2025-02-01", end:"2025-04-30"}, {line:"2.2", start:"2025-05-01", end:"2025-10-31"}, {line:"2.5", start:"2025-11-01", end:"2026-04-30"}, {line:"2.9", start:"2026-07-01", end:"2027-01-31"}];
   const COMPONENTS = Object.freeze({ node: "Node.js", php: "PHP", bun: "Bun", "deno-runtime": "Deno Runtime",
-    "deno-deploy": "Deno Deploy", "deno-deploy-classic": "Deno Deploy Classic", jsr: "JSR" });
+    "deno-deploy": "Deno Deploy", "deno-deploy-classic": "Deno Deploy Classic", jsr: "JSR", "deno-lts": "Deno LTS" });
   const STATES = Object.freeze({ supported: "지원 중", maintenance: "유지보수 지원", "security-only": "보안 수정 지원",
     "end-announced": "종료 예정 공지", ended: "공식 일정상 지원 종료", continuing: "계속 운영 공지",
     unknown: "지원 상태 미확인", "not-released": "정식 출시 예정" });
@@ -104,7 +105,11 @@
     for (const item of inventory) if (item.ecosystem === "runtime" && Object.hasOwn(COMPONENTS, runtimeName(item.name))) {
       add({ component: runtimeName(item.name), manifest: item.manifest, path: item.path, version: item.version,
         phase: item.phase, sourceKind: item.provenance, versionKind: item.versionKind });
+      if (item.name === "deno" && item.version === "lts" && ["version-file", "ci-configuration"].includes(item.provenance)) {
+        add({component:"deno-lts", manifest:item.manifest, path:item.path, version:"lts", phase:item.phase, sourceKind:item.provenance});
+      }
     }
+    for (const item of inventory) if (item.ecosystem === "jsr") add({component:"jsr", manifest:item.manifest, path:"registry", version:null, phase:"unknown", sourceKind:"lockfile"});
     const commandUsage = (commands, record, prefix) => {
       for (const [name, command] of entries(commands)) {
         const text = typeof command === "string" ? command : typeof command?.command === "string" ? command.command : "";
@@ -157,12 +162,17 @@
     }
     const rows = candidates.map(item => {
       const row = { component: item.component, category: item.component === "jsr" ? "registry" : item.component.startsWith("deno-deploy") ? "hosting" : "runtime",
-        supportScope: ["node", "php"].includes(item.component) ? "release-line" : item.component === "bun" ? "major-family" : "product",
+        supportScope: ["node", "php", "deno-lts"].includes(item.component) ? "release-line" : item.component === "bun" ? "major-family" : "product",
         manifest: item.manifest, path: item.path, phase: item.phase, version: item.version == null ? null : parser.displayVersion(item.version),
         sourceKind: item.sourceKind, state: "unknown", supportEnds: null, datePrecision: "none", dateBasis: "not-published",
         endingSoon: false, reason: "branch-not-in-reviewed-policy", sources: [] };
       if (["engine-constraint", "platform-override", "declared-range", "declared-exact"].includes(item.versionKind)) { row.reason = "constraint-is-not-an-executed-version"; return row; }
-      if (item.component === "deno-runtime" || item.component === "deno-deploy") {
+      if (item.component === "deno-lts") {
+        const policy = asOf && DENO_LTS.find(item => asOf >= item.start && asOf <= item.end);
+        Object.assign(row, {sources:[SOURCES.denoChannels], reason:"explicit-lts-selector-current-line-unverified"});
+        if (policy) Object.assign(row, {state:"maintenance", releaseLine:policy.line, supportEnds:policy.end, datePrecision:"day", dateBasis:"official-date", endingSoon:(Date.parse(policy.end)-Date.parse(asOf))/86400000 <= 180,
+          reason:"explicit-moving-lts-selector-reviewed-line-not-installed-patch"});
+      } else if (item.component === "deno-runtime" || item.component === "deno-deploy") {
         Object.assign(row, { state: "end-announced", supportEnds: item.component === "deno-runtime" ? "2027-10" : "2027-04",
           datePrecision: "month", dateBasis: "announcement-relative", endingSoon: true, reason: "official-team-announcement-not-branch-or-deployment-verification", sources: [SOURCES.deno, ...(item.component === "deno-runtime" ? [SOURCES.denoChannels] : [])] });
         if (asOf && asOf.slice(0, 7) > row.supportEnds) Object.assign(row, { state: "unknown", endingSoon: false, reason: "announced-window-elapsed-needs-current-verification" });

@@ -51,6 +51,7 @@ jobs:
           node --check analysis/triage-state.js
           node --check analysis/lockfile-graph.js
           node --check analysis/vendor/js-yaml-5.5.0.js
+          node --check analysis/deno-lock.js
           node --check analysis/runtime-lifecycle.js
           node --check analysis/security-context.js
           node --check analysis/artifact-schemas.js

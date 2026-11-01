@@ -144,6 +144,8 @@ The offline dashboard/CLI now inventories npm/Composer lockfiles and Node/PHP co
 
 Runtime support is evaluated separately from the advisory snapshot: Deno Runtime, Deploy, Deploy Classic and JSR have independent policies; Node/PHP follow release calendars and Bun follows its published support policy. See [lifecycle policy, evidence and limits](docs/runtime-service-lifecycle.md).
 
+Deno lock v3/v4/v5 inventories npm and JSR separately, and an explicit LTS selector receives its own dated policy without an invented installed patch. See [Deno lock/LTS coverage and official fixtures](docs/deno-lock-lts.md).
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
@@ -257,6 +259,7 @@ node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
 node --check analysis/security-context.js
+node --check analysis/deno-lock.js
 node --check analysis/runtime-lifecycle.js
 node --check bin/frontend-agent-audit.mjs
 node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs scripts/query-osv.test.mjs scripts/dashboard-provenance.test.mjs

@@ -242,8 +242,8 @@ test('Deno dependency imports remain an explicit version-coverage gap instead of
   assert.ok(compared.diff.unverified.includes(fingerprint));
   assert.ok(!compared.diff.resolved.includes(fingerprint));
   const selected=selectFilesWithinBudget([{name:'deno.lock',size:100}]);
-  assert.equal(selected.excludedByReason['unsupported-lockfile'],1);
-  assert.equal(selected.coverageIncomplete,true);
+  assert.equal(selected.excludedByReason['unsupported-lockfile'], undefined);
+  assert.equal(selected.coverageIncomplete,false);
 });
 
  test('null or scalar configuration roots remain gaps and never crash a scan', () => {
@@ -253,4 +253,35 @@ test('Deno dependency imports remain an explicit version-coverage gap instead of
     assert.ok(result.lifecycle.gaps.some(item => item.reason === 'invalid-lifecycle-configuration'));
     assert.ok(result.coverage.gaps.length > 0);
   }
+});
+
+test('explicit LTS selectors receive a separate dated line policy without fabricating an installed patch', () => {
+  for (const records of [[rec('.dvmrc','lts')],[rec('.deno-version','lts')],[rec('.tool-versions','deno lts')],[rec('.github/workflows/ci.yml','jobs:\n  test:\n    steps:\n      - uses: denoland/setup-deno@v2\n        with:\n          deno-version: lts\n')]]) {
+    const result=inspect(records), lts=row(result,'deno-lts');
+    assert.equal(lts.releaseLine,'2.9');
+    assert.match(buildAuditMarkdown(bundle(records),{locale:'ko'}), /lts \/ LTS 2\.9/);
+    assert.equal(lts.version,'lts');
+    assert.equal(lts.supportEnds,'2027-01-31');
+    assert.equal(lts.state,'maintenance');
+    assert.equal(lts.endingSoon,true);
+    assert.equal(row(result,'deno-runtime').supportEnds,'2027-10');
+    assert.deepEqual(validateAuditResult(bundle(records)),[]);
+    assert.ok(!result.inventory.some(item=>item.versionKind === 'runtime-pin'));
+  }
+});
+
+test('numeric Deno versions, unrelated action inputs and comments never imply an LTS channel', () => {
+  for(const records of [[rec('.deno-version','2.9.3')],[rec('deno.json',{description:'lts'})],[rec('.github/workflows/ci.yml','jobs:\n  test:\n    steps:\n      - uses: vendor/custom@v1\n        with: {deno-version: lts}\n      - uses: denoland/setup-deno@v2\n        with: {deno-version: "2.9.3"}\n')]]) assert.equal(row(inspect(records),'deno-lts'),undefined);
+});
+
+test('a moving LTS channel outside a reviewed window stays unknown instead of confirming an old branch is still installed', () => {
+  const records=[rec('.dvmrc','lts')];
+  assert.equal(row(inspect(records,'2027-01-31T03:00:00Z'),'deno-lts').state,'maintenance');
+  const expired=inspect(records,'2027-02-01T03:00:00Z');
+  assert.equal(row(expired,'deno-lts').state,'unknown');
+  assert.equal(row(expired,'deno-lts').supportEnds,null);
+  assert.equal(row(expired,'deno-lts').releaseLine,undefined);
+  const before=bundle(records), after=bundle(records,'2027-02-01T03:00:00Z');
+  const id=before.findings.find(item=>item.observedFact.includes('Deno LTS')).fingerprint;
+  assert.ok(compareWithBaseline(after,createBaseline(before)).diff.unverified.includes(id));
 });

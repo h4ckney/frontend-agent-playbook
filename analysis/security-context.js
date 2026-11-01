@@ -5,6 +5,7 @@
   // deployment, vendor backports and vulnerable data flow remain unverified.
   const lockGraph = typeof module !== "undefined" && module.exports ? require("./lockfile-graph.js") : globalThis.FrontendLockGraph;
   const lifecycle = typeof module !== "undefined" && module.exports ? require("./runtime-lifecycle.js") : globalThis.FrontendRuntimeLifecycle;
+  const denoLock = typeof module !== "undefined" && module.exports ? require("./deno-lock.js") : globalThis.FrontendDenoLock;
   const CHECKED_AT = "2026-10-30";
   const SNAPSHOT_ID = "security-context-2026-10-30-v1";
   const MAX_INVENTORY = 20_000;
@@ -112,6 +113,7 @@
     const gaps = [];
     const graphs = [];
     const graphLocks = new Set();
+    const denoCoveredImports = new Set();
     const manifests = new Map();
     const addGap = (path, reason) => gaps.push({ path, reason });
     const add = (item) => {
@@ -160,7 +162,12 @@
     }
 
     for (const record of records) {
-      if (/(^|\/)(package-lock|npm-shrinkwrap)\.json$/.test(record.path)) {
+      if (/(^|\/)deno\.lock$/.test(record.path)) {
+        const result = denoLock.readDenoLock(record, records);
+        graphs.push(result.graph); graphLocks.add(record.path);
+        result.inventory.forEach(add); result.gaps.forEach(item => addGap(item.path, item.reason));
+        result.coveredImports.forEach(file => denoCoveredImports.add(file));
+      } else if (/(^|\/)(package-lock|npm-shrinkwrap)\.json$/.test(record.path)) {
         const value = parse(record);
         if (!value) continue;
         const directory = record.path.replace(/[^/]+$/, "");
@@ -192,9 +199,9 @@
             phaseEvidence: "Composer lock package group; production installation not verified",
             direct: Object.hasOwn(manifest.require || {}, item.name) || Object.hasOwn(manifest["require-dev"] || {}, item.name), provenance: "lockfile" });
         }
-      } else if (/(^|\/)(?:\.nvmrc|\.node-version|\.php-version|\.deno-version|\.bun-version)$/.test(record.path)) {
+      } else if (/(^|\/)(?:\.nvmrc|\.node-version|\.php-version|\.deno-version|\.dvmrc|\.bun-version)$/.test(record.path)) {
         const version = record.content.trim();
-        add({ ecosystem: "runtime", name: record.path.endsWith(".php-version") ? "php" : record.path.endsWith(".deno-version") ? "deno" : record.path.endsWith(".bun-version") ? "bun" : "node", version,
+        add({ ecosystem: "runtime", name: record.path.endsWith(".php-version") ? "php" : (record.path.endsWith(".deno-version") || record.path.endsWith(".dvmrc")) ? "deno" : record.path.endsWith(".bun-version") ? "bun" : "node", version,
           versionKind: exactVersion(version) ? "runtime-pin" : "runtime-selector", manifest: record.path, path: "version",
           phase: "unknown", phaseEvidence: "version-manager configuration; build/server usage and execution not verified", direct: true, provenance: "version-file" });
       } else if (/(^|\/)Dockerfile(?:\.[^/]+)?$/.test(record.path)) {
@@ -208,7 +215,7 @@
           const match = /^\s*(nodejs|node|php|deno|bun)\s+([^#]+?)(?:\s*#.*)?$/.exec(line);
           if (!match) continue;
           const version = match[2].trim();
-          const value = /^v?[\d.]+$/.test(version) ? version : "unresolved-selector";
+          const value = /^v?[\d.]+$/.test(version) || match[1] === "deno" && version === "lts" ? version : "unresolved-selector";
           if (value === "unresolved-selector") addGap(record.path, "unresolved-tool-version");
           add({ ecosystem: "runtime", name: match[1] === "nodejs" ? "node" : match[1], version: value,
             versionKind: exactVersion(value) ? "runtime-pin" : "runtime-selector", manifest: record.path, path: match[1] + "@" + (index + 1), phase: "unknown",
@@ -238,12 +245,12 @@
       findings.push(advisoryFinding(advisory, occurrences));
     }
     const { dependencyGaps, ...support } = lifecycle.inspectLifecycle(records, inventory, options);
-    dependencyGaps.forEach(item => addGap(item.path, item.reason));
+    dependencyGaps.filter(item => !denoCoveredImports.has(item.path)).forEach(item => addGap(item.path, item.reason));
     const occurrencesFor = entries => entries.map(entry => ({ ecosystem: "runtime", name: lifecycle.COMPONENTS[entry.component],
       version: entry.version || "version-unverified", versionKind: "lifecycle-policy", manifest: entry.manifest,
       path: "lifecycle/" + entry.component + "/" + entry.path, phase: entry.phase, provenance: entry.sourceKind,
       lifecycleComponent: entry.component, lifecycleState: entry.state, supportEnds: entry.supportEnds,
-      lifecycleSupportScope: entry.supportScope,
+      lifecycleSupportScope: entry.supportScope, releaseLine:entry.releaseLine,
       lifecyclePolicyFreshness: support.policy.freshness,
       lifecycleSeverity: entry.state === "ended" && entry.category === "hosting" ? "high" : "medium",
       datePrecision: entry.datePrecision, reason: entry.reason }));
@@ -289,7 +296,7 @@
     const hasLockEvidence = (item) => graphDeclarations.has(item.manifest + ":" + item.name) || legacyLockedNames.has(lockKey(item));
     const unresolved = inventory.filter((item) => {
       if (item.provenance === "manifest-declaration" && item.ecosystem !== "runtime" && hasLockEvidence(item)) return false;
-      return !exactVersion(item.version) || ["engine-constraint", "platform-override"].includes(item.versionKind)
+      return !exactVersion(item.version) || ["engine-constraint", "platform-override", "unresolved-lock-source"].includes(item.versionKind)
         || item.ecosystem === "runtime" && item.provenance === "manifest-declaration";
     });
     for (const item of inventory.filter((entry) => entry.provenance === "manifest-declaration" && entry.ecosystem !== "runtime")) {
@@ -325,7 +332,7 @@
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
       inventory, findings, lifecycle: support, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
-        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "Deno lock v3/v4/v5 npm/JSR inventory and explicit workspace graph; JSR advisories, remote URL contents, local links and legacy optional metadata remain unverified", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
     };
   }

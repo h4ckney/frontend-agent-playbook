@@ -325,19 +325,21 @@ test('CLI retains both pnpm documents and binary lock exclusions cannot turn mis
   assert.ok(!audit.diff.resolved.some(id => id.startsWith('security.rsc-typed-array-rce:')));
 });
 
-test('CLI preserves separate lifecycle products, private configuration boundaries and unsupported Deno lock coverage', async t => {
+test('CLI preserves separate lifecycle products, private configuration boundaries and Deno lock coverage', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'frontend-lifecycle-cli-'));
   t.after(() => fs.rm(root, {recursive:true, force:true}));
   await fs.writeFile(path.join(root, 'package.json'), '{}');
-  await fs.writeFile(path.join(root, '.deno-version'), '2.9.8');
+  await fs.writeFile(path.join(root, '.dvmrc'), 'lts');
   await fs.writeFile(path.join(root, '.bun-version'), '1.4.4');
   await fs.writeFile(path.join(root, 'deno.jsonc'), '{"deploy":{"app":"private-deploy-project"},"imports":{"assert":"jsr:@std/assert@^1"},}');
-  await fs.writeFile(path.join(root, 'deno.lock'), '{"version":"5"}');
+  await fs.writeFile(path.join(root, 'deno.lock'), JSON.stringify({version:'5',specifiers:{'jsr:@std/assert@^1':'1.0.0'},jsr:{'@std/assert@1.0.0':{integrity:'synthetic'}},workspace:{dependencies:['jsr:@std/assert@^1']}}));
   const output = run(['scan', '--root', '.', '--format', 'json'], root);
   assert.equal(output.status, 0, output.stderr);
   const audit = JSON.parse(output.stdout);
-  assert.equal(audit.scope.partial, true);
-  assert.equal(audit.scope.excludedByReason['unsupported-lockfile'], 1);
+  assert.equal(audit.scope.partial, false);
+  assert.equal(audit.scope.excludedByReason['unsupported-lockfile'], undefined);
+  assert.equal(audit.securityContext.graphs[0].format,'deno');
+  assert.equal(audit.securityContext.graphs[0].complete,true);
   const lifecycle = audit.securityContext.lifecycle;
   const byComponent = Object.fromEntries(lifecycle.entries.map(item => [item.component, item]));
   assert.equal(lifecycle.policy.checkedAt, '2026-11-02');
@@ -346,6 +348,8 @@ test('CLI preserves separate lifecycle products, private configuration boundarie
   assert.equal(byComponent.jsr.category, 'registry');
   assert.equal(byComponent.jsr.supportEnds, null);
   assert.equal(byComponent.bun.dateBasis, 'not-published');
+  assert.equal(byComponent['deno-lts'].supportScope, 'release-line');
+  assert.equal(byComponent['deno-lts'].version, 'lts');
   assert.doesNotMatch(output.stdout, /private-deploy-project/);
-  assert.ok(audit.securityContext.coverage.gaps.some(item => item.reason === 'deno-dependency-lock-coverage-unavailable'));
+  assert.ok(audit.securityContext.coverage.gaps.some(item => item.reason === 'jsr-advisory-coverage-unavailable'));
 });
