@@ -20,7 +20,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "5";
+  const DETECTOR_CATALOG_VERSION = "6";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -30,7 +30,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-01.1")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-01.2")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -195,16 +195,17 @@
   }
 
   function workspaceLabel(entry) {
-    if (!entry.workspaceUsage?.length) return "";
+    const context = (entry.lockContext === "boot" ? " · pnpm boot/build" : "") + (entry.modifications?.length ? " · modified registry base: " + entry.modifications.join(", ") + (entry.registryRevision ? " revision " + entry.registryRevision : "") + "; patch/revision contents not verified" : "");
+    if (!entry.workspaceUsage?.length) return context;
     const usage = entry.workspaceUsage;
     const summary = usage.slice(0, 10).map(item => item.manifest + " [" + item.phase + (item.direct ? "; direct" : "; transitive") + "]").join(", ");
-    if (usage.length <= 10) return " · " + summary;
+    if (usage.length <= 10) return context + " · " + summary;
     // Bound review metadata without letting changes in omitted workspaces reuse
     // a close decision. Full local references remain in securityContext JSON.
     let hash = 14695981039346656037n;
     const text = JSON.stringify(usage);
     for (let index = 0; index < text.length; index += 1) hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 1099511628211n);
-    return " · " + summary + "; +" + (usage.length - 10) + " workspace uses; metadata-" + hash.toString(16);
+    return context + " · " + summary + "; +" + (usage.length - 10) + " workspace uses; metadata-" + hash.toString(16);
   }
 
   function normalizeFindingOccurrences(item, context, profile) {
@@ -494,7 +495,7 @@
   function normalizeScope(scope) {
     const partialReasons = Object.entries(scope.excludedByReason || {})
       .filter(([reason]) => [
-        "directory-read-failed", "generated-header", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
+        "binary-lockfile", "directory-read-failed", "generated-header", "input-budget", "oversized", "read-failed", "stat-failed", "symlink"
       ].includes(reason))
       .map(([reason, count]) => reason + ":" + count)
       .sort();
@@ -528,10 +529,10 @@
     return {
       rootLabel: sanitizeLabel(name || profile?.project?.id || "project"),
       framework: dependencies.next ? "next" : null,
-      frameworkVersion: dependencies.next || null,
+      frameworkVersion: security.displayVersion(dependencies.next) || null,
       routerMode: app && pages ? "mixed" : app ? "app" : pages ? "pages" : "unknown",
-      reactVersion: dependencies.react || null,
-      typescriptVersion: dependencies.typescript || null,
+      reactVersion: security.displayVersion(dependencies.react) || null,
+      typescriptVersion: security.displayVersion(dependencies.typescript) || null,
       visibility: resolveSeoScope(context?.seoScope, profile),
       profileSource: profileSource || null
     };

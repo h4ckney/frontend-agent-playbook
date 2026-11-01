@@ -891,6 +891,27 @@
                     }
                   }
                 }
+              },
+              "modifications": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "patch",
+                    "virtual",
+                    "registry-revision"
+                  ]
+                }
+              },
+              "registryRevision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "lockContext": {
+                "type": "string",
+                "enum": [
+                  "boot"
+                ]
               }
             }
           }
@@ -1008,11 +1029,27 @@
                       "type": "string",
                       "enum": [
                         "workspace",
-                        "package"
+                        "package",
+                        "local"
                       ]
                     },
                     "manifest": {
                       "type": "string"
+                    },
+                    "modifications": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "patch",
+                          "virtual",
+                          "registry-revision"
+                        ]
+                      }
+                    },
+                    "registryRevision": {
+                      "type": "integer",
+                      "minimum": 1
                     }
                   }
                 }
@@ -1044,7 +1081,8 @@
                         "runtime",
                         "optional",
                         "development",
-                        "peer"
+                        "peer",
+                        "build"
                       ]
                     }
                   }
@@ -1065,9 +1103,22 @@
                     },
                     "node": {
                       "type": "string"
+                    },
+                    "phase": {
+                      "type": "string",
+                      "enum": [
+                        "build"
+                      ]
                     }
                   }
                 }
+              },
+              "document": {
+                "type": "string",
+                "enum": [
+                  "boot",
+                  "project"
+                ]
               }
             }
           }

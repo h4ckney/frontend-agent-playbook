@@ -85,6 +85,10 @@
     return parts.every(Number.isSafeInteger) ? parts.join(".") : null;
   }
 
+  function displayVersion(value) {
+    return lockGraph.displayVersion(value);
+  }
+
   function compare(a, b) {
     const left = a.split(".").map(Number);
     const right = b.split(".").map(Number);
@@ -115,7 +119,7 @@
       if (item.name.length > 214 || item.version.length > 200 || item.manifest.length + item.path.length > 1800) {
         addGap(item.manifest, "oversized-inventory-entry"); return;
       }
-      if (inventory.length < MAX_INVENTORY) inventory.push(item);
+      if (inventory.length < MAX_INVENTORY) inventory.push({ ...item, version: displayVersion(item.version) });
       else if (!gaps.some((gap) => gap.reason === "inventory-budget")) addGap(item.manifest, "inventory-budget");
     };
     const parse = (record) => {
@@ -135,9 +139,10 @@
       const scopes = composer ? [["require", "runtime"], ["require-dev", "development"]]
         : [["dependencies", "runtime"], ["optionalDependencies", "runtime"], ["devDependencies", "development"], ["peerDependencies", "unknown"]];
       for (const [key, phase] of scopes) {
-        if (!value[key] || typeof value[key] !== "object" || Array.isArray(value[key])) continue;
+        if (value[key] === undefined) continue;
+        if (!value[key] || typeof value[key] !== "object" || Array.isArray(value[key])) { addGap(record.path, "malformed-manifest-dependency-map"); continue; }
         for (const [name, version] of Object.entries(value[key])) {
-          if (typeof version !== "string") continue;
+          if (typeof version !== "string") { addGap(record.path, "invalid-manifest-version-selector"); continue; }
           const runtime = composer && name === "php";
           add({ ecosystem: runtime ? "runtime" : composer ? "composer" : "npm", name,
             version, versionKind: exactVersion(version) ? "declared-exact" : "declared-range",
@@ -216,8 +221,8 @@
     }
 
     function collectGraph(record) {
-      const result = lockGraph.readLockGraph(record, manifests);
-      graphs.push(result.graph); graphLocks.add(record.path);
+      const result = lockGraph.readLockGraphs(record, manifests);
+      graphs.push(...result.graphs); graphLocks.add(record.path);
       result.inventory.forEach(add);
       result.gaps.forEach(item => addGap(item.path, item.reason));
     }
@@ -245,12 +250,13 @@
     const graphDeclarations = new Set();
     for (const graph of graphs) {
       const nodes = new Map(graph.nodes.map(node => [node.id, node]));
-      const roots = new Map(graph.roots.map(root => [root.node, root]));
+      const roots = new Map(graph.roots.filter(root => root.phase !== "build").map(root => [root.node, root]));
+      for (const node of graph.nodes) if (node.kind === "local") roots.set(node.id, { manifest: node.manifest });
       for (const edge of graph.edges) {
         const root = roots.get(edge.from);
         if (!root) continue;
         const target = nodes.get(edge.to);
-        if (target && (target.kind === "workspace" || exactVersion(target.version))) graphDeclarations.add(root.manifest + ":" + edge.dependency);
+        if (target && (["workspace", "local"].includes(target.kind) || exactVersion(target.version))) graphDeclarations.add(root.manifest + ":" + edge.dependency);
       }
     }
     const legacyLockedNames = new Set(inventory.filter(item => item.provenance === "lockfile" && !graphLocks.has(item.manifest) && item.versionKind === "locked-exact").map(lockKey));
@@ -292,7 +298,7 @@
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
       inventory, findings, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
-        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm v1/v2/v3, Yarn Classic/Berry, pnpm v6/v9, Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
     };
   }
@@ -444,7 +450,7 @@
       limitation: "오프라인 권고 스냅샷 " + CHECKED_AT + "; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. " + (value.sources || []).join(" ") };
   }
 
-  const api = Object.freeze({ inspectSecurityContext, DETECTOR_IDS });
+  const api = Object.freeze({ inspectSecurityContext, displayVersion, DETECTOR_IDS });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (typeof globalThis !== "undefined") globalThis.FrontendSecurityContext = api;
 })();

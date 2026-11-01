@@ -297,3 +297,30 @@ test('CLI accepts all modern text locks and connects a shared exact package to t
     await fs.rm(path.join(root, name));
   }
 });
+
+test('CLI retains both pnpm documents and binary lock exclusions cannot turn missing version evidence into resolved', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'frontend-lock-protocol-cli-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.writeFile(path.join(root, 'package.json'), '{"name":"root"}');
+  await fs.writeFile(path.join(root, 'pnpm-lock.yaml'), "---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    configDependencies:\n      next: {specifier: 16.4.0, version: 16.4.0}\npackages:\n  next@16.4.0: {}\nsnapshots:\n  next@16.4.0: {}\n---\nlockfileVersion: '9.0'\nimporters: {.: {}}\n");
+  const initial = run(['scan', '--root', '.', '--format', 'json'], root);
+  assert.equal(initial.status, 0, initial.stderr);
+  const parsed = JSON.parse(initial.stdout);
+  assert.equal(parsed.securityContext.graphs.length, 2);
+  assert.equal(parsed.securityContext.inventory[0].phase, 'build');
+  await fs.rm(path.join(root, 'pnpm-lock.yaml'));
+  await fs.writeFile(path.join(root, 'package-lock.json'), '{"lockfileVersion":3,"packages":{"":{},"node_modules/next":{"version":"16.4.0"}}}');
+  const baselineSource = path.join(root, 'before.json');
+  assert.equal(run(['scan', '--root', '.', '--format', 'json', '--output', baselineSource, '--quiet'], root).status, 0);
+  assert.equal(run(['baseline', '--from', baselineSource, '--output', 'baseline.json', '--quiet'], root).status, 0);
+  await fs.rm(path.join(root, 'package-lock.json'));
+  await fs.writeFile(path.join(root, 'bun.lockb'), Buffer.from([0, 255, 1, 42]));
+  const after = run(['scan', '--root', '.', '--baseline', 'baseline.json', '--format', 'json'], root);
+  assert.equal(after.status, 0, after.stderr);
+  const audit = JSON.parse(after.stdout);
+  assert.equal(audit.scope.excludedByReason['binary-lockfile'], 1);
+  assert.equal(audit.scope.partial, true);
+  assert.ok(audit.scope.partialReasons.includes('binary-lockfile:1'));
+  assert.ok(audit.diff.unverified.some(id => id.startsWith('security.rsc-typed-array-rce:')));
+  assert.ok(!audit.diff.resolved.some(id => id.startsWith('security.rsc-typed-array-rce:')));
+});

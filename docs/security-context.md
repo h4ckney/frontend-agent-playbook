@@ -25,7 +25,7 @@
 | `package.json` | dependencies, optional/dev/peer 구분, Node engines | 선언 범위만으로 설치 버전 확정 불가 |
 | npm lock v1/v2/v3, shrinkwrap | 정확한 버전, 중첩·scope 패키지, dev flag | v2/v3의 명시적 link/가까운 node_modules graph 지원. 실제 설치·배포·번들 포함은 미확인 |
 | Yarn Classic v1 | 일반 version stanza의 정확한 버전·grouped/scoped 이름 | 전체 graph·workspace 연결·실행 단계는 미확인 |
-| pnpm v6/v9 · Yarn Berry metadata 4–10 · Bun text v1 | 명시적 workspace graph와 정확한 버전, workspace별 역할 | [세부 지원·미지원 범위](modern-lock-workspace-graphs.md). 설치·배포·실제 코드 도달성 미확인 |
+| pnpm 5.0–5.4/v6/v9 · Yarn Berry metadata 4–10 · Bun text v1 | 명시적 workspace graph와 정확한 버전, workspace별 역할 | [다중 문서·patch·local 지원과 남은 범위](lock-protocol-priorities.md). 설치·배포·실제 코드 도달성 미확인 |
 | `composer.json`, `composer.lock` | require/require-dev, packages/packages-dev | PHP 실행 버전, 배포 시 `--no-dev` 적용 여부 |
 | `.nvmrc`, `.node-version`, `.php-version` | 정확한 pin과 selector 구분 | 빌드·서비스 중 어디서 사용했는지, 실제 바이너리 |
 | 공식 Node/PHP `Dockerfile` 이미지 | 마지막 기본 stage와 FROM 조상은 runtime, 다른 stage는 build | 사용자 지정 `--target`, ARG 치환, custom 이미지, 배포 digest |
@@ -61,7 +61,7 @@ PHP는 2026-10-23에 session upload progress의 추가 조건부 위험을 안�
 ## 현재 한계와 다음 확인
 
 - 이 목록에 일치하지 않아도 안전 판정이 아닙니다. npm·Packagist의 전체 CVE와 악성 패키지, OS·컨테이너 의존성은 별도 검사 대상입니다.
-- pnpm·Berry·Bun 텍스트와 공유 npm graph는 [형식별 범위](modern-lock-workspace-graphs.md)를 따릅니다. 미지원 version·protocol·끊긴 연결은 gap입니다. Yarn Classic의 지원·미지원 stanza 범위는 [이전 workspace·lock 확장](workspace-lock-analysis.md)을 따릅니다. 바이너리 `bun.lockb`는 텍스트 분석에서 `unsupported-type`으로 제외합니다. 지원 파일이더라도 입력 크기·읽기 제한으로 빠지면 상위 분석 범위가 부분 분석임을 유지해야 합니다.
+- pnpm·Berry·Bun 텍스트와 공유 npm graph는 [형식별 범위·우선순위](lock-protocol-priorities.md)를 따릅니다. 미지원 version·protocol·끊긴 연결은 gap입니다. Yarn Classic의 지원·미지원 stanza 범위는 [이전 workspace·lock 확장](workspace-lock-analysis.md)을 따릅니다. 바이너리 `bun.lockb`는 `binary-lockfile`로 제외하고 부분 분석을 유지합니다. 이를 이유로 이전 보안 발견을 해결 처리하지 않습니다. 지원 파일이더라도 입력 크기·읽기 제한으로 빠지면 상위 분석 범위가 부분 분석임을 유지해야 합니다.
 - 버전 일치 결과는 `inferred` / `verify-first`입니다. 실제 배포 버전, 도달 가능한 API, SAPI·OS, 외부 노출과 공급업체 패치로 위험을 검증합니다.
 - 최신 전체 모듈 비교는 고정 설치 내역 또는 SBOM을 근거로 npm/Composer 감사·OSV 등 외부 도구와 연결하는 단계가 필요합니다. 외부 전송에는 패키지명·버전·개인 저장소 이름의 노출 범위를 먼저 명시해야 합니다.
 - 빌드 공격은 credential·산출물 변조를, 서버 공격은 외부 요청 처리 경로를, 브라우저 코드는 사용자 데이터·권한 경계를 검증합니다. 실행 단계는 위험을 해석하는 근거이며 자동 면제 조건이 아닙니다.

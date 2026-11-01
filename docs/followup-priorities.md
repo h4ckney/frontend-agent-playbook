@@ -14,7 +14,7 @@
 | P2 | 권고 목록 갱신·외부 이슈 동기화 | 갱신 소유자·수집 범위·전송 정책·동일성/재개/종료 계약 확정 후 구현. 예약 자동화는 생성하지 않음 |
 | P3 | 검토 journal 용량·가져오기 개선 | 저장 실패 시 내보내기는 유지. 동시 탭 데이터 보존을 증명하는 압축·삭제 계약이 생긴 뒤 구현 |
 
-현재 [workspace·npm v1·Yarn Classic 확장](workspace-lock-analysis.md)에 이어 [pnpm·Berry·Bun 및 공유 workspace graph](modern-lock-workspace-graphs.md)를 구현했다. 앞의 표는 최초 우선순위다. 다음은 미지원 protocol/format, 설치 SBOM·배포 증거, 실제 workspace E2E 연결 순으로 진행한다. 검증·머지 상태는 해당 PR/CI를 따른다.
+현재 [workspace·npm v1·Yarn Classic 확장](workspace-lock-analysis.md)에 이어 [pnpm·Berry·Bun 및 공유 workspace graph](modern-lock-workspace-graphs.md)를 구현했다. 앞의 표는 최초 우선순위다. [미지원 protocol/format 우선순위와 후속 구현](lock-protocol-priorities.md)을 추가했다. 이후는 P3 형식의 실제 fixture, 설치 SBOM·배포 증거, 실제 workspace E2E 연결을 기준으로 진행한다. 검증·머지 상태는 해당 PR/CI를 따른다.
 
 ## 확인한 중간 이상 문제와 수정
 

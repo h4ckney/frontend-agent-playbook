@@ -1,5 +1,7 @@
 # 공유 lockfile과 workspace 의존성 그래프
 
+이 문서는 첫 modern lock 구현의 기록이다. 현재 다중 문서·구형 pnpm·Yarn patch/local과 남은 범위는 [후속 프로토콜 우선순위](lock-protocol-priorities.md)를 따른다.
+
 2026-11-01 · 기준 main `64d9f86` · 위험 수준 2. 버전 근거와 workspace 연결, 검토 재사용의 의미를 변경한다. 배포·설치·실제 호출 경로를 증명하는 기능은 아니다.
 
 ## 지원 범위

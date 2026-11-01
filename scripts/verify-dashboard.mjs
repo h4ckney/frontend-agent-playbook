@@ -385,6 +385,49 @@ try {
   await page.locator("#securityContext").scrollIntoViewIfNeeded();
   await settleView(page);
   await page.screenshot({ path: path.join(values.output, "dashboard-workspace-graph-390.png") });
+
+  await fs.writeFile(path.join(fixture, "package.json"), '{"name":"root","dependencies":{"next":"^16.4.0"}}');
+  await fs.writeFile(path.join(fixture, "apps", "isolated", "package.json"), '{}');
+  await fs.writeFile(path.join(fixture, "pnpm-lock.yaml"), "lockfileVersion: 5.4\nspecifiers: {next: ^16.4.0}\ndependencies: {next: 16.4.0}\npackages:\n  /next/16.4.0: {}\n");
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector("#securityContext").textContent.includes("packages/next/16.4.0"));
+  assert.equal(await page.locator(".finding-item").filter({ has: page.locator("code", { hasText: /^security\.rsc-typed-array-rce$/ }) }).count(), 1);
+  recordCheck("legacy pnpm 5.4 specifiers and slash package keys retain the advisory child in the browser");
+
+  const bootLock = "---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    configDependencies:\n      next: {specifier: 16.4.0, version: 16.4.0}\npackages:\n  next@16.4.0: {}\nsnapshots:\n  next@16.4.0: {}\n---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      next: {specifier: ^16.4.0, version: 16.4.0}\npackages:\n  next@16.4.0: {}\nsnapshots:\n  next@16.4.0: {}\n";
+  await fs.writeFile(path.join(fixture, "pnpm-lock.yaml"), bootLock);
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector("#securityContext").textContent.includes("패키지 매니저·설정 도구"));
+  assert.match(await page.locator("#securityContext").textContent(), /그래프 2개 · workspace 근거 1개/);
+  assert.equal(await page.locator(".finding-item").filter({ has: page.locator("code", { hasText: /^security\.rsc-typed-array-rce$/ }) }).count(), 2);
+  await page.locator("#securityContext summary").click();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  recordCheck("pnpm boot and project documents retain separate build/runtime advisory children and one application workspace root");
+  await fs.rm(path.join(fixture, "pnpm-lock.yaml"));
+
+  const patch = "patch:next@npm%3A16.4.0#https://user:private-token@example.invalid/private.patch::version=16.4.0&hash=abc123";
+  await fs.writeFile(path.join(fixture, "package.json"), JSON.stringify({ name: "root", dependencies: { next: patch } }));
+  await fs.writeFile(path.join(fixture, "yarn.lock"), '__metadata: {version: 8}\n"root@workspace:.":\n  resolution: "root@workspace:."\n  dependencies: {next: ' + JSON.stringify(patch) + '}\n' + JSON.stringify('next@' + patch) + ':\n  version: 16.4.0\n  resolution: ' + JSON.stringify('next@' + patch) + '\n');
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector("#securityContext").textContent.includes("원본 버전 비교, 수정 효과 미검증"));
+  assert.doesNotMatch(await page.locator("body").textContent(), /private-token|private.patch|example.invalid/);
+  assert.equal(await page.locator(".finding-item").filter({ has: page.locator("code", { hasText: /^security\.rsc-typed-array-rce$/ }) }).count(), 1);
+  await page.locator("#securityContext summary").click();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  }
+  await page.locator("#securityContext").scrollIntoViewIfNeeded();
+  await settleView(page);
+  await page.screenshot({ path: path.join(values.output, "dashboard-patched-version-390.png") });
+  recordCheck("Yarn patch retains the base advisory and unverified-fix label, hides source selectors, and fits 320/390px");
+  await fs.rm(path.join(fixture, "yarn.lock"));
+  await fs.writeFile(path.join(fixture, "package.json"), '{}');
+  await fs.writeFile(path.join(fixture, "bun.lockb"), Buffer.from([0, 255, 1, 42]));
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(() => document.querySelector("#scopeExclusions").textContent.includes("Bun 바이너리 lock"));
+  assert.match(await page.locator("#scopeExclusions").textContent(), /일부 파일/);
+  recordCheck("Bun binary lock is explicitly excluded as incomplete coverage rather than a complete clean scan");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

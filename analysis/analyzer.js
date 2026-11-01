@@ -232,6 +232,7 @@ function fileExclusionReason(file) {
   if (ENV_FILE_PATTERN.test(path)) return "environment";
   if (GENERATED_FILE_PATTERN.test(path)) return "generated";
   if (SKIPPED_SEGMENTS.some((segment) => path.includes(segment))) return "excluded-path";
+  if (/^bun\.lockb$/i.test(name)) return "binary-lockfile";
   if (!TEXT_EXTENSIONS.has(extension) && !SECURITY_INVENTORY_FILE_PATTERN.test(name)) return "unsupported-type";
   if (file.size > analysisLimits.maxFileSize) return "oversized";
   return null;
@@ -265,7 +266,7 @@ function selectFilesWithinBudget(files) {
     excludedByReason,
     budgetExceeded: Boolean(excludedByReason["input-budget"]),
     coverageIncomplete: Boolean(
-      excludedByReason["input-budget"] || excludedByReason.oversized
+      excludedByReason["input-budget"] || excludedByReason.oversized || excludedByReason["binary-lockfile"]
     )
   };
 }
