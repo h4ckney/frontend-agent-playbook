@@ -21,7 +21,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "7";
+  const DETECTOR_CATALOG_VERSION = "8";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -31,7 +31,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-02.1")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-02.2")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -196,7 +196,7 @@
   }
 
   function workspaceLabel(entry) {
-    if (entry.lifecycleComponent) return " · " + lifecycle.STATES[entry.lifecycleState] + (entry.supportEnds ? " · " + entry.supportEnds + (entry.datePrecision === "month" ? "경 · 정확한 종료일 미공표" : "") : "") + " · " + entry.reason + " · policy " + entry.lifecyclePolicyFreshness;
+    if (entry.lifecycleComponent) return (entry.releaseLine ? " · LTS " + entry.releaseLine : "") + " · " + lifecycle.STATES[entry.lifecycleState] + (entry.supportEnds ? " · " + entry.supportEnds + (entry.datePrecision === "month" ? "경 · 정확한 종료일 미공표" : "") : "") + " · " + entry.reason + " · policy " + entry.lifecyclePolicyFreshness;
     const context = (entry.lockContext === "boot" ? " · pnpm boot/build" : "") + (entry.modifications?.length ? " · modified registry base: " + entry.modifications.join(", ") + (entry.registryRevision ? " revision " + entry.registryRevision : "") + "; patch/revision contents not verified" : "");
     if (!entry.workspaceUsage?.length) return context;
     const usage = entry.workspaceUsage;
@@ -1034,7 +1034,7 @@
       korean ? "유한한 오프라인 권고 목록입니다. 일치 없음은 안전 판정이 아니며, 실제 설치·배포·공격 경로는 미확인입니다." : "Finite offline advisory snapshot. No match is not a clean security result; installation, deployment and vulnerable data flow remain unverified.", "",
       "| " + (korean ? "모듈 | 버전 | 버전 근거 | 단계 | 파일·위치 | 단계 판정 근거" : "Module | Version | Version evidence | Phase | File/location | Phase evidence") + " |",
       "| --- | --- | --- | --- | --- | --- |"];
-    for (const item of context.inventory) lines.push("| " + [item.name, item.version, item.versionKind, item.phase, item.manifest + "#" + item.path, item.phaseEvidence + workspaceLabel(item)].map(cell).join(" | ") + " |");
+    for (const item of context.inventory) lines.push("| " + [(item.ecosystem === "jsr" ? "JSR: " : "") + item.name, item.version, item.versionKind, item.phase, item.manifest + "#" + item.path, item.phaseEvidence + workspaceLabel(item)].map(cell).join(" | ") + " |");
     lines.push("", korean ? "확인하지 못한 범위:" : "Coverage limitations:", "");
     for (const item of context.coverage.gaps) lines.push("- " + cell(item.path) + ": " + cell(item.reason));
     for (const item of context.coverage.limitations) lines.push("- " + cell(item));
@@ -1044,7 +1044,7 @@
         "As of: " + cell(support.asOf || "unknown") + " / policy checked: " + cell(support.policy.checkedAt) + " / " + cell(support.policy.freshness), "",
         korean ? "공식 일정의 상태이며 실제 실행·배포·서비스 가동·공급업체 지원의 증명이 아닙니다. 월 단위 일정은 발표의 상대 기간에서 도출했으며 정확한 종료일이 아닙니다." : "Published policy only, not proof of execution, deployment, service availability or vendor support. Month estimates derive from announcement intervals, not exact shutdown dates.", "",
         "| Component | Category | Scope | State | End | Precision | Phase | Version | File/location | Evidence |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
-      for (const entry of support.entries) lines.push("| " + [lifecycle.COMPONENTS[entry.component], entry.category, entry.supportScope, korean ? lifecycle.STATES[entry.state] + (entry.endingSoon ? " · 종료 준비 필요" : "") : entry.state + (entry.endingSoon ? "; ending soon" : ""), entry.supportEnds || "not published", entry.datePrecision + "; " + entry.dateBasis, entry.phase, entry.version || "unknown", entry.manifest + "#" + entry.path, entry.reason].map(cell).join(" | ") + " |");
+      for (const entry of support.entries) lines.push("| " + [lifecycle.COMPONENTS[entry.component], entry.category, entry.supportScope, korean ? lifecycle.STATES[entry.state] + (entry.endingSoon ? " · 종료 준비 필요" : "") : entry.state + (entry.endingSoon ? "; ending soon" : ""), entry.supportEnds || "not published", entry.datePrecision + "; " + entry.dateBasis, entry.phase, (entry.version || "unknown") + (entry.releaseLine ? " / LTS " + entry.releaseLine : ""), entry.manifest + "#" + entry.path, entry.reason].map(cell).join(" | ") + " |");
       for (const gap of support.gaps) lines.push("- " + cell(gap.path) + ": " + cell(gap.reason));
       for (const source of support.policy.sources) lines.push("- " + source);
     }

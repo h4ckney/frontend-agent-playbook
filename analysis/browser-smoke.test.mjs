@@ -82,7 +82,7 @@ test("loads analyzer and dashboard scripts in browser order and renders findings
   const triageSource = fs.readFileSync(new URL("./triage-state.js", import.meta.url), "utf8");
 
   vm.runInContext(analyzerSource, context, { filename: "analyzer.js" });
-  for (const name of ["artifact-schemas.js", "vendor/js-yaml-5.5.0.js", "lockfile-graph.js", "runtime-lifecycle.js", "security-context.js"]) {
+  for (const name of ["artifact-schemas.js", "vendor/js-yaml-5.5.0.js", "lockfile-graph.js", "deno-lock.js", "runtime-lifecycle.js", "security-context.js"]) {
     vm.runInContext(fs.readFileSync(new URL("./" + name, import.meta.url), "utf8"), context, { filename: name });
   }
   vm.runInContext(contractSource, context, { filename: "audit-contract.js" });
@@ -129,7 +129,7 @@ function reviewHarness(storage) {
       createElement: element
     }
   });
-  for (const name of ["analyzer.js", "artifact-schemas.js", "vendor/js-yaml-5.5.0.js", "lockfile-graph.js", "runtime-lifecycle.js", "security-context.js", "audit-contract.js", "triage-state.js", "app.js"]) {
+  for (const name of ["analyzer.js", "artifact-schemas.js", "vendor/js-yaml-5.5.0.js", "lockfile-graph.js", "deno-lock.js", "runtime-lifecycle.js", "security-context.js", "audit-contract.js", "triage-state.js", "app.js"]) {
     vm.runInContext(fs.readFileSync(new URL("./" + name, import.meta.url), "utf8"), context, { filename: name });
   }
   return {

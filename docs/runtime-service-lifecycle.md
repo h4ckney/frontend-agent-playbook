@@ -42,7 +42,7 @@ Composer `require.php`는 정확한 숫자여도 호환 조건이다. `config.pl
 - 같은 제품의 같은 유형은 상위 이슈 하나와 하위 근거로 묶는다. Runtime·Deploy·Classic·JSR의 검토 경계는 분리한다. Runtime을 닫아도 Deploy는 닫히지 않는다.
 - 제품 전체 종료 공지는 패치 업데이트만으로 다시 열지 않는다. 계열·정책·상태·종료 근거가 바뀌면 재검토한다. 닫기는 수리 증명이 아니다.
 - 정책 확인 후 30일 초과면 재확인 안내를 표시한다. 확정된 달력 비교는 보존하지만 오래된 정책·미확인 버전·근거 소실로 기존 위험이 사라지면 `resolved` 대신 `unverified`다. 종료 예정에서 종료로 바뀌어도 이전 예정 위험을 해결로 오해하지 않는다.
-- `deno.lock`은 아직 parser 미지원이다. `unsupported-lockfile`로 **부분 분석**을 유지한다. Deno의 npm/JSR/HTTP import도 모듈 버전 비교 미확인으로 남긴다. Runtime 지원 정책을 알아냈다는 이유로 이전 모듈 CVE를 해결 처리하지 않는다. JSR은 레지스트리 운영 상태만 확인한다.
+- `deno.lock` v3/v4/v5와 명시적 LTS selector는 후속 [Deno lock·LTS 확장](deno-lock-lts.md)에서 지원한다. 지원하지 않는 형식·연결·HTTP import는 모듈 버전 비교 미확인으로 남긴다. Runtime 지원 정책을 알아냈다는 이유로 이전 모듈 CVE를 해결 처리하지 않는다. JSR은 레지스트리 운영 상태만 확인한다.
 
 ## 리뷰에서 수정한 문제와 검증 근거
 
@@ -55,12 +55,12 @@ Composer `require.php`는 정확한 숫자여도 호환 조건이다. `config.pl
 
 [날짜·제품·기준선 회귀 검사](../analysis/runtime-lifecycle.test.mjs), [CLI 회귀 검사](../bin/frontend-agent-audit.test.mjs), [실제 브라우저 검사](../scripts/verify-dashboard.mjs)에 재현을 남긴다. 브라우저는 합성 설정과 고정 시각으로 7개 제품 상태, 독립 닫기·내보내기, 오래된 정책, JSR 단독 사용, 미지원 lock을 확인한다. 320/390px에서 펼친 목록의 넘침과 화면을 검사하며 소스·서버·브라우저 응답 hash를 대조한다. Node 22/24/26 검사와 별도 Chromium job의 **해당 PR CI 결과**가 원격 검증 근거다.
 
-로컬 실행에서는 전체 Node 테스트 180개, Chrome 156의 브라우저 시나리오 35개(페이지 오류 0개), Markdown 69개와 plugin/schema 동기화를 통과했다. 변경·계약·부정 입력·시각·데이터 손실·제품별 검토 경계를 재검토했고 남은 중간 이상 결함은 발견하지 못했다. 이는 독립된 사람의 승인이나 전체 보안 감사 완료를 뜻하지 않는다.
+이 문서를 추가한 PR #7의 로컬 실행에서는 전체 Node 테스트 180개, Chrome 156의 브라우저 시나리오 35개(페이지 오류 0개), Markdown 69개와 plugin/schema 동기화를 통과했다. 변경·계약·부정 입력·시각·데이터 손실·제품별 검토 경계를 재검토했고 남은 중간 이상 결함은 발견하지 못했다. 이는 독립된 사람의 승인이나 전체 보안 감사 완료를 뜻하지 않는다.
 
 검증 성공·커밋·머지는 실제 프로젝트의 런타임 설치·호스팅 이전·운영 취약점 해결과 별개다. 운영 URL·실제 계정·물리 기기는 검사하지 않는다. 되돌리기는 이 변경 PR을 revert한다.
 
 ## 남은 우선순위
 
 1. 실제 배포의 runtime/OS/digest/SBOM과 공급업체 별도 지원을 연결한다. 설정과 실행 결과를 분리한다.
-2. Deno lock 형식별 실제 fixture·npm/JSR graph를 추가한다. LTS 채널은 버전 외의 명시적 채널 근거가 있을 때 별도로 판단한다.
+2. [Deno lock graph·공식 fixture·명시적 LTS selector](deno-lock-lts.md)를 확장했다. 이후는 custom lock·구형 형식·local 연결과 실제 채널/패치 실행 증거를 추가한다.
 3. 정책 갱신 담당·공식 자료 변경 검토를 정한다. 자동 수집·알림·외부 계정 쓰기는 이번 범위에 없다. Node/PHP/Bun/Deno 이외 언어의 지원 달력도 아직 대상이 아니다.
