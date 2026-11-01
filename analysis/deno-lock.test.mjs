@@ -151,3 +151,20 @@ test('mixed old/new version layouts remain incomplete rather than silently ignor
     assert.ok(result.coverage.gaps.some(item=>item.reason === 'unsupported-deno-lock-section'));
   }
 });
+
+test('actual manifest overrides, local links and external import maps cannot silently validate a stale lock', () => {
+  const before=bundle(files()), baseline=createBaseline(before);
+  const id=before.findings.find(item=>item.id === 'security.rsc-typed-array-rce').fingerprint;
+  for(const records of [
+    [rec('deno.lock',lock({specifiers:{'npm:next@^16.4.0':'16.4.1'},npm:{'next@16.4.1':{integrity:'x'}},workspace:{packageJson:{dependencies:['npm:next@^16.4.0']}}})),rec('package.json',{dependencies:{next:'^16.4.0'},overrides:{next:'file:../private-patch'}})],
+    files(lock(),{imports:{next:'npm:next@^16.4.0'},links:['../private-patch']}),
+    files(lock(),{imports:{next:'npm:next@^16.4.0'},importMap:'https://user:secret-token@private.invalid/imports.json'})
+  ]) {
+    const result=bundle(records), compared=compareWithBaseline(result,baseline);
+    assert.equal(result.securityContext.graphs[0].complete,false);
+    assert.ok(result.securityContext.coverage.gaps.length);
+    assert.ok(compared.diff.unchanged.includes(id) || compared.diff.unverified.includes(id));
+    assert.ok(!compared.diff.resolved.includes(id));
+    assert.doesNotMatch(JSON.stringify(result),/private-patch|secret-token|private.invalid/);
+  }
+});

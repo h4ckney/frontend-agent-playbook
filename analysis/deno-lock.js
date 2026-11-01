@@ -109,6 +109,8 @@
         }
         const value = configs.get(file);
         if (!object(value)) return null;
+        for (const field of kind === "deno" ? ["links", "patch"] : ["overrides"]) if (value[field] !== undefined && (!object(value[field]) && !Array.isArray(value[field]) || Object.keys(value[field]).length)) gap("deno-local-links-or-overrides-unverified");
+        if (kind === "deno" && value.importMap !== undefined) gap("deno-external-import-map-unverified");
         if (kind === "deno" && (value.lock === false || typeof value.lock === "string" && !["deno.lock", "./deno.lock"].includes(value.lock) || object(value.lock) && value.lock.path !== undefined && !["deno.lock", "./deno.lock"].includes(value.lock.path))) { gap("deno-lock-configuration-mismatch"); return null; }
         return {file, value};
       }

@@ -29,7 +29,7 @@
 - npm pin은 기존 npm 권고 비교와 명시적 OSV 조회에 연결한다. JSR은 별도 `ecosystem: jsr`로 보존하며 npm 좌표로 보내지 않는다. JSR 권고 비교는 미지원 gap이다. JSR의 npm 의존성은 명시적 연결이 있으면 기존 npm 비교에 포함한다.
 - 정확한 peer instance와 alias를 보존한다. 이름만 있는 dependency에 후보가 둘 이상이면 임의로 고르지 않는다. runtime/dev 양쪽 역할이면 둘 다 보존한다.
 - graph의 `complete`는 지원하는 lock 연결 해석 범위다. 보안 점검 전체 완료가 아니다. `coverage.complete`는 여전히 false다. JSR graph가 완전해도 JSR 취약점 비교는 미확인이다.
-- 원격 URL/redirect, local link·patch·override, custom tarball, 누락된 manifest·끊긴 연결·미지원 형식은 gap이다. URL의 토큰·호스트·전체 경로를 출력하지 않는다. 출처를 검증하지 못한 npm 좌표는 확정 pin 비교·외부 조회에서 제외한다.
+- 원격 URL/redirect·별도 import map, 실제 설정 또는 lock의 local link·patch·override, custom tarball, 누락된 manifest·끊긴 연결·미지원 형식은 gap이다. URL의 토큰·호스트·전체 경로를 출력하지 않는다. 출처를 검증하지 못한 npm 좌표는 확정 pin 비교·외부 조회에서 제외한다.
 - `lock:false`, 다른 lock path, stale import는 해당 lock을 활성 설정의 완전한 근거로 사용하지 않는다. 아직 custom lock 이름은 자동 탐색하지 않는다. v1·v2와 prerelease package identity도 gap이다.
 - `deno.lock`은 이제 선택 대상이므로 일괄 파일 제외 표시는 제거한다. 형식·연결이 지원되지 않으면 security coverage gap이 남으며, 이전 CVE가 사라진 것만으로 해결되지 않고 `unverified`를 유지한다. 성공한 파싱을 실제 배포의 안전 판정으로 바꾸지 않는다.
 
@@ -39,7 +39,7 @@
 
 [Deno lock 회귀 검사](../analysis/deno-lock.test.mjs)는 고정 upstream v3 JSR·v5 npm 68개 fixture, v4, alias·peer, 모호한 연결, root/member 경계, 잘못된 JSON·중복 key·conflict marker·경로·URL 비밀정보, 기존 CVE 기준선을 검증한다. [LTS 회귀 검사](../analysis/runtime-lifecycle.test.mjs)는 명시적 selector, 숫자만 있는 음성 입력, 종료일 경계·이동 채널의 다음 날과 stale 정책을 확인한다. [브라우저 검사](../scripts/verify-dashboard.mjs)는 transitive npm 권고, JSR 구분, 별도 LTS 닫기·내보내기, 320/390px 화면과 소스/서버/브라우저 응답 hash를 확인한다. 실제 운영 바이너리·계정·물리 기기는 검사하지 않는다.
 
-로컬 최종 소스에서 전체 테스트 **196개**, Chrome 156 브라우저 시나리오 **38개**(페이지 오류 0개), Markdown **72개**, plugin/schema 동기화를 통과했다. 소스·서버·브라우저 응답 hash를 대조했다. 최종 CLI 재검사 13개도 통과했다. 반례 리뷰 후 남은 중간 이상 결함은 발견하지 못했다. 독립된 사람의 승인이나 운영 효과를 검증한 결과는 아니다.
+로컬 전체 테스트 **197개**, Markdown **72개**, plugin/schema 동기화를 통과했다. 주요 UI 구현의 Chrome 156 브라우저 시나리오 **38개**(페이지 오류 0개)에서 소스·서버·브라우저 응답 hash를 대조했고 CLI 재검사 13개도 통과했다. 이후 실제 설정의 override·links·외부 import map 공백을 추가 재현해 보강했다. 이 최종 head의 브라우저·소스 무결성 결과는 해당 PR 원격 CI에서 확인한다. 반례 리뷰 후 남은 중간 이상 결함은 발견하지 못했다. 독립된 사람의 승인이나 운영 효과를 검증한 결과는 아니다.
 
 전달 기준은 로컬 전체 검사, Node 22/24/26 및 Chromium 원격 CI, 반례 리뷰를 통과한 동일 head의 PR 머지다. 롤백은 해당 PR revert다. 실패 시 먼저 `securityContext.coverage.gaps`, 해당 `graphs`의 root/edge와 파일 선언, `lifecycle`의 기준일·채널·정책 신선도를 본다.
 
