@@ -146,7 +146,7 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 ### Analyzer CLI 프리뷰
 
-pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [문서의 형식 범위](docs/modern-lock-workspace-graphs.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.
+pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [형식 범위·프로토콜 우선순위](docs/lock-protocol-priorities.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.
 
 미출시 `main` 브랜치는 브라우저와 같은 analyzer 및 정규화된 `AuditResult` 계약을 사용하는 패키지 설치 없이 실행하는 CLI도 제공합니다.
 

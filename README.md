@@ -144,7 +144,7 @@ The offline dashboard/CLI now inventories npm/Composer lockfiles and Node/PHP co
 
 ### Analyzer CLI Preview
 
-Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits](docs/modern-lock-workspace-graphs.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
+Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
 
 The unreleased `main` branch also provides a CLI requiring no package installation that uses the same analyzer and normalized `AuditResult` contract as the browser:
 

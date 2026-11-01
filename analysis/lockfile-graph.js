@@ -8,6 +8,13 @@
   const pathOK = path => typeof path === "string" && path.length <= 1200 && !/[\\\x00-\x1f:?#]/.test(path) && !path.startsWith("/") && path.split("/").every(part => part && part !== "." && part !== "..");
   const scopes = [["dependencies", "runtime"], ["optionalDependencies", "optional"], ["devDependencies", "development"], ["peerDependencies", "peer"]];
   const buildTools = new Set(["vite", "webpack", "rollup", "esbuild", "typescript", "@swc/core", "@babel/core", "parcel"]);
+  function displayVersion(value) {
+    if (typeof value !== "string") return null;
+    if (/(?:https?|ssh|git\+[a-z]+):\/\//i.test(value)) return "custom-source:<source-redacted>";
+    if (/^(?:npm|workspace):/.test(value) && !/(?:https?|ssh|git|file|portal|patch|exec):/.test(value)) return value;
+    const protocol = /^([a-z][a-z0-9+.-]*):/i.exec(value)?.[1];
+    return protocol || /^git@/.test(value) ? (protocol || "git") + ":<source-redacted>" : value;
+  }
   function join(base, relative) {
     if (typeof relative !== "string" || /[\\\x00-\x1f:?#]/.test(relative) || relative.startsWith("/")) return null;
     const parts = base ? base.split("/") : [];
@@ -20,6 +27,30 @@
   function packageRef(ref) {
     const match = typeof ref === "string" && /^((?:@[^/]+\/)?[^@/]+)@(\d+\.\d+\.\d+)(\([^\r\n]*\))?$/.exec(ref);
     return match && nameOK(match[1]) && exact(match[2]) ? { name: match[1], version: match[2] } : null;
+  }
+  function contextHash(text) {
+    let hash = 14695981039346656037n;
+    for (let index = 0; index < text.length; index += 1) hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 1099511628211n);
+    return hash.toString(16);
+  }
+  function yarnRegistry(locator, depth = 0) {
+    if (depth > 4 || typeof locator !== "string" || locator.length > 8000) return null;
+    const parts = /^((?:@[^/]+\/)?[^@/]+)@(.+)$/.exec(locator);
+    if (!parts || !nameOK(parts[1])) return null;
+    const direct = /^npm:(\d+\.\d+\.\d+)$/.exec(parts[2]);
+    if (direct && exact(direct[1])) return { name: parts[1], version: direct[1], modifications: [] };
+    const patch = /^patch:([^#]+)#/.exec(parts[2]);
+    if (patch) {
+      let inner; try { inner = yarnRegistry(decodeURIComponent(patch[1]), depth + 1); } catch { return null; }
+      if (!inner || inner.name !== parts[1]) return null;
+      return { ...inner, modifications: [...new Set([...inner.modifications, "patch"])] };
+    }
+    const virtual = /^virtual:[a-zA-Z0-9_-]+#(.+)$/.exec(parts[2]);
+    if (virtual) {
+      const inner = yarnRegistry(parts[1] + "@" + virtual[1], depth + 1);
+      return inner && { ...inner, modifications: [...new Set([...inner.modifications, "virtual"])] };
+    }
+    return null;
   }
   // Bun is JSONC, not executable JavaScript. Remove comments/trailing commas only
   // outside quoted strings, then require both valid JSON and unique mapping keys.
@@ -55,9 +86,9 @@
     return value;
   }
 
-  function readLockGraph(record, manifests) {
+  function readLockGraph(record, manifests, options = {}) {
     const format = /pnpm-lock\.yaml$/.test(record.path) ? "pnpm" : /bun\.lock$/.test(record.path) ? "bun" : /yarn\.lock$/.test(record.path) ? "yarn-berry" : "npm";
-    const graph = { lockfile: record.path, format, complete: true, nodes: [], edges: [], roots: [] };
+    const graph = { lockfile: record.path, format, ...(options.document ? { document: options.document } : {}), complete: true, nodes: [], edges: [], roots: [] };
     const inventory = [], gaps = [], nodes = new Map(), raw = new Map(), aliases = new Map(), workspaces = new Map(), locations = new Map();
     const directory = record.path.replace(/[^/]+$/, "");
     const gap = reason => { graph.complete = false; if (!gaps.some(item => item.reason === reason)) gaps.push({ path: record.path, reason }); };
@@ -65,14 +96,15 @@
     const manifestAt = location => manifests.get("npm:" + directory + (location ? location + "/" : ""));
     function node(id, name, version, kind = "package", location) {
       if ((!pathOK(id) && id !== "workspace:.") || record.path.length + id.length > 1800 || !nameOK(name) || typeof version !== "string" || version.length > 200) { gap("malformed-graph-node"); return null; }
+      if (options.document === "boot") id = "boot/" + id;
       if (nodes.size >= 20000) { gap("graph-node-budget"); return null; }
       if (nodes.has(id)) { gap("conflicting-graph-node"); return null; }
-      const item = { id, name, version, kind, ...(kind === "workspace" ? { manifest: fullManifest(location) } : {}) };
+      const item = { id, name, version: displayVersion(version), kind, ...(["workspace", "local"].includes(kind) ? { manifest: fullManifest(location) } : {}) };
       nodes.set(id, item); graph.nodes.push(item);
       if (kind === "workspace") {
         workspaces.set(location, id);
         locations.set(id, location);
-        if (manifestAt(location)) graph.roots.push({ manifest: fullManifest(location), node: id });
+        if (manifestAt(location)) graph.roots.push({ manifest: fullManifest(location), node: id, ...(options.document === "boot" ? { phase: "build" } : {}) });
         else gap("workspace-manifest-unavailable");
       }
       return id;
@@ -90,7 +122,8 @@
       graph.edges.push({ from, to, dependency, scope });
     }
     function groups(data, callback, includeDev = false, includePeer = true) {
-      for (const [key, scope] of scopes) {
+      const fields = options.document === "boot" ? [...scopes, ["configDependencies", "build"], ["packageManagerDependencies", "build"]] : scopes;
+      for (const [key, scope] of fields) {
         if (key === "devDependencies" && !includeDev || key === "peerDependencies" && !includePeer) continue;
         if (data?.[key] !== undefined && !object(data[key])) { gap("malformed-dependency-map"); continue; }
         for (const [name, ref] of entries(data?.[key])) {
@@ -117,39 +150,54 @@
       // JSON.parse silently overwrites duplicate npm keys. Validate structure and
       // unique keys with the same bounded parser before retaining JSON types.
       if (format === "npm") load(record.content);
-      const data = format === "npm" ? JSON.parse(record.content) : load(record.content, format === "bun");
+      const data = options.data || (format === "npm" ? JSON.parse(record.content) : load(record.content, format === "bun"));
       if (!object(data)) throw Error("object");
       if (format === "pnpm") {
         const major = String(data.lockfileVersion).split(".")[0];
-        if (!["6", "9"].includes(major) || data.packages !== undefined && !object(data.packages)) { gap("unsupported-pnpm-lock-format"); return { graph, inventory, gaps }; }
+        const legacy = major === "5" && /^(?:5|5\.[0-4])$/.test(String(data.lockfileVersion));
+        if (!legacy && !["6", "9"].includes(major) || data.packages !== undefined && !object(data.packages)) { gap("unsupported-pnpm-lock-format"); return { graph, inventory, gaps }; }
         data.packages ||= {};
         const snapshots = major === "9" ? data.snapshots === undefined && !Object.keys(data.packages).length ? {} : data.snapshots : data.packages;
         if (!object(snapshots)) { gap("missing-pnpm-snapshots"); return { graph, inventory, gaps }; }
         for (const [key, item] of entries(snapshots)) {
-          const identity = key.replace(/^\//, ""), ref = packageRef(identity);
+          const identity = key.replace(/^\//, "");
+          const old = legacy && /^((?:@[^/]+\/)?[^/]+)\/(\d+\.\d+\.\d+)(?:_[^\s:#?\\]+)?$/.exec(identity);
+          const ref = legacy ? old && nameOK(old[1]) && exact(old[2]) ? { name: old[1], version: old[2] } : null : packageRef(identity);
           if (!ref || !object(item)) { gap("unsupported-pnpm-package"); continue; }
           const base = identity.replace(/\(.*/, "");
           if (major === "9" && !object(data.packages[base])) gap("missing-pnpm-package-metadata");
           const id = node("packages/" + identity, ref.name, ref.version);
-          if (id) { assignAlias(identity, id); raw.set(id, item); }
+          if (id) {
+            assignAlias(identity, id);
+            if (old) assignAlias(old[1] + "@" + identity.slice(old[1].length + 1), id);
+            raw.set(id, item);
+            const metadata = major === "9" ? data.packages[base] : item;
+            const revision = metadata?.resolution?.revision;
+            if (revision !== undefined) {
+              if (!/^\d+$/.test(String(revision)) || !Number.isSafeInteger(Number(revision))) gap("invalid-registry-revision");
+              else if (Number(revision) > 0) Object.assign(nodes.get(id), { modifications: ["registry-revision"], registryRevision: Number(revision) });
+            }
+            if (/(?:\(|_)patch_hash=/.test(identity)) nodes.get(id).modifications = [...new Set([...(nodes.get(id).modifications || []), "patch"])];
+          }
         }
         // Older single-project v6 files keep the importer at the document root.
-        const importers = object(data.importers) ? data.importers : major === "6" && data.importers === undefined ? { ".": data } : null;
+        const importers = object(data.importers) ? data.importers : ["5", "6"].includes(major) && data.importers === undefined ? { ".": data } : null;
         if (!importers) gap("missing-pnpm-importers");
         for (const [key, item] of entries(importers)) {
           const location = key === "." ? "" : key;
           if (!object(item)) { gap("malformed-workspace-entry"); continue; }
           const id = workspace(location, item); if (!id) continue;
           const locked = {};
-          groups(item, (name, ref, scope, field) => { (locked[field] ||= {})[name] = object(ref) ? ref.specifier : ref; }, true, false);
-          checkDeclarations(location, locked);
+          groups(item, (name, ref, scope, field) => { (locked[field] ||= {})[name] = object(ref) ? ref.specifier : legacy ? item.specifiers?.[name] : ref; }, true, false);
+          if (options.document !== "boot") checkDeclarations(location, locked);
           raw.set(id, item);
         }
         for (const [id, item] of raw) groups(item, (name, reference, scope) => {
           const ref = object(reference) ? reference.version : reference;
           let target = null;
           if (typeof ref === "string" && ref.startsWith("link:")) {
-            const from = locations.has(id) ? locations.get(id) : null;
+            if (options.document === "boot") gap("unsupported-pnpm-boot-local-reference");
+            const from = locations.has(id) ? locations.get(id) : "";
             const relative = from === null ? null : join(from, ref.slice(5));
             if (relative !== null) target = workspaces.get(relative);
           } else if (typeof ref === "string") target = aliases.get(name + "@" + ref) || aliases.get(ref.replace(/^\//, ""));
@@ -165,18 +213,60 @@
         }
       } else if (format === "yarn-berry") {
         if (!object(data.__metadata) || !/^(?:[4-9]|10)$/.test(data.__metadata.version)) { gap("unsupported-yarn-lock-format"); return { graph, inventory, gaps }; }
+        const pendingLocal = [];
+        const manifestRange = ref => typeof ref !== "string" ? ref : /^(?:portal|file):/.test(ref) ? ref.split("::")[0] : ref.replace(/^npm:/, "");
         for (const [header, item] of entries(data)) {
           if (header === "__metadata") continue;
           if (!object(item) || typeof item.resolution !== "string") { gap("malformed-yarn-entry"); continue; }
           const local = /^((?:@[^/]+\/)?[^@]+)@workspace:(.*)$/.exec(item.resolution);
-          const npm = /^((?:@[^/]+\/)?[^@]+)@npm:(\d+\.\d+\.\d+)$/.exec(item.resolution);
+          const npm = yarnRegistry(item.resolution);
+          if (/^((?:@[^/]+\/)?[^@]+)@(?:portal|file):/.test(item.resolution)) { pendingLocal.push([header, item]); continue; }
           let id;
           if (local) id = workspace(local[2] === "." ? "" : local[2], { ...item, name: local[1] });
-          else if (npm && exact(item.version) && item.version === npm[2]) id = node("packages/" + npm[1] + "@" + npm[2], npm[1], npm[2]);
+          else if (npm && exact(item.version) && item.version === npm.version) {
+            id = node("packages/" + npm.name + "@" + npm.version + (npm.modifications.length ? "/context-" + contextHash(item.resolution) : ""), npm.name, npm.version);
+            if (id && npm.modifications.length) nodes.get(id).modifications = npm.modifications;
+            if (npm.modifications.includes("virtual")) gap("yarn-virtual-peer-context-unverified");
+          }
           else { gap("unsupported-yarn-resolution"); continue; }
           if (!id) continue;
           raw.set(id, item);
+          assignAlias(item.resolution, id);
           for (const descriptor of header.split(/,\s+/)) assignAlias(descriptor, id);
+        }
+        for (const [header, item] of pendingLocal) {
+          try {
+            const match = /^((?:@[^/]+\/)?[^@]+)@(portal|file):([^:]+)::(.+)$/.exec(item.resolution);
+            if (!match || !nameOK(match[1])) { gap("unsupported-yarn-local-binding"); continue; }
+            const params = new Map();
+            for (const field of match[4].split("&")) {
+              const equals = field.indexOf("=");
+              if (equals < 1) throw Error("binding");
+              const key = decodeURIComponent(field.slice(0, equals));
+              if (params.has(key)) throw Error("duplicate binding");
+              params.set(key, decodeURIComponent(field.slice(equals + 1)));
+            }
+            const parent = aliases.get(params.get("locator"));
+            if (!parent || nodes.get(parent).kind !== "workspace") { gap("unresolved-yarn-local-parent"); continue; }
+            const relative = decodeURIComponent(match[3]);
+            if (/\.(?:tgz|tar|tar\.gz|zip)$/i.test(relative)) { gap("unsupported-local-archive"); continue; }
+            const location = join(locations.get(parent), relative), manifest = location !== null && manifestAt(location);
+            if (!manifest || location && !pathOK(location)) { gap("local-package-manifest-unavailable"); continue; }
+            if (typeof item.version !== "string" || item.version !== manifest.version) { gap("stale-local-package-version"); continue; }
+            const id = node("locals/" + match[2] + "-" + contextHash(item.resolution), match[1], item.version, "local", location);
+            if (!id) continue;
+            locations.set(id, location); raw.set(id, item);
+            gap("local-package-registry-origin-unverified");
+            if (match[2] === "file") gap("local-package-copy-unverified");
+            groups(manifest, (name, ref, scope) => {
+              if (scope !== "peer" && manifestRange(item.dependencies?.[name] || item.optionalDependencies?.[name]) !== manifestRange(ref)) gap("stale-local-package-declaration");
+            });
+            assignAlias(item.resolution, id);
+            for (const selector of header.split(/,\s+/)) {
+              assignAlias(selector, id);
+              assignAlias(parent + "::" + selector.split("::")[0], id);
+            }
+          } catch { gap("unsupported-yarn-local-binding"); }
         }
         if (!raw.size) gap("missing-yarn-entries");
         const descriptor = (name, ref) => name + "@" + (/^[a-z][a-z0-9+.-]*:/i.test(ref) ? ref : "npm:" + ref);
@@ -188,8 +278,8 @@
             groups(manifest, (name, ref, scope) => {
               if (scope === "peer") { gap("unresolved-workspace-peer"); return; }
               const lockedRef = item.dependencies?.[name];
-              if (typeof ref !== "string" || typeof lockedRef !== "string" || descriptor(name, ref) !== descriptor(name, lockedRef)) { gap("stale-workspace-declaration"); return; }
-              const target = aliases.get(descriptor(name, lockedRef));
+              if (typeof ref !== "string" || typeof lockedRef !== "string" || descriptor(name, manifestRange(ref)) !== descriptor(name, manifestRange(lockedRef))) { gap("stale-workspace-declaration"); return; }
+              const target = aliases.get(descriptor(name, lockedRef)) || aliases.get(id + "::" + descriptor(name, manifestRange(lockedRef)));
               if (target) edge(id, target, name, scope); else gap("unresolved-dependency-edge");
             }, true);
           } else if (!local) groups(item, (name, ref, scope) => {
@@ -274,7 +364,7 @@
     for (const edge of graph.edges) { if (!outgoing.has(edge.from)) outgoing.set(edge.from, []); outgoing.get(edge.from).push(edge); }
     let work = 0;
     for (const root of graph.roots) {
-      const queue = [{ id: root.node, phase: "runtime", root: true }], visited = new Set();
+      const queue = [{ id: root.node, phase: root.phase || "runtime", root: true }], visited = new Set();
       for (let index = 0; index < queue.length; index += 1) {
         const current = queue[index], key = current.id + ":" + current.phase + ":" + current.root;
         if (visited.has(key)) continue; visited.add(key);
@@ -299,17 +389,41 @@
       const workspaceUsage = [...(usage.get(item.id)?.values() || [])].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
       const phases = new Set(workspaceUsage.map(entry => entry.phase));
       const npmDev = raw.get(item.id)?.dev === true;
-      const phase = workspaceUsage.length ? phases.size === 1 ? [...phases][0] : "unknown" : format === "npm" ? npmDev ? buildTools.has(item.name) ? "build" : "development" : "runtime" : "unknown";
+      const phase = workspaceUsage.length ? phases.size === 1 ? [...phases][0] : "unknown" : options.document === "boot" ? "build" : format === "npm" ? npmDev ? buildTools.has(item.name) ? "build" : "development" : "runtime" : "unknown";
       inventory.push({ ecosystem: "npm", name: item.name, version: item.version, versionKind: exact(item.version) ? "locked-exact" : "unresolved-lock-version",
-        manifest: record.path, path: item.id, phase, phaseEvidence: workspaceUsage.length ? "workspace lock graph; declared role only, installation/deployment and executable reachability not verified" : format === "npm" ? "npm lock dev flag; package install/deployment and runtime reachability not verified" : "lock version only; no verified workspace path",
-        direct: workspaceUsage.some(entry => entry.direct), provenance: "lockfile", workspaceUsage });
+        manifest: record.path, path: item.id, phase, phaseEvidence: (workspaceUsage.length ? "workspace lock graph; declared role only, installation/deployment and executable reachability not verified" : format === "npm" ? "npm lock dev flag; package install/deployment and runtime reachability not verified" : "lock version only; no verified workspace path")
+          + (options.document === "boot" ? "; pnpm boot/config package, not an application declaration" : "")
+          + (item.modifications?.length ? "; " + item.modifications.join(",") + (item.registryRevision ? "=" + item.registryRevision : "") + "; original registry version only; modified contents/fix not verified" : ""),
+        direct: workspaceUsage.some(entry => entry.direct), provenance: "lockfile", workspaceUsage,
+        ...(options.document === "boot" ? { lockContext: "boot" } : {}),
+        ...(item.modifications?.length ? { modifications: item.modifications, ...(item.registryRevision ? { registryRevision: item.registryRevision } : {}) } : {}) });
     }
     graph.nodes.sort((a, b) => a.id.localeCompare(b.id));
     graph.edges = [...new Map(graph.edges.map(edge => [JSON.stringify(edge), edge])).values()].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
     graph.roots.sort((a, b) => a.manifest.localeCompare(b.manifest));
     return { graph, inventory, gaps };
   }
-  const api = Object.freeze({ readLockGraph });
+  function readLockGraphs(record, manifests) {
+    if (!/(^|\/)pnpm-lock\.yaml$/.test(record.path)) {
+      const result = readLockGraph(record, manifests);
+      return { graphs: [result.graph], inventory: result.inventory, gaps: result.gaps };
+    }
+    try {
+      if (record.content.length > 500 * 1024) throw Error("size");
+      const docs = yaml.loadAll(record.content, { schema: yaml.FAILSAFE_SCHEMA, maxDepth: 48, maxAliases: 0, maxTotalMergeKeys: 0 });
+      if (!docs.length || docs.length > 2 || docs.some(doc => !object(doc))) throw Error("documents");
+      const boot = doc => object(doc.importers?.["."]) && ["configDependencies", "packageManagerDependencies"].some(key => Object.hasOwn(doc.importers["."], key));
+      if (docs.length === 2 && (String(docs[0].lockfileVersion).split(".")[0] !== "9" || !boot(docs[0]) || boot(docs[1]) || docs[0].lockfileVersion !== docs[1].lockfileVersion
+        || Object.keys(docs[0].importers).some(key => key !== ".") || scopes.some(([key]) => Object.keys(docs[0].importers["."][key] || {}).length))) throw Error("layout");
+      const results = docs.map(doc => readLockGraph(record, manifests, { data: doc, ...(boot(doc) ? { document: "boot" } : docs.length > 1 ? { document: "project" } : {}) }));
+      const gaps = results.flatMap(result => result.gaps);
+      if (docs.length === 1 && boot(docs[0])) gaps.push({ path: record.path, reason: "pnpm-project-document-unavailable" });
+      return { graphs: results.map(result => result.graph), inventory: results.flatMap(result => result.inventory), gaps };
+    } catch {
+      return { graphs: [], inventory: [], gaps: [{ path: record.path, reason: "invalid-or-unsupported-pnpm-documents" }] };
+    }
+  }
+  const api = Object.freeze({ readLockGraph, readLockGraphs, displayVersion });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (typeof globalThis !== "undefined") globalThis.FrontendLockGraph = api;
 })();

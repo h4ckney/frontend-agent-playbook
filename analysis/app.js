@@ -298,9 +298,11 @@ function renderSecurityContext() {
     ' · 오프라인 권고 ' + security.snapshot.advisoryCount + '개 · 버전 비교 가능 근거 ' + security.coverage.exactVersionCount + '개</p>' +
     '<p>선언·lockfile·설정에서 수집한 목록입니다. 실제 설치·배포와 공격 경로는 추가 확인이 필요합니다. 빌드·개발 도구도 비밀정보나 배포 산출물에 영향을 줄 수 있습니다.</p>' +
     (security.snapshot.freshness === "within-30-days" ? '' : '<p class="context-status">권고 목록의 시점 확인이 필요합니다. 최신 전체 취약점 목록과의 비교는 별도 실행해야 합니다.</p>') +
-    (security.graphs?.length ? '<p>공유 lockfile 그래프 ' + security.graphs.length + '개 · workspace 근거 ' + security.graphs.reduce((sum, graph) => sum + graph.roots.length, 0) + '개 · 실제 코드 실행 경로는 미확인</p>' : '') +
+    (security.graphs?.length ? '<p>공유 lockfile 그래프 ' + security.graphs.length + '개 · workspace 근거 ' + security.graphs.reduce((sum, graph) => sum + graph.roots.filter(root => root.phase !== "build").length, 0) + '개 · 실제 코드 실행 경로는 미확인</p>' : '') +
     '<details><summary>버전 근거 ' + security.inventory.length + '개 보기 (최대 30개 표시)</summary><ul class="dependency-inventory">' +
-    security.inventory.slice(0, 30).map((entry) => '<li><strong>' + escapeHtml(entry.name + '@' + entry.version) + '</strong> · ' + phases[entry.phase] +
+    security.inventory.slice(0, 30).map((entry) => '<li><strong>' + escapeHtml(entry.name + (entry.version.endsWith(':<source-redacted>') ? ' · 출처 지정(상세 값 생략)' : '@' + entry.version)) + '</strong> · ' + phases[entry.phase] +
+      (entry.lockContext === "boot" ? '<br><small>패키지 매니저·설정 도구의 버전 근거</small>' : '') +
+      (entry.modifications?.length ? '<br><small>' + escapeHtml(entry.modifications.map(kind => ({ patch: "패치", virtual: "별도 peer 컨텍스트", "registry-revision": "레지스트리 수정본" }[kind])).join(' · ') + (entry.registryRevision ? ' ' + entry.registryRevision : '') + ' · 원본 버전 비교, 수정 효과 미검증') + '</small>' : '') +
       '<br><small>' + escapeHtml(versions[entry.versionKind] || entry.versionKind) + ' · ' + escapeHtml(entry.manifest + ' · ' + entry.path) + (entry.workspaceUsage?.length ? '<br>' + escapeHtml(entry.workspaceUsage.slice(0, 10).map(usage => usage.manifest + ' [' + phases[usage.phase] + (usage.direct ? ' · 직접' : ' · 간접') + ']').join(', ') + (entry.workspaceUsage.length > 10 ? ' · 나머지 ' + (entry.workspaceUsage.length - 10) + '개는 JSON 보고서 참조' : '')) : '') + '</small></li>').join('') +
     '</ul><p>전체 목록·실행 단계의 판정 근거·확인하지 못한 범위는 보고서에 포함됩니다.</p></details>' +
     '<p>일치 항목이 없어도 안전 판정이 아닙니다. 지원하지 않는 lockfile, OS 패키지, 공급업체 패치와 최신 외부 권고는 별도 검토가 필요합니다.</p>';
@@ -649,6 +651,7 @@ function formatScope(scope) {
     "generated-header": "생성 코드 표시",
     "excluded-path": "제외 경로",
     "unsupported-type": "지원하지 않는 파일 형식",
+    "binary-lockfile": "Bun 바이너리 lock · 텍스트 변환 필요",
     oversized: "큰 파일",
     "input-budget": "분석 한도 초과",
     "read-failed": "읽기 실패"
@@ -657,7 +660,7 @@ function formatScope(scope) {
     .map(([reason, count]) => (reasonLabels[reason] || reason) + " " + count)
     .join(" · ");
   const coverage = formatBytes(scope.analyzedBytes) + " 분석";
-  const completeness = scope.partial ? " · 일부 파일은 크기·개수 제한 또는 읽기 실패로 분석하지 못함" : "";
+  const completeness = scope.partial ? " · 일부 파일은 지원 형식·크기·개수 제한 또는 읽기 실패로 분석하지 못함" : "";
   return coverage + (reasons ? " · 제외: " + reasons : "") + completeness;
 }
 

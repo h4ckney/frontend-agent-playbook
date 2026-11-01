@@ -32,7 +32,7 @@ node scripts/query-osv.mjs --scan /path/to/project/audit.json --output /path/to/
 | Node/PHP 버전 | 이 조회에서 제외 | 언어 런타임을 동명의 npm 모듈로 조회하면 잘못된 결과가 됨 |
 | 지원하지 않는 lock 형식·부분 스캔 | 입력의 누락을 유지 | 별도 설치 목록·SBOM 등 필요 |
 
-명시적 workspace graph의 직접 연결이 있는 선언은 `covered-by-lock`, 로컬 workspace 연결은 `workspace-link`로 별도 보존하며 중복 누락으로 집계하지 않습니다. legacy lock은 같은 디렉터리의 이름 근거를 유지합니다. 선언 범위와 잠긴 버전의 호환성·설치·배포를 증명하지 않습니다. graph가 없는 다른 디렉터리의 선언은 이름만으로 연결하지 않습니다. workspace 경로와 단계는 JSON/Markdown 보고서에 로컬 근거로 남으며 OSV에 전송하지 않습니다. [지원 범위](modern-lock-workspace-graphs.md)를 따릅니다.
+명시적 workspace graph의 직접 연결이 있는 선언은 `covered-by-lock`, 로컬 workspace 연결은 `workspace-link`로 별도 보존하며 중복 누락으로 집계하지 않습니다. legacy lock은 같은 디렉터리의 이름 근거를 유지합니다. 선언 범위와 잠긴 버전의 호환성·설치·배포를 증명하지 않습니다. graph가 없는 다른 디렉터리의 선언은 이름만으로 연결하지 않습니다. workspace 경로와 단계는 JSON/Markdown 보고서에 로컬 근거로 남으며 OSV에 전송하지 않습니다. [지원 범위와 프로토콜 우선순위](lock-protocol-priorities.md)를 따릅니다.
 
 같은 생태계·이름·버전은 한 번만 조회하고 각 모듈의 원래 경로와 `runtime`, `build`, `development`, `unknown`은 모두 보존합니다. OSV가 같은 취약점을 뜻한다고 명시한 별칭은 하나의 부모 항목으로 모으고 원본 레코드를 함께 남깁니다. CVE/GHSA ID가 다르다는 이유만으로 같은 문제를 중복 집계하지 않습니다. 같은 이름의 다른 버전은 독립적으로 조회합니다.
 
@@ -64,3 +64,5 @@ node --test scripts/query-osv.test.mjs
 - [OSV 단일 조회](https://google.github.io/osv.dev/post-v1-query/): 생태계·이름·버전 식별 규칙과 페이지 처리.
 - [OSV 권고 상세](https://google.github.io/osv.dev/get-v1-vulns/): 권고 ID별 상세 레코드.
 - [OSV 스키마](https://ossf.github.io/osv-schema/): 패키지 식별, 별칭, 영향 범위, 철회·수정 시각의 의미.
+
+수정된 registry 항목의 `modifications`·`registryRevision`과 pnpm boot의 `lockContext`도 로컬 발생 근거에 보존합니다. patch/revision은 원본 npm 버전의 조회 결과이며 수정 효과나 배포 안전 판정이 아닙니다. boot 근거로 앱 선언의 누락을 가리지 않습니다. bound local package의 명시적 lock edge는 선언 근거로 보존하되 로컬 패키지 자체는 npm 좌표로 조회하지 않습니다.

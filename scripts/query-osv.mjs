@@ -17,7 +17,7 @@ const MAX_PAGES = 3;
 const MAX_IDS = 1000;
 const VALID_ID = /^[a-zA-Z0-9:_.-]{1,200}$/;
 const EXACT = /^v?(\d+)\.(\d+)\.(\d+)$/;
-const occurrence = (item) => Object.fromEntries(["manifest", "path", "phase", "phaseEvidence", "versionKind", "direct", "provenance", "workspaceUsage"].map((key) => [key, item[key] ?? null]));
+const occurrence = (item) => Object.fromEntries(["manifest", "path", "phase", "phaseEvidence", "versionKind", "direct", "provenance", "workspaceUsage", "modifications", "registryRevision", "lockContext"].map((key) => [key, item[key] ?? null]));
 const keyOf = (item) => JSON.stringify([item.ecosystem, item.name, item.version]);
 
 async function jsonRequest(fetchImpl, endpoint, body) {
@@ -76,6 +76,29 @@ export async function queryInventory(scan, { fetchImpl = globalThis.fetch, now =
   }
   report.coverage.uniqueLockedPackages = grouped.size;
   report.packages = [...grouped.values()];
+  const atLocation = new Map();
+  for (const item of report.packages) for (const source of item.occurrences) if (source.lockContext !== "boot") {
+    atLocation.set(JSON.stringify([source.manifest, source.path]), item.key);
+  }
+  const graphDeclarations = new Map();
+  for (const graph of scan.securityContext.graphs || []) {
+    if (graph.document === "boot") continue;
+    const nodes = new Map(graph.nodes.map(node => [node.id, node]));
+    const sources = new Map(graph.roots.filter(root => root.phase !== "build").map(root => [root.node, root.manifest]));
+    for (const node of graph.nodes) if (node.kind === "local") sources.set(node.id, node.manifest);
+    for (const edge of graph.edges) {
+      const manifest = sources.get(edge.from), target = nodes.get(edge.to);
+      if (!manifest || !target) continue;
+      const key = JSON.stringify([manifest, edge.dependency]);
+      if (!graphDeclarations.has(key)) graphDeclarations.set(key, { targets: new Set(), packages: new Set() });
+      const value = graphDeclarations.get(key);
+      if (["workspace", "local"].includes(target.kind)) value.targets.add(target.manifest);
+      else {
+        const coordinate = atLocation.get(JSON.stringify([graph.lockfile, edge.to]));
+        if (coordinate) value.packages.add(coordinate);
+      }
+    }
+  }
   // A manifest declaration is useful provenance, but it is not a second
   // unresolved version when this directory already supplies a locked version.
   // This is identity evidence only: no declared-range compatibility is solved.
@@ -83,21 +106,17 @@ export async function queryInventory(scan, { fetchImpl = globalThis.fetch, now =
     if (entry.reason !== "not-a-locked-exact-version" || entry.provenance !== "manifest-declaration"
       || !["declared-exact", "declared-range"].includes(entry.versionKind)) return true;
     const ecosystem = entry.ecosystem === "composer" ? "Packagist" : entry.ecosystem;
-    const localTargets = (scan.securityContext.graphs || []).flatMap(graph => {
-      const root = graph.roots.find(root => root.manifest === entry.manifest);
-      if (!root) return [];
-      const localNodes = new Map(graph.nodes.filter(node => node.kind === 'workspace').map(node => [node.id, node]));
-      return graph.edges.filter(edge => edge.from === root.node && edge.dependency === entry.name && localNodes.has(edge.to)).map(edge => localNodes.get(edge.to).manifest);
-    });
+    const resolution = graphDeclarations.get(JSON.stringify([entry.manifest, entry.name]));
+    const localTargets = [...(resolution?.targets || [])];
     if (localTargets.length) {
       const { reason, ...declaration } = entry;
       report.declarations.push({ ...declaration, status: 'workspace-link', targets: [...new Set(localTargets)], note: 'Local lock graph link; no registry advisory coordinate is inferred.' });
       return false;
     }
     const matches = report.packages.filter((item) => item.ecosystem === ecosystem
-      && item.occurrences.some((source) => typeof source.manifest === "string" && typeof entry.manifest === "string"
-        && ((source.workspaceUsage || []).some(usage => usage.direct && usage.manifest === entry.manifest && (usage.dependency || item.name) === entry.name)
-          || !source.workspaceUsage && item.name === entry.name && path.posix.dirname(source.manifest) === path.posix.dirname(entry.manifest))));
+      && (resolution?.packages.has(item.key) || item.occurrences.some((source) => typeof source.manifest === "string" && typeof entry.manifest === "string"
+        && source.lockContext !== "boot" && ((source.workspaceUsage || []).some(usage => usage.direct && usage.manifest === entry.manifest && (usage.dependency || item.name) === entry.name)
+          || !source.workspaceUsage && item.name === entry.name && path.posix.dirname(source.manifest) === path.posix.dirname(entry.manifest)))));
     if (!matches.length) return true;
     const { reason, ...declaration } = entry;
     report.declarations.push({ ...declaration, status: "covered-by-lock", lockedPackageKeys: matches.map((item) => item.key),
@@ -210,7 +229,7 @@ export async function queryInventory(scan, { fetchImpl = globalThis.fetch, now =
 
 export function buildMarkdown(report) {
   const cell = (value) => String(value ?? "").replace(/[\\|`<>\[\]()!]/g, " ").replace(/[\r\n]+/g, " ");
-  const workspaceEvidence = entry => (entry.workspaceUsage || []).map(usage => usage.manifest + " [" + usage.phase + (usage.direct ? "; direct" : "; transitive") + "]").join(", ");
+  const workspaceEvidence = entry => (entry.modifications?.length ? "modified registry base: " + entry.modifications.join(",") + (entry.registryRevision ? " revision " + entry.registryRevision : "") + "; modified contents/fix unverified; " : "") + (entry.workspaceUsage || []).map(usage => usage.manifest + " [" + usage.phase + (usage.direct ? "; direct" : "; transitive") + "]").join(", ");
   let text = "# Dependency advisory review\n\n" + "Queried at: " + cell(report.queriedAt) + "\n\nCoverage: **" + report.coverage.status + "**. Complete means only the submitted locked inventory was queried; it does not establish safety.\n\n";
   text += "Only ecosystem, package name and locked exact version were sent to OSV (plus advisory IDs/page tokens). Project paths, source code and phase evidence stay local. Package names can identify private modules.\n\n";
   text += "| Module | Version | Result | Declared phase / local evidence |\n| --- | --- | --- | --- |\n";
