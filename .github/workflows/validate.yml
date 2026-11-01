@@ -58,3 +58,35 @@ jobs:
 
       - name: Test guidance approval gate
         run: node --test scripts/guidance-approval.test.mjs
+
+  dashboard-browser:
+    needs: documentation-and-analyzer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up browser-test runtime
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          check-latest: true
+          package-manager-cache: false
+      - name: Install isolated browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/frontend-browser-tools" --no-save --ignore-scripts --package-lock=false playwright@1.64.1
+          node "$RUNNER_TEMP/frontend-browser-tools/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Verify served dashboard in Chromium
+        env:
+          NODE_PATH: ${{ runner.temp }}/frontend-browser-tools/node_modules
+        run: node scripts/verify-dashboard-ci.mjs "$RUNNER_TEMP/frontend-browser-evidence"
+      - name: Preserve browser evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dashboard-browser-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/frontend-browser-evidence
+          retention-days: 7
+          if-no-files-found: error

@@ -39,7 +39,7 @@
 | `analysis/app.js`, `triage-state.js` | 표시·검토 기록·합치기 | 로컬 저장이며 외부 이슈와 자동 동기화하지 않음 |
 | `scripts/query-osv.mjs` | 명시적 온라인 패키지 권고 조회 | 전체 보안 스캔·악성 패키지·OS 취약점 검사 아님 |
 | `scripts/verify-dashboard.mjs` | 로컬 대시보드 상호작용과 소스 출처 확인 | 실제 제품의 모든 URL·기기·상태를 보증하지 않음 |
-| `.github/workflows/validate.yml` | PR/main의 문서·계약·단위 검사 | 실제 브라우저 E2E와 서비스 배포는 별도 |
+| `.github/workflows/validate.yml` | PR/main 기본 검사와 별도 대시보드 Chromium 회귀 job | 실제 서비스 여정·물리 기기·배포는 별도 |
 
 저장소 자체는 배포 서비스를 포함하지 않는 가이드·정적 대시보드·Node CLI다. PHP 서버나 실제 제품 의존성을 설치하지 않았다. 근거의 PHP·Node·RSC 취약 버전은 **합성 입력**이다. 테스트가 이런 버전을 출력하는 것은 이 저장소가 해당 취약 패키지를 실행한다는 뜻이 아니다.
 
@@ -58,6 +58,8 @@
 [checkout 릴리스](https://github.com/actions/checkout/releases/tag/v7.0.1), [setup-node 릴리스](https://github.com/actions/setup-node/releases/tag/v7.1.0), [GitHub의 Node 24 실행 정책](https://github.blog/changelog/2026-09-23-node-20-is-no-longer-available-in-github-actions/). 공식 공지상 기존 액션도 runner에서 Node 24로 실행하므로 이전 4.x 태그만으로 현재 Node 20이 실행 중이었다고 주장하지 않는다.
 
 ## 후속 우선순위
+
+2026-11-01의 [우선순위·즉시 실행 기록](followup-priorities.md)에 브라우저 CI 구현과 버전 오해결 추가 수정을 정리했다. 아래 표는 필요한 외부 근거를 포함한 후속 범위다.
 
 | 순서 | 남은 작업 | 시작에 필요한 근거 |
 | --- | --- | --- |

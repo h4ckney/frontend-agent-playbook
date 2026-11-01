@@ -490,3 +490,16 @@ test("invalid falsy CI modes cannot silently turn a requested gate into report-o
     assert.ok(validateProjectProfile({ schemaVersion: '1', project: { id: 'x' }, ci: { mode, failOn: ['severity:high'] } }).length);
   }
 });
+
+test('unsafe version integers remain unverified instead of resolving a prior runtime advisory', () => {
+  const scan = version => createAuditBundle({ records: [{ path: '.node-version', content: version }] }).audit;
+  const baseline = createBaseline(scan('24.22.0'));
+  for (const version of ['9'.repeat(100) + '.1.0', '24.999999999999999999999999999999.0']) {
+    const result = scan(version);
+    assert.equal(result.securityContext.coverage.exactVersionCount, 0);
+    assert.equal(result.securityContext.coverage.unresolvedVersionCount, 1);
+    const diff = compareWithBaseline(result, baseline).diff;
+    assert.ok(diff.unverified.includes('security.node-brotli-2026:.node-version#version'));
+    assert.deepEqual(diff.resolved, []);
+  }
+});

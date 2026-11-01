@@ -259,13 +259,15 @@ node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidan
 
 문서 검증 스크립트는 로컬 Markdown 링크, 해결되지 않은 TODO 표시, 필수 규칙 및 워크플로우 섹션, 스킬 frontmatter, 스킬 UI 메타데이터 참조와 detector-rule 연결을 확인합니다. Package sync 검사는 설치용 plugin copy가 canonical source와 달라지는 것을 막습니다. GitHub Actions는 pull request와 `main` push에서 동일한 문서, package, analyzer, browser smoke, CLI, contract 및 approval gate 검사를 실행합니다.
 
-실제 브라우저 검증은 선택 실행입니다. 호출 환경이 Playwright를 제공하고 로컬 서버가 실행되어 있어야 합니다. 저장소 runtime 의존성이나 기본 CI 설치에 추가하지 않습니다.
+별도 `dashboard-browser` CI job이 PR/main에서 기본 검사를 통과한 뒤 실제 Chromium 검증을 실행합니다. 고정 버전의 Playwright는 체크아웃 밖에 설치하고 소스·응답 해시와 화면 이미지는 7일 보관합니다. 합성 입력의 감사 대시보드 범위이며 실제 서비스·기기를 검증한 것은 아닙니다. 로컬에서는 호출 환경의 Playwright와 미리보기 서버로 아래 명령도 사용할 수 있습니다.
 
 ```bash
 node scripts/verify-dashboard.mjs --url http://127.0.0.1:4381/analysis/ --output docs/evidence/browser --channel chrome
 ```
 
 [검증 근거 기록](docs/evidence/audit-upgrade-2026-10-25.md)에서 합성 입력을 이용한 도구 대시보드 확인과 대상 서비스 렌더링·실기기·release 상태를 구분합니다.
+
+[후속 작업 우선순위와 브라우저 CI](docs/followup-priorities.md)
 
 ## 버전
 

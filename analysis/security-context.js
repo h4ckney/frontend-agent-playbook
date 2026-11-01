@@ -79,7 +79,9 @@
   function exactVersion(value) {
     if (typeof value !== "string") return null;
     const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(value.trim());
-    return match ? match.slice(1).map(Number).join(".") : null;
+    if (!match) return null;
+    const parts = match.slice(1).map(Number);
+    return parts.every(Number.isSafeInteger) ? parts.join(".") : null;
   }
 
   function compare(a, b) {

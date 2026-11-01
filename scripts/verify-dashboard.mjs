@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Optional real-browser verification. Playwright is supplied by the caller,
-// not installed or executed by the static analyzer or dependency-free CI.
+// installed only by the separate browser CI job, never by the static analyzer.
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";

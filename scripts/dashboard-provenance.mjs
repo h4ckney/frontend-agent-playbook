@@ -63,7 +63,7 @@ export async function verifyDashboardPreview(input, sourceRoot, previous) {
 
 export async function hashVerificationSources(sourceRoot) {
   const hashes = {};
-  for (const file of ["scripts/verify-dashboard.mjs", "scripts/dashboard-provenance.mjs"]) {
+  for (const file of ["scripts/verify-dashboard.mjs", "scripts/dashboard-provenance.mjs", "scripts/verify-dashboard-ci.mjs"]) {
     hashes[file] = sha256(await fs.readFile(path.join(sourceRoot, file)));
   }
   return hashes;
