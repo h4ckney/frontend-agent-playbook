@@ -2,6 +2,8 @@
 
 2026-11-02 · 기준 `4269e22` · 위험 수준 2: 외부 입력 parser, 공개 결과 스키마와 보안 기준선의 해결 판정에 영향을 준다. 제품 전체 종료 정책과 개별 채널 일정을 분리한다. CVE 스냅샷 확인일 2026-10-30과 지원 정책 확인일 2026-11-02는 유지한다.
 
+2026-11-03 후속 [legacy v1·v2·custom lock·literal local 연결](deno-legacy-custom-local.md)을 추가했다. 아래 검증 수치는 PR #8 당시 기록이다.
+
 ## 범위와 공식 근거
 
 | 입력 | 수집하는 근거 | 남기는 한계 |
@@ -29,8 +31,8 @@
 - npm pin은 기존 npm 권고 비교와 명시적 OSV 조회에 연결한다. JSR은 별도 `ecosystem: jsr`로 보존하며 npm 좌표로 보내지 않는다. JSR 권고 비교는 미지원 gap이다. JSR의 npm 의존성은 명시적 연결이 있으면 기존 npm 비교에 포함한다.
 - 정확한 peer instance와 alias를 보존한다. 이름만 있는 dependency에 후보가 둘 이상이면 임의로 고르지 않는다. runtime/dev 양쪽 역할이면 둘 다 보존한다.
 - graph의 `complete`는 지원하는 lock 연결 해석 범위다. 보안 점검 전체 완료가 아니다. `coverage.complete`는 여전히 false다. JSR graph가 완전해도 JSR 취약점 비교는 미확인이다.
-- 원격 URL/redirect·별도 import map, 실제 설정 또는 lock의 local link·patch·override, custom tarball, 누락된 manifest·끊긴 연결·미지원 형식은 gap이다. URL의 토큰·호스트·전체 경로를 출력하지 않는다. 출처를 검증하지 못한 npm 좌표는 확정 pin 비교·외부 조회에서 제외한다.
-- `lock:false`, 다른 lock path, stale import는 해당 lock을 활성 설정의 완전한 근거로 사용하지 않는다. 아직 custom lock 이름은 자동 탐색하지 않는다. v1·v2와 prerelease package identity도 gap이다.
+- 원격 URL/redirect·별도 import map, 해석하지 못한 local 연결·override, custom tarball, 누락된 manifest·끊긴 연결·미지원 형식은 gap이다. URL의 토큰·호스트·전체 경로를 출력하지 않는다. 출처를 검증하지 못한 npm 좌표는 확정 pin 비교·외부 조회에서 제외한다.
+- `lock:false`, stale import는 해당 lock을 활성 설정의 완전한 근거로 사용하지 않는다. custom lock·v1·v2 및 literal local 연결은 [후속 범위](deno-legacy-custom-local.md)를 따른다. prerelease package identity는 gap이다.
 - `deno.lock`은 이제 선택 대상이므로 일괄 파일 제외 표시는 제거한다. 형식·연결이 지원되지 않으면 security coverage gap이 남으며, 이전 CVE가 사라진 것만으로 해결되지 않고 `unverified`를 유지한다. 성공한 파싱을 실제 배포의 안전 판정으로 바꾸지 않는다.
 
 ## 리뷰와 검증
@@ -45,4 +47,4 @@
 
 관찰 신호는 위 반례에서 잘못된 해결·workspace 혼동·가짜 실행 버전이 발생하지 않는 것이다. 이번 변경의 증거는 고정 입력의 회귀 결과이며 운영 위험 감소는 측정하지 않았다. 다음 확인 조건은 실제 배포의 버전·채널·SBOM 확보다. 운영 측정 담당자·기간은 아직 정해지지 않았고 자동 예약을 만들지 않았다.
 
-다음 우선순위는 실제 실행 채널/패치 증거와 SBOM, custom lock·v1/v2·local 링크의 실제 fixture, JSR 권고 조회 정책이다. 외부 조회는 전송 항목·지원 생태계를 먼저 확정하고 별도 명시적 실행으로 유지한다.
+다음 우선순위는 실제 실행 채널/패치 증거와 SBOM, 추가 local protocol·glob·중첩 workspace fixture, JSR 권고 조회 정책이다. 외부 조회는 전송 항목·지원 생태계를 먼저 확정하고 별도 명시적 실행으로 유지한다.

@@ -146,6 +146,8 @@ Runtime support is evaluated separately from the advisory snapshot: Deno Runtime
 
 Deno lock v3/v4/v5 inventories npm and JSR separately, and an explicit LTS selector receives its own dated policy without an invented installed patch. See [Deno lock/LTS coverage and official fixtures](docs/deno-lock-lts.md).
 
+Deno legacy v1 integrity metadata, v2 npm pins, explicitly configured custom locks and literal local links are supported within the [documented path, graph and verification boundaries](docs/deno-legacy-custom-local.md).
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.

@@ -161,9 +161,16 @@
         phaseEvidence: "Composer dependency-resolution simulation; not the running PHP version", direct: true, provenance: "manifest-declaration" });
     }
 
+    const discovery = denoLock.discoverLocks(records);
+    discovery.gaps.forEach(item => addGap(item.path, item.reason));
+    const denoPlans = new Map(discovery.plans.map(plan => [plan.lockfile, plan]));
+    const filePaths = new Set(records.map(item => item.path));
+    const configuredDenoDirectories = new Set(discovery.configuredDirectories);
+    discovery.plans.filter(plan => !filePaths.has(plan.lockfile) && plan.lockfile !== plan.directory + "deno.lock").forEach(plan => addGap(plan.config, "deno-custom-lock-unavailable"));
     for (const record of records) {
-      if (/(^|\/)deno\.lock$/.test(record.path)) {
-        const result = denoLock.readDenoLock(record, records);
+      if (/(^|\/)deno\.lock$/.test(record.path) && configuredDenoDirectories.has(record.path.replace(/[^/]+$/, "")) && !denoPlans.has(record.path)) continue;
+      if (denoPlans.has(record.path) || /(^|\/)deno\.lock$/.test(record.path)) {
+        const result = denoLock.readDenoLock(record, records, denoPlans.get(record.path) || {});
         graphs.push(result.graph); graphLocks.add(record.path);
         result.inventory.forEach(add); result.gaps.forEach(item => addGap(item.path, item.reason));
         result.coveredImports.forEach(file => denoCoveredImports.add(file));
@@ -332,7 +339,7 @@
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
       inventory, findings, lifecycle: support, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
-        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "Deno lock v3/v4/v5 npm/JSR inventory and explicit workspace graph; JSR advisories, remote URL contents, local links and legacy optional metadata remain unverified", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "Deno v1 remote integrity metadata, v2-v5 npm/JSR inventory, declared custom lock and literal local links; JSR advisories, remote/local contents and legacy optional metadata remain unverified", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
     };
   }

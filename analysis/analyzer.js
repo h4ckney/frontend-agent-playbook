@@ -233,7 +233,7 @@ function fileExclusionReason(file) {
   if (GENERATED_FILE_PATTERN.test(path)) return "generated";
   if (SKIPPED_SEGMENTS.some((segment) => path.includes(segment))) return "excluded-path";
   if (/^bun\.lockb$/i.test(name)) return "binary-lockfile";
-  if (!TEXT_EXTENSIONS.has(extension) && !SECURITY_INVENTORY_FILE_PATTERN.test(name)) return "unsupported-type";
+  if (!file.denoLockTarget && !TEXT_EXTENSIONS.has(extension) && !SECURITY_INVENTORY_FILE_PATTERN.test(name)) return "unsupported-type";
   if (file.size > analysisLimits.maxFileSize) return "oversized";
   return null;
 }
@@ -269,6 +269,25 @@ function selectFilesWithinBudget(files) {
       excludedByReason["input-budget"] || excludedByReason.oversized || excludedByReason["binary-lockfile"] || excludedByReason["unsupported-lockfile"]
     )
   };
+}
+
+function extendSelectionForDenoLocks(files, records, selection) {
+  const deno = typeof module !== "undefined" && module.exports ? require("./deno-lock.js") : globalThis.FrontendDenoLock;
+  const paths = new Set(deno.discoverLocks(records).plans.map(plan => plan.lockfile));
+  const accepted = [...selection.accepted], additional = [], excludedByReason = {...selection.excludedByReason};
+  let acceptedBytes = selection.acceptedBytes;
+  for (const file of files) {
+    const path = file.webkitRelativePath ? file.webkitRelativePath.split("/").slice(1).join("/") : file.path || file.name;
+    if (!paths.has(path) || fileExclusionReason(file) !== "unsupported-type" || deno.protectedTarget(path)) continue;
+    let reason = fileExclusionReason({path, name:file.name, size:file.size, denoLockTarget:true});
+    if (!reason && (accepted.length >= analysisLimits.maxFileCount || acceptedBytes + file.size > analysisLimits.maxTotalBytes)) reason = "input-budget";
+    excludedByReason["unsupported-type"] -= 1;
+    if (!excludedByReason["unsupported-type"]) delete excludedByReason["unsupported-type"];
+    if (reason) excludedByReason[reason] = (excludedByReason[reason] || 0) + 1;
+    else { accepted.push(file); additional.push(file); acceptedBytes += file.size; }
+  }
+  return {...selection, accepted, additional, acceptedBytes, excludedByReason,
+    coverageIncomplete: selection.coverageIncomplete || Boolean(excludedByReason["oversized"] || excludedByReason["input-budget"])};
 }
 
 // Each file belongs to its nearest package.json; sibling/root tooling is not proof for a child.
@@ -999,6 +1018,7 @@ const analyzerApi = {
   isAnalyzableFile,
   seoScopeLabels,
   selectFilesWithinBudget,
+  extendSelectionForDenoLocks,
   selectPriorityCandidates
 };
 

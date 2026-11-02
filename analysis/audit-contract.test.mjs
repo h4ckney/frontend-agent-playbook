@@ -129,7 +129,7 @@ test("does not reuse the old E2E detector decision after its inventory semantics
   entry.detectorVersion = "1";
   const compared = compareWithBaseline(result, baseline);
   assert.ok(compared.diff.unverified.includes(entry.fingerprint));
-  assert.equal(result.engine.detectorCatalogVersion, "8");
+  assert.equal(result.engine.detectorCatalogVersion, "9");
 });
 
 test("renders a Korean browser report while preserving stable identifiers", () => {

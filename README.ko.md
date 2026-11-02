@@ -148,6 +148,8 @@ Codex 로컬 마켓플레이스 추가와 설치 경로는 격리된 설정 디�
 
 Deno lock v3/v4/v5는 npm·JSR을 구분해 읽고, 명시적 LTS selector는 실제 설치 패치를 추정하지 않고 별도 지원 일정을 표시합니다. [Deno lock·LTS 범위와 공식 fixture](docs/deno-lock-lts.md)를 참고하세요.
 
+Deno v1 무결성 기록·v2 npm pin, 명시적 custom lock과 literal local 연결을 [경로·graph·검증 범위](docs/deno-legacy-custom-local.md) 안에서 지원합니다.
+
 ### Analyzer CLI 프리뷰
 
 pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [형식 범위·프로토콜 우선순위](docs/lock-protocol-priorities.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.

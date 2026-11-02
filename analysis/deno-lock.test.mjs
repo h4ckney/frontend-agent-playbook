@@ -94,7 +94,8 @@ test('the same package declared in runtime and development retains both roles an
 test('stale imports, missing workspace files, lock:false and custom lock paths cannot claim complete import coverage', () => {
   for(const config of [{imports:{next:'npm:next@^16.5.0'}},{imports:{next:'npm:next@^16.4.0'},lock:false},{imports:{next:'npm:next@^16.4.0'},lock:'elsewhere.lock'}]) {
     const result=inspect(files(lock(),config));
-    assert.equal(result.graphs[0].complete,false);
+    if (config.lock !== undefined) assert.equal(result.graphs,undefined);
+    else assert.equal(result.graphs[0].complete,false);
     assert.ok(result.coverage.gaps.some(item=>item.reason === 'deno-dependency-lock-coverage-unavailable'));
   }
   assert.equal(inspect([rec('deno.lock',lock())]).graphs[0].complete,false);
