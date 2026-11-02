@@ -90,7 +90,7 @@ async function scanCommand(options) {
   const scopePolicyDigest = digest({
     rootLabel,
     limits: analyzer.analysisLimits,
-    exclusions: "analyzer-v1",
+    exclusions: "analyzer-v2-deno-custom",
     seoScope: options.seoScope || profile?.project?.visibility || "unknown"
   });
   const bundle = contract.createAuditBundle({
@@ -214,22 +214,24 @@ async function collectRecords(root, excludedArtifacts) {
   }
 
   await walk(root);
-  const selection = analyzer.selectFilesWithinBudget(candidates);
-  mergeCounts(excludedByReason, selection.excludedByReason);
+  let selection = analyzer.selectFilesWithinBudget(candidates);
   const records = [];
-  for (const file of selection.accepted) {
-    try {
-      const content = await fs.readFile(file.absolute, "utf8");
-      const record = { path: file.path, content, size: file.size };
-      if (analyzer.isGeneratedRecord(record)) {
-        increment(excludedByReason, "generated-header");
-      } else {
-        records.push(record);
+  async function readSelected(selected) {
+    for (const file of selected) {
+      try {
+        const content = await fs.readFile(file.absolute, "utf8");
+        const record = { path: file.path, content, size: file.size };
+        if (analyzer.isGeneratedRecord(record)) increment(excludedByReason, "generated-header");
+        else records.push(record);
+      } catch {
+        increment(excludedByReason, "read-failed");
       }
-    } catch {
-      increment(excludedByReason, "read-failed");
     }
   }
+  await readSelected(selection.accepted);
+  selection = analyzer.extendSelectionForDenoLocks(candidates, records, selection);
+  await readSelected(selection.additional);
+  mergeCounts(excludedByReason, selection.excludedByReason);
   const selectedFiles = candidates.length + symlinkCount + artifactCount;
   const includedBytes = records.reduce((sum, record) => sum + record.size, 0);
   const excludedFiles = selectedFiles - records.length;

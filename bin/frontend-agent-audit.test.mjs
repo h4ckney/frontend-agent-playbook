@@ -353,3 +353,33 @@ test('CLI preserves separate lifecycle products, private configuration boundarie
   assert.doesNotMatch(output.stdout, /private-deploy-project/);
   assert.ok(audit.securityContext.coverage.gaps.some(item => item.reason === 'jsr-advisory-coverage-unavailable'));
 });
+
+test('CLI reads a declared no-extension custom lock and follows a local link inside the selected root',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-deno-custom-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ await fs.mkdir(path.join(root,'app'));await fs.mkdir(path.join(root,'locks'));await fs.mkdir(path.join(root,'lib'));
+ await fs.writeFile(path.join(root,'app/deno.json'),JSON.stringify({lock:'../locks/pins',links:['../lib'],imports:{lib:'jsr:@example/lib'}}));
+ await fs.writeFile(path.join(root,'lib/deno.json'),JSON.stringify({name:'@example/lib',imports:{next:'npm:next@^16.4.0'}}));
+ await fs.writeFile(path.join(root,'locks/pins'),JSON.stringify({version:'5',specifiers:{'npm:next@^16.4.0':'16.4.0'},npm:{'next@16.4.0':{integrity:'synthetic'}},workspace:{dependencies:['jsr:@example/lib@*'],links:{'jsr:@example/lib':{dependencies:['npm:next@^16.4.0']}}}}));
+ const output=run(['scan','--root','.','--format','json'],root);assert.equal(output.status,0,output.stderr);
+ const result=JSON.parse(output.stdout);assert.equal(result.scope.partial,false);
+ assert.equal(result.securityContext.graphs[0].lockfile,'locks/pins');
+ assert.equal(result.securityContext.graphs[0].complete,true);
+ assert.equal(result.securityContext.inventory[0].workspaceUsage[0].manifest,'app/deno.json');
+ assert.ok(result.findings.some(item=>item.id === 'security.rsc-typed-array-rce' && item.evidence.some(item=>item.path === 'locks/pins')));
+});
+
+test('CLI refuses to follow outside-root and symlink custom locks and retains missing version evidence',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-deno-boundary-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ const outside=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-deno-outside-'));t.after(()=>fs.rm(outside,{recursive:true,force:true}));
+ await fs.writeFile(path.join(outside,'secret.lock'),'{"PRIVATE_DATA":"must-not-appear"}');
+ await fs.writeFile(path.join(root,'deno.json'),JSON.stringify({lock:'pins',imports:{next:'npm:next@^16.4.0'}}));
+ await fs.symlink(path.join(outside,'secret.lock'),path.join(root,'pins'));
+ const output=run(['scan','--root','.','--format','json'],root);assert.equal(output.status,0,output.stderr);
+ const result=JSON.parse(output.stdout);assert.equal(result.scope.partial,true);assert.equal(result.scope.excludedByReason.symlink,1);
+ assert.ok(result.securityContext.coverage.gaps.some(item=>item.reason === 'deno-custom-lock-unavailable'));
+ assert.doesNotMatch(output.stdout,/PRIVATE_DATA|must-not-appear|secret.lock/);
+ await fs.writeFile(path.join(root,'deno.json'),JSON.stringify({lock:outside+'/secret.lock'}));
+ const unsafe=run(['scan','--root','.','--format','json'],root);assert.equal(unsafe.status,0,unsafe.stderr);
+ assert.ok(JSON.parse(unsafe.stdout).securityContext.coverage.gaps.some(item=>item.reason === 'unsafe-deno-lock-path'));
+ assert.doesNotMatch(unsafe.stdout,/PRIVATE_DATA|must-not-appear|secret.lock/);
+});

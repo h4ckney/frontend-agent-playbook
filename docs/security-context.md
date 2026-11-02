@@ -26,7 +26,7 @@
 | npm lock v1/v2/v3, shrinkwrap | 정확한 버전, 중첩·scope 패키지, dev flag | v2/v3의 명시적 link/가까운 node_modules graph 지원. 실제 설치·배포·번들 포함은 미확인 |
 | Yarn Classic v1 | 일반 version stanza의 정확한 버전·grouped/scoped 이름 | 전체 graph·workspace 연결·실행 단계는 미확인 |
 | pnpm 5.0–5.4/v6/v9 · Yarn Berry metadata 4–10 · Bun text v1 | 명시적 workspace graph와 정확한 버전, workspace별 역할 | [다중 문서·patch·local 지원과 남은 범위](lock-protocol-priorities.md). 설치·배포·실제 코드 도달성 미확인 |
-| Deno lock v3/v4/v5 · 명시적 LTS selector | npm/JSR inventory와 workspace graph, 별도 채널 일정 | [Deno lock·LTS 범위·공식 fixture](deno-lock-lts.md). JSR 권고·remote URL·local 연결 등은 미확인 |
+| Deno lock v1–v5 · custom/local · 명시적 LTS selector | v1 무결성 기록 수, v2–v5 npm/JSR inventory, 명시적 graph와 채널 일정 | [legacy/custom/local 범위](deno-legacy-custom-local.md), [LTS](deno-lock-lts.md). 원격/local 내용·JSR 권고는 미확인 |
 | `composer.json`, `composer.lock` | require/require-dev, packages/packages-dev | PHP 실행 버전, 배포 시 `--no-dev` 적용 여부 |
 | `.nvmrc`, `.node-version`, `.php-version`, `.deno-version`, `.bun-version`, `.tool-versions` | 정확한 pin과 selector 구분 | 빌드·서비스 중 어디서 사용했는지, 실제 바이너리 |
 | 공식 Node/PHP/Deno/Bun `Dockerfile` 이미지 | 마지막 기본 stage와 FROM 조상은 runtime, 다른 stage는 build | 사용자 지정 `--target`, ARG 치환, custom 이미지, 배포 digest |
