@@ -383,3 +383,36 @@ test('CLI refuses to follow outside-root and symlink custom locks and retains mi
  assert.ok(JSON.parse(unsafe.stdout).securityContext.coverage.gaps.some(item=>item.reason === 'unsafe-deno-lock-path'));
  assert.doesNotMatch(unsafe.stdout,/PRIVATE_DATA|must-not-appear|secret.lock/);
 });
+
+test('CLI reads a selected external map with an unknown extension and preserves local file provenance',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-deno-map-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ await fs.mkdir(path.join(root,'maps'));
+ await fs.writeFile(path.join(root,'deno.json'),JSON.stringify({importMap:'maps/imports.map'}));
+ await fs.writeFile(path.join(root,'maps/imports.map'),JSON.stringify({imports:{next:'npm:next@^16.4.0',module:'../entry.ts'}}));
+ await fs.writeFile(path.join(root,'entry.ts'),'export const value=1;');
+ await fs.writeFile(path.join(root,'deno.lock'),JSON.stringify({version:'5',specifiers:{'npm:next@^16.4.0':'16.4.0'},npm:{'next@16.4.0':{integrity:'x'}},workspace:{dependencies:['npm:next@^16.4.0']}}));
+ const output=run(['scan','--root','.','--format','json'],root);assert.equal(output.status,0,output.stderr);
+ const result=JSON.parse(output.stdout),graph=result.securityContext.graphs[0];
+ assert.deepEqual(graph.importMaps,['maps/imports.map']);
+ assert.deepEqual(graph.localMappings,[{source:'maps/imports.map',target:'entry.ts',prefix:false,exists:true}]);
+ assert.ok(result.findings.some(item=>item.id === 'security.rsc-typed-array-rce'));
+});
+
+test('CLI workspace protocol binds declared members and refuses a symlink external import map',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-deno-ws-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ await fs.mkdir(path.join(root,'packages/lib'),{recursive:true});
+ await fs.writeFile(path.join(root,'deno.json'),JSON.stringify({workspace:['packages/*']}));
+ await fs.writeFile(path.join(root,'package.json'),JSON.stringify({dependencies:{lib:'workspace:*'}}));
+ await fs.writeFile(path.join(root,'packages/lib/package.json'),JSON.stringify({name:'lib',version:'1.0.0',dependencies:{next:'^16.4.0'}}));
+ await fs.writeFile(path.join(root,'deno.lock'),JSON.stringify({version:'5',specifiers:{'npm:next@^16.4.0':'16.4.0'},npm:{'next@16.4.0':{integrity:'x'}},workspace:{packageJson:{dependencies:[]},members:{'packages/lib':{packageJson:{dependencies:['npm:next@^16.4.0']}}}}}));
+ const output=run(['scan','--root','.','--format','json'],root);assert.equal(output.status,0,output.stderr);
+ const result=JSON.parse(output.stdout);
+ assert.ok(result.securityContext.graphs[0].edges.some(item=>item.to === 'local/packages/lib/npm'));
+ await fs.writeFile(path.join(root,'private.txt'),'{"SECRET":"never-disclose"}');
+ await fs.symlink(path.join(root,'private.txt'),path.join(root,'imports.map'));
+ await fs.writeFile(path.join(root,'deno.json'),JSON.stringify({workspace:['packages/*'],importMap:'imports.map'}));
+ const blocked=run(['scan','--root','.','--format','json'],root);assert.equal(blocked.status,0,blocked.stderr);
+ const audit=JSON.parse(blocked.stdout);assert.equal(audit.scope.partial,true);
+ assert.ok(audit.securityContext.coverage.gaps.some(item=>item.reason === 'deno-import-map-unavailable-or-invalid'));
+ assert.doesNotMatch(blocked.stdout,/never-disclose/);
+});

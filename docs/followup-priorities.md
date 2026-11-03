@@ -16,7 +16,7 @@
 
 현재 [workspace·npm v1·Yarn Classic 확장](workspace-lock-analysis.md)에 이어 [pnpm·Berry·Bun 및 공유 workspace graph](modern-lock-workspace-graphs.md)를 구현했다. 앞의 표는 최초 우선순위다. [미지원 protocol/format 우선순위와 후속 구현](lock-protocol-priorities.md)을 추가했다. 이후는 P3 형식의 실제 fixture, 설치 SBOM·배포 증거, 실제 workspace E2E 연결을 기준으로 진행한다. 검증·머지 상태는 해당 PR/CI를 따른다.
 
-2026-11-02에는 [런타임·서비스 지원 수명](runtime-service-lifecycle.md)을 추가했다. Deno 제품 분리와 Node/PHP/Bun 정책, 버전 근거 소실·prerelease 오판을 수정했다. [Deno lock graph·공식 fixture·명시적 LTS 채널](deno-lock-lts.md)도 확장했다. [legacy v1·v2·custom lock·literal local 연결](deno-legacy-custom-local.md)을 이어서 확장했다. 다음 우선순위는 실제 배포·채널·SBOM 근거, 추가 local protocol·glob·중첩 연결과 정책 갱신 체계다.
+2026-11-02에는 [런타임·서비스 지원 수명](runtime-service-lifecycle.md)을 추가했다. Deno 제품 분리와 Node/PHP/Bun 정책, 버전 근거 소실·prerelease 오판을 수정했다. [Deno lock graph·공식 fixture·명시적 LTS 채널](deno-lock-lts.md)도 확장했다. [legacy v1·v2·custom lock·literal local 연결](deno-legacy-custom-local.md)을 이어서 확장했다. 이어서 [local glob·file/workspace protocol·중첩 멤버·외부 import map](deno-local-resolution.md)을 확장했다. 다음 우선순위는 실제 배포·채널·SBOM 근거, JSR 권고와 정책 갱신 체계, 실제 사례가 있는 추가 protocol·source별 import 해석이다.
 
 ## 확인한 중간 이상 문제와 수정
 

@@ -96,7 +96,7 @@ test('literal npm links and legacy patch metadata retain local identities withou
 
 test('missing, duplicate, outside-root, glob and stale local links never resolve a previous advisory',()=>{
  const before=bundle(linked()),baseline=createBaseline(before),id=before.findings.find(item=>item.id === 'security.rsc-typed-array-rce').fingerprint;
- for(const paths of [['../../outside'],['../missing'],['../*'],['../local','../local']]) {
+ for(const paths of [['../../outside'],['../missing'],['../../*']]) {
   const records=linked();records[0]=rec('app/deno.json',{lock:'../locks/runtime.snapshot',links:paths,imports:{app:'jsr:@example/local'}});
   const after=bundle(records),compared=compareWithBaseline(after,baseline);
   assert.ok(after.securityContext.coverage.gaps.length);

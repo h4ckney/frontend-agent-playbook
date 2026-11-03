@@ -159,7 +159,7 @@ function createState() {
     context: { seoScope: selectedSeoScope },
     analysisMode: "static-lite",
     capabilities: ["route-path-inference", "text-patterns"],
-    scopePolicyDigest: "browser-static-lite-relative-v3-deno-custom"
+    scopePolicyDigest: "browser-static-lite-relative-v4-deno-resolution"
   });
   currentAuditResult = bundle.audit;
   return createUiState(bundle.audit, currentAudit.meta);
@@ -301,7 +301,7 @@ function renderSecurityContext() {
     '<p>선언·lockfile·설정에서 수집한 목록입니다. 실제 설치·배포와 공격 경로는 추가 확인이 필요합니다. 빌드·개발 도구도 비밀정보나 배포 산출물에 영향을 줄 수 있습니다.</p>' +
     (security.snapshot.freshness === "within-30-days" ? '' : '<p class="context-status">권고 목록의 시점 확인이 필요합니다. 최신 전체 취약점 목록과의 비교는 별도 실행해야 합니다.</p>') +
     (security.graphs?.length ? '<p>공유 lockfile 그래프 ' + security.graphs.length + '개 · workspace 근거 ' + security.graphs.reduce((sum, graph) => sum + graph.roots.filter(root => root.phase !== "build").length, 0) + '개 · 실제 코드 실행 경로는 미확인</p>' : '') +
-    (security.graphs?.some(graph => graph.format === 'deno') ? '<ul class="dependency-inventory">' + security.graphs.filter(graph => graph.format === 'deno').slice(0,30).map(graph => '<li data-deno-lock="' + escapeHtml(graph.lockfile) + '">' + escapeHtml(graph.lockfile) + ' · Deno lock v' + escapeHtml(graph.lockVersion || '미확인') + ' · 로컬 패키지 연결 ' + graph.nodes.filter(node => node.kind === 'local').length + '개 · 원격 무결성 기록 ' + (graph.remoteIntegrityCount || 0) + '개 (내용·안전성 미검증)' + (graph.nodes.some(node => node.kind === 'local') ? '<br><small>' + escapeHtml(graph.nodes.filter(node => node.kind === 'local').slice(0,10).map(node => node.name + ' · ' + node.manifest).join(' / ')) + '</small>' : '') + '</li>').join('') + '</ul>' : '') +
+    (security.graphs?.some(graph => graph.format === 'deno') ? '<ul class="dependency-inventory">' + security.graphs.filter(graph => graph.format === 'deno').slice(0,30).map(graph => '<li data-deno-lock="' + escapeHtml(graph.lockfile) + '" data-graph-complete="' + graph.complete + '">' + escapeHtml(graph.lockfile) + ' · Deno lock v' + escapeHtml(graph.lockVersion || '미확인') + ' · 로컬 패키지 연결 ' + graph.nodes.filter(node => node.kind === 'local').length + '개 · 원격 무결성 기록 ' + (graph.remoteIntegrityCount || 0) + '개 · import map 파일 ' + (graph.importMaps?.length || 0) + '개 · 로컬 파일 매핑 ' + (graph.localMappings?.length || 0) + '개 · ' + (graph.complete ? '선언 연결 해석됨' : '연결 미검증') + ' (내용·안전성 미검증)' + (graph.importMaps?.length ? '<br><small>' + escapeHtml(graph.importMaps.slice(0,10).join(' / ')) + '</small>' : '') + (graph.localMappings?.length ? '<br><small>' + escapeHtml(graph.localMappings.slice(0,5).map(item => item.source + ' → ' + item.target + (item.exists ? '' : ' (선택 파일 없음)')).join(' / ')) + '</small>' : '') + (graph.nodes.some(node => node.kind === 'local') ? '<br><small>' + escapeHtml(graph.nodes.filter(node => node.kind === 'local').slice(0,10).map(node => node.name + ' · ' + node.manifest).join(' / ')) + '</small>' : '') + '</li>').join('') + '</ul>' : '') +
     '<details><summary>버전 근거 ' + security.inventory.length + '개 보기 (최대 30개 표시)</summary><ul class="dependency-inventory">' +
     security.inventory.slice(0, 30).map((entry) => '<li><strong>' + escapeHtml((entry.ecosystem === 'jsr' ? 'JSR · ' : '') + entry.name + (entry.version.endsWith(':<source-redacted>') ? ' · 출처 지정(상세 값 생략)' : '@' + entry.version)) + '</strong> · ' + phases[entry.phase] +
       (entry.lockContext === "boot" ? '<br><small>패키지 매니저·설정 도구의 버전 근거</small>' : '') +

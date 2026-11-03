@@ -146,7 +146,7 @@ Runtime support is evaluated separately from the advisory snapshot: Deno Runtime
 
 Deno lock v3/v4/v5 inventories npm and JSR separately, and an explicit LTS selector receives its own dated policy without an invented installed patch. See [Deno lock/LTS coverage and official fixtures](docs/deno-lock-lts.md).
 
-Deno legacy v1 integrity metadata, v2 npm pins, explicitly configured custom locks and literal local links are supported within the [documented path, graph and verification boundaries](docs/deno-legacy-custom-local.md).
+Deno legacy v1 integrity metadata, v2 npm pins, explicitly configured custom locks and literal local links are supported within the [documented path, graph and verification boundaries](docs/deno-legacy-custom-local.md). Local globs, relative file/workspace protocols, nested member paths and selected external import maps follow the [resolution coverage and evidence](docs/deno-local-resolution.md).
 
 ### Analyzer CLI Preview
 
@@ -261,6 +261,7 @@ node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
 node --check analysis/security-context.js
+node --check analysis/deno-resolution.js
 node --check analysis/deno-lock.js
 node --check analysis/runtime-lifecycle.js
 node --check bin/frontend-agent-audit.mjs

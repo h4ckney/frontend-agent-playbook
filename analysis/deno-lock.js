@@ -16,51 +16,47 @@
     if (!match || !nameOK(match[2]) || value.length > 1500 || /[\\\x00-\x20:?#%]/.test(match[3] || "")) return null;
     return {ecosystem:match[1], name:match[2], key:match[1] + ":" + match[2] + (match[3] ? "@" + match[3] : "")};
   }
-  function relativePath(base, input) {
-    if (typeof input !== "string" || !input || input.length > 1000 || /[\\\x00-\x1f:?#%*{}\[\]!]/.test(input) || input.startsWith("/") || input.endsWith("/")) return null;
-    if (base && !pathOK(base.replace(/\/$/, ""))) return null;
-    const parts = base ? base.replace(/\/$/, "").split("/") : [];
-    for (const part of input.split("/")) {
-      if (!part || part === ".") continue;
-      if (part === "..") { if (!parts.length) return null; parts.pop(); } else parts.push(part);
-    }
-    return parts.length ? parts.join("/") : null;
-  }
-  function protectedTarget(path) {
-    return /(?:^|\/)(?:\.env(?:\.[^/]*)?|\.git|\.ssh|\.aws|\.azure|\.gnupg|node_modules|vendor|dist|build|coverage|generated|__generated__|\.frontend-audit)(?:\/|$)/i.test(path)
-      || /(?:^|\/)(?:id_rsa|id_ed25519|credentials|\.npmrc|package\.json|composer\.json|deno\.jsonc?|package-lock\.json|composer\.lock|yarn\.lock|bun\.lockb?|pnpm-lock\.yaml|\.frontend-agent-playbook\.json)$/i.test(path)
-      || /\.(?:pem|key|p12|pfx)$/i.test(path);
-  }
-  function discoverLocks(records) {
-    const plans = [], gaps = [], owners = new Map(), configuredDirectories = new Set();
-    for (const record of records) {
-      if (!/(^|\/)deno\.jsonc?$/.test(record.path)) continue;
-      const directory = record.path.replace(/[^/]+$/, "");
-      let data;
-      try { data = parser.parseJSONC(record.content); } catch { gaps.push({path:record.path, reason:"invalid-deno-lock-configuration"}); continue; }
-      configuredDirectories.add(directory);
-      let target = "deno.lock";
-      if (data.lock === false) continue;
-      if (typeof data.lock === "string") target = data.lock;
-      else if (object(data.lock) && (data.lock.path === undefined || typeof data.lock.path === "string")) target = data.lock.path ?? "deno.lock";
-      else if (data.lock !== undefined && data.lock !== true) { gaps.push({path:record.path, reason:"invalid-deno-lock-configuration"}); continue; }
-      const lockfile = relativePath(directory, target);
-      if (!lockfile || protectedTarget(lockfile)) { gaps.push({path:record.path, reason:"unsafe-deno-lock-path"}); continue; }
-      const plan = {lockfile, directory, config:record.path};
-      plans.push(plan);
-      if (!owners.has(lockfile)) owners.set(lockfile, []);
-      owners.get(lockfile).push(plan);
-    }
-    for (const plans of owners.values()) if (plans.length > 1) for (const plan of plans) { plan.ambiguous = true; gaps.push({path:plan.config, reason:"ambiguous-deno-lock-owner"}); }
-    return {plans, gaps, configuredDirectories:[...configuredDirectories]};
-  }
+  const resolution = typeof module !== "undefined" && module.exports ? require("./deno-resolution.js") : globalThis.FrontendDenoResolution;
+  const {relativePath, protectedTarget, discoverLocks} = resolution;
   function readDenoLock(record, records, options = {}) {
     const graph = {lockfile:record.path, format:"deno", complete:true, nodes:[], edges:[], roots:[]};
     const gaps = [], inventory = [], coveredImports = [], nodes = new Map(), raw = new Map(), aliases = new Map(), names = new Map();
     const gap = reason => { graph.complete = false; if (!gaps.some(item => item.reason === reason)) gaps.push({path:record.path, reason}); };
     const directory = options.directory ?? record.path.replace(/[^/]+$/, "");
     const files = new Map(records.map(item => [item.path, item]));
-    const configs = new Map(), locals = new Map(), localSources = [];
+    const configs = new Map(), locals = new Map(), localSources = [], localByFile = new Map();
+    const context = resolution.createContext(records), patternBudget = {work:0};
+    const familyMembers = new Map(), workspaceCandidates = new Map();
+    graph.importMaps = []; graph.localMappings = [];
+    function members(family) {
+      if (!familyMembers.has(family)) {
+        const targets=context.members(family, gap).filter(target => {if(target !== family)return true;gap("self-deno-workspace-member");return false;});
+        const owner=context.source(family,"deno");
+        for(const target of targets) {
+          const member=context.source(target,"deno");
+          if(member && ["workspace","importMap","scopes","links","patch","lock"].some(field=>member.value[field] !== undefined)) gap("deno-member-root-setting");
+          if(member?.value.workspace !== undefined) gap("nested-deno-workspace-unsupported");
+          if(owner?.value.importMap !== undefined && member?.value.imports !== undefined) gap("deno-root-map-member-imports-conflict");
+        }
+        familyMembers.set(family,targets);
+      }
+      return familyMembers.get(family);
+    }
+    function workspaceCandidate(source, name) {
+      const family = source.family ?? directory.replace(/\/$/, "");
+      if (!workspaceCandidates.has(family)) {
+        const map = new Map();
+        for (const target of members(family)) for (const kind of ["deno", "npm"]) {
+          const item = context.source(target, kind);
+          if (!item || !nameOK(item.value.name)) continue;
+          const key = (kind === "deno" ? "jsr:" : "npm:") + item.value.name;
+          if (map.has(key)) { map.set(key, null); gap("ambiguous-deno-workspace-name"); }
+          else map.set(key, {target, kind, family, file:item.file});
+        }
+        workspaceCandidates.set(family, map);
+      }
+      return workspaceCandidates.get(family).get(name);
+    }
     const canonical = req => req.ecosystem + ":" + req.name + "@" + (req.key.slice((req.ecosystem + ":" + req.name).length + 1) || "*");
     const resolveAlias = (key, target) => {
       if (aliases.has(key) && aliases.get(key) !== target) aliases.set(key, null); else if (!aliases.has(key)) aliases.set(key, target);
@@ -70,9 +66,18 @@
       if (graph.edges.length >= 40000) { gap("deno-graph-edge-budget"); return; }
       graph.edges.push({from, to, dependency, scope});
     }
-    function resolveReq(value) {
+    function resolveReq(value, source) {
       const req = requirement(value); if (!req) return null;
-      return locals.get(req.ecosystem + ":" + req.name)?.node || aliases.get(req.key) || (req.key === req.ecosystem + ":" + req.name ? aliases.get(req.key + "@*") : null) || null;
+      const candidate = source && workspaceCandidate(source, req.ecosystem + ":" + req.name);
+      const explicit = locals.get(req.ecosystem + ":" + req.name);
+      if(explicit && candidate && explicit.source.file !== candidate.file) {gap("ambiguous-deno-workspace-link-name");return null;}
+      if(candidate) {
+        const requested=req.key.slice((req.ecosystem+":"+req.name).length+1);
+        const version=context.source(candidate.target,candidate.kind)?.value.version;
+        if(requested && requested !== "*" && requested !== version) gap("deno-workspace-version-compatibility-unverified");
+      }
+      const workspaceNode = candidate && ensureLocal(candidate.target, candidate.kind, "workspace", candidate.family);
+      return workspaceNode || locals.get(req.ecosystem + ":" + req.name)?.node || aliases.get(req.key) || (req.key === req.ecosystem + ":" + req.name ? aliases.get(req.key + "@*") : null) || null;
     }
     function npmDependency(value) {
       if (typeof value !== "string") return null;
@@ -148,45 +153,86 @@
       const sourceDirectory = file => file.replace(/[^/]+$/, "");
       function config(location, kind, prefixOverride) {
         const prefix = prefixOverride ?? directory + (location ? location + "/" : "");
+        if(kind === "npm" && files.has(prefix+"deno.json") && files.has(prefix+"deno.jsonc")) {gap("ambiguous-deno-local-configuration");return null;}
         const candidates = kind === "deno" ? ["deno.json", "deno.jsonc"].map(name => prefix + name).filter(name => files.has(name)) : [prefix + "package.json"].filter(name => files.has(name));
         if (candidates.length !== 1) { gap("deno-workspace-manifest-unavailable-or-ambiguous"); return null; }
         const file = candidates[0];
         if (!configs.has(file)) {
           try { configs.set(file, parser.parseJSONC(files.get(file).content)); } catch { configs.set(file, null); gap("invalid-deno-workspace-configuration"); }
         }
-        const value = configs.get(file);
+        let value = configs.get(file);
         if (!object(value)) return null;
         if (kind === "npm" && value.overrides !== undefined && (!object(value.overrides) || Object.keys(value.overrides).length)) gap("deno-local-links-or-overrides-unverified");
-        if (kind === "deno" && value.importMap !== undefined) gap("deno-external-import-map-unverified");
+        let mapFile = file, mapBase = sourceDirectory(file);
+        if (kind === "deno" && value.importMap !== undefined) {
+          const declaredPath = relativePath(sourceDirectory(file), value.importMap);
+          if (declaredPath && !protectedTarget(declaredPath) && files.has(declaredPath) && !graph.importMaps.includes(declaredPath)) graph.importMaps.push(declaredPath);
+          const map = context.importMap({file, value}, reason => {
+            gap(reason);
+            if (declaredPath && !protectedTarget(declaredPath)) gaps.push({path:declaredPath,reason});
+          });
+          if (map) { mapFile=map.file; mapBase=map.base; value={...value,imports:map.value.imports,scopes:map.value.scopes}; }
+        }
         if (!prefixOverride && kind === "deno" && (value.lock === false || (typeof value.lock === "string" || object(value.lock) && value.lock.path !== undefined) && relativePath(sourceDirectory(file), typeof value.lock === "string" ? value.lock : value.lock.path) !== record.path)) { gap("deno-lock-configuration-mismatch"); return null; }
-        return {file, value};
+        return {file, value, mapFile, mapBase, family:directory.replace(/\/$/, "")};
       }
       const lockedLinks = data.workspace?.links ?? data.workspace?.patches ?? {};
-      const rootConfig = ["deno.json", "deno.jsonc"].some(name => files.has(directory + name)) && !options.ambiguous ? config("", "deno") : null;
-      const paths = rootConfig?.value.links ?? rootConfig?.value.patch ?? [];
-      if (!object(lockedLinks) || !Array.isArray(paths) || rootConfig?.value.links !== undefined && rootConfig.value.patch !== undefined || data.workspace?.links !== undefined && data.workspace?.patches !== undefined) gap("deno-local-links-or-overrides-unverified");
       const matchedLinks = new Set();
-      for (const path of Array.isArray(paths) ? paths : []) {
-        const target = relativePath(directory, path);
-        if (!target || protectedTarget(target) || target === directory.replace(/\/$/, "")) { gap("unsafe-or-unsupported-deno-local-path"); continue; }
-        const kind = ["deno.json", "deno.jsonc"].some(name => files.has(target + "/" + name)) ? "deno" : "npm";
-        const source = config("", kind, target + "/");
-        if (!source || !nameOK(source.value.name) || kind === "deno" && !source.value.name.startsWith("@")) { gap("deno-local-manifest-identity-unavailable"); continue; }
+      const rootFamily = directory.replace(/\/$/, "");
+      members(rootFamily);
+      const rootConfig = ["deno.json", "deno.jsonc"].some(name => files.has(directory + name)) && !options.ambiguous ? config("", "deno") : null;
+      if (!object(lockedLinks) || data.workspace?.links !== undefined && data.workspace?.patches !== undefined) gap("deno-local-links-or-overrides-unverified");
+      function ensureLocal(target, kind, mode, family = rootFamily) {
+        if (target === null || protectedTarget(target)) { gap("unsafe-or-unsupported-deno-local-path"); return null; }
+        const source = config("", kind, target ? target + "/" : "");
+        if (!source || !nameOK(source.value.name) || kind === "deno" && !source.value.name.startsWith("@")) { gap("deno-local-manifest-identity-unavailable"); return null; }
+        source.family = family;
+        const original=context.read(source.file);
+        if(target !== family && members(family).includes(target) && kind === "deno" && ["workspace","importMap","scopes","links","patch","lock"].some(field=>original[field] !== undefined)) gap("deno-member-root-setting");
         const key = (kind === "deno" ? "jsr:" : "npm:") + source.value.name;
-        if (matchedLinks.has(key)) { locals.set(key, null); gap("ambiguous-deno-local-name"); continue; }
-        matchedLinks.add(key);
-        const metadata = object(lockedLinks) && lockedLinks[key];
-        if (!object(metadata)) gap("deno-local-lock-metadata-unavailable");
-        if (["links", "patch", "workspace"].some(field => source.value[field] !== undefined)) gap("nested-deno-local-configuration-unverified");
         const id = "local/" + target + "/" + kind;
-        if (record.path.length + id.length > 1700 || nodes.size >= 20000) { gap("deno-graph-node-budget"); continue; }
-        if (nodes.has(id)) { gap("ambiguous-deno-local-name"); continue; }
-        nodes.set(id, {id, name:source.value.name, version:versionOK(source.value.version || "") ? source.value.version : "unknown", kind:"local", manifest:source.file});
-        graph.nodes.push(nodes.get(id));
-        const local = {node:id, source, kind, metadata};
-        locals.set(key, local); localSources.push(local);
+        if (mode === "override" && locals.has(key) && locals.get(key)?.node !== id) { locals.set(key, null); gap("ambiguous-deno-local-name"); return null; }
+        if (localByFile.has(source.file)) {
+          const old=localByFile.get(source.file);
+          if(old.family !== family) gap("ambiguous-deno-local-workspace-owner");
+          if(mode === "override") locals.set(key,old);
+          return old.node;
+        }
+        let metadata;
+        if (mode === "workspace" && family === rootFamily) {
+          const location = target.slice(directory.length);
+          const item = data.workspace?.members?.[location];
+          metadata = kind === "npm" ? item?.packageJson : item;
+          if (source.value.workspace !== undefined) gap("nested-deno-workspace-unsupported");
+        } else {
+          const keys = [key, ...(versionOK(source.value.version || "") ? [key + "@" + source.value.version] : [])].filter(value => Object.hasOwn(lockedLinks || {}, value));
+          if (keys.length !== 1) gap("deno-local-lock-metadata-unavailable");
+          else { metadata=lockedLinks[keys[0]]; matchedLinks.add(keys[0]); }
+        }
+        if (!object(metadata)) gap("deno-local-lock-metadata-unavailable");
+        if (source.value.links !== undefined || source.value.patch !== undefined) gap("nested-deno-local-links-unverified");
+        if (record.path.length + id.length > 1700 || nodes.size >= 20000) { gap("deno-graph-node-budget"); return null; }
+        const node={id,name:source.value.name,version:versionOK(source.value.version || "") ? source.value.version : "unknown",kind:"local",manifest:source.file};
+        nodes.set(id,node); graph.nodes.push(node);
+        const local={node:id,source,kind,metadata,mode,family};localByFile.set(source.file,local);localSources.push(local);
+        if(mode === "override") locals.set(key,local);
+        return id;
       }
-      for (const key of Object.keys(object(lockedLinks) ? lockedLinks : {})) if (!matchedLinks.has(key)) gap("deno-local-links-or-overrides-unverified");
+      const paths=rootConfig?.value.links ?? rootConfig?.value.patch ?? [];
+      if(rootConfig?.value.links !== undefined && rootConfig.value.patch !== undefined) gap("deno-local-links-or-overrides-unverified");
+      const targets=resolution.expandPaths(directory,paths,context.directories,gap,patternBudget);
+      for(const target of targets) {
+        if(target === rootFamily) {gap("self-deno-local-link");continue;}
+        const own=context.source(target,"deno") || context.source(target,"npm");
+        const family = own?.value.workspace !== undefined || own?.value.workspaces !== undefined ? target : rootFamily;
+        const linkedTargets=new Set([target,...(family === target ? members(target) : [])]);
+        for(const child of linkedTargets) {
+          const kind=files.has(child+"/deno.json") || files.has(child+"/deno.jsonc") ? "deno" : "npm";
+          const source=context.source(child,kind);
+          if(!source?.value.name && child === target && linkedTargets.size > 1) continue;
+          ensureLocal(child,kind,"override",family);
+        }
+      }
       function declarations(source, kind, includeDev = true) {
         const declared = new Map();
         if (kind === "deno") {
@@ -200,35 +246,50 @@
             if (typeof value !== "string") { gap("malformed-deno-import-map"); continue; }
             const req = requirement(value);
             if (req) declared.set(canonical(req), [{scope:"runtime", dependency:req.name, req}]);
-            else if (typeof value === "string" && !/^\.\.?\//.test(value)) gap("unsupported-deno-import-reference");
+            else if (/^\.\.?\//.test(value)) {
+              const prefix=value.endsWith("/"), target=prefix ? resolution.directoryPath(source.mapBase ?? sourceDirectory(source.file),value) : relativePath(source.mapBase ?? sourceDirectory(source.file),value);
+              const exists=target !== null && !protectedTarget(target) && (prefix ? [...files.keys()].some(path=>!target || path.startsWith(target+"/")) : files.has(target));
+              if(target === null || protectedTarget(target)) gap("unsafe-deno-local-module-map");
+              else if(graph.localMappings.length >= 20000) gap("deno-graph-node-budget");
+              else graph.localMappings.push({source:source.mapFile || source.file,target:target || ".",prefix,exists});
+              if(!exists) gap("deno-local-module-map-unavailable");
+              gaps.push({path:source.mapFile || source.file,reason:"deno-local-module-content-unverified"});
+            } else gap("unsupported-deno-import-reference");
           }
         } else for (const [field, scope] of [["dependencies", "runtime"], ["optionalDependencies", "optional"], ["devDependencies", "development"], ["peerDependencies", "peer"]]) {
           if (!includeDev && scope === "development") continue;
           if (source.value[field] !== undefined && !object(source.value[field])) gap("malformed-deno-package-json-declaration");
           for (const [name, value] of entries(source.value[field])) {
             if (typeof value !== "string") { gap("malformed-deno-package-json-declaration"); continue; }
-            const req = requirement(typeof value === "string" && value.startsWith("npm:") ? value : "npm:" + name + "@" + value);
+            if (value.startsWith("file:") || value.startsWith("workspace:")) {
+              let target;
+              if(value.startsWith("file:")) {
+                const path=resolution.directoryPath(sourceDirectory(source.file),value.slice(5));
+                if(path === null || protectedTarget(path)) gap("unsafe-deno-file-dependency");
+                else target=ensureLocal(path,"npm","file",source.family);
+              } else {
+                if(!["workspace:*","workspace:^","workspace:~"].includes(value)) gap("unsupported-deno-workspace-protocol");
+                else {const item=workspaceCandidate(source,"npm:"+name);if(item) target=ensureLocal(item.target,item.kind,"workspace",item.family);else gap("deno-workspace-target-unavailable");}
+              }
+              const req={ecosystem:"npm",name,key:"npm:"+name+"@*"};
+              if (!declared.has(canonical(req))) declared.set(canonical(req),[]);
+              declared.get(canonical(req)).push({scope,dependency:name,req,localTarget:target || null,localProtocol:true});
+              continue;
+            }
+            const req = requirement(value.startsWith("npm:") ? value : "npm:" + name + "@" + value);
             if (req) { if (!declared.has(canonical(req))) declared.set(canonical(req), []); declared.get(canonical(req)).push({scope, dependency:name, req}); }
             else gap("unsupported-deno-package-json-declaration");
           }
         }
         return declared;
       }
-      for (const local of localSources) {
-        const declared = declarations(local.source, local.kind, false), locked = new Set();
-        for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
-          const values = local.metadata?.[field] ?? [];
-          if (!Array.isArray(values)) { gap("malformed-deno-local-lock-dependencies"); continue; }
-          for (const value of values) {
-            const req = requirement(value), target = resolveReq(value);
-            if (!req || !target || !declared.has(canonical(req))) { gap("stale-deno-local-declaration"); continue; }
-            locked.add(canonical(req));
-            for (const item of declared.get(canonical(req))) edge(local.node, target, item.dependency, item.scope);
-          }
-        }
-        for (const key of declared.keys()) if (!locked.has(key)) gap("stale-deno-local-declaration");
-        gaps.push({path:local.source.file, reason:"deno-local-package-content-unverified"});
-        if (local.kind === "deno") coveredImports.push(local.source.file);
+      function directLocalTarget(declared, req) {
+        if(!req) return undefined;
+        const items=(declared.get(canonical(req)) || []).filter(item=>item.localProtocol);
+        if(!items.length) return undefined;
+        const targets=new Set(items.map(item=>item.localTarget));
+        if(targets.size !== 1 || targets.has(null)) {gap("ambiguous-deno-local-protocol-target");return null;}
+        return [...targets][0];
       }
       for (const [id, item] of raw) {
         if (nodes.get(id).ecosystem === "jsr") {
@@ -253,16 +314,23 @@
           if (section === undefined) continue;
           if (!object(section) || section.dependencies !== undefined && !Array.isArray(section.dependencies)) { gap("malformed-deno-workspace-dependencies"); continue; }
           const deps = section.dependencies || [];
-          if (!deps.length && !(kind === "deno" && ["deno.json", "deno.jsonc"].some(name => files.has(directory + (location ? location + "/" : "") + name)))) continue;
+          if (!deps.length && !(kind === "deno" ? ["deno.json", "deno.jsonc"].some(name => files.has(directory + (location ? location + "/" : "") + name)) : files.has(directory + (location ? location + "/" : "") + "package.json"))) continue;
           const source = config(location, kind); if (!source) continue;
+          const original=context.read(source.file);
+          if(location && kind === "deno" && ["workspace","importMap","scopes","links","patch","lock"].some(field=>original[field] !== undefined)) gap("deno-member-root-setting");
+          if(location && source.value.workspace !== undefined) gap("nested-deno-workspace-unsupported");
+          if(location && rootConfig?.value.importMap !== undefined && original.imports !== undefined) gap("deno-root-map-member-imports-conflict");
           const id = location ? "workspaces/" + location + "/" + kind : "workspace:./" + kind;
           if (nodes.size >= 20000) { gap("deno-graph-node-budget"); return; }
           const root = {id, name:nameOK(source.value.name) ? source.value.name : "workspace", version:"unknown", kind:"workspace", manifest:source.file};
           nodes.set(id, root); graph.nodes.push(root); graph.roots.push({manifest:source.file, node:id});
           const declared = declarations(source, kind);
           const locked = new Set();
+          for(const [key,items] of declared) for(const item of items) if(item.localProtocol) {
+            if(item.localTarget) {edge(id,item.localTarget,item.dependency,item.scope);locked.add(key);}else gap("unresolved-deno-local-protocol");
+          }
           for (const value of deps) {
-            const req = requirement(value), target = resolveReq(value);
+            const req = requirement(value), direct = directLocalTarget(declared,req), target = direct === undefined ? resolveReq(value,source) : direct;
             if (!req || !target) { gap("unresolved-deno-workspace-dependency"); continue; }
             locked.add(canonical(req));
             if (!declared.has(canonical(req))) { gap("stale-deno-workspace-declaration"); continue; }
@@ -277,8 +345,34 @@
       else {
         workspace("", data.workspace);
         if (data.workspace.members !== undefined && !object(data.workspace.members)) gap("invalid-deno-workspace-entry");
-        for (const [location, item] of entries(data.workspace.members)) workspace(location, item);
+        for (const [location, item] of entries(data.workspace.members)) {
+          if (!members(rootFamily).includes(directory + location)) { gap("unconfirmed-deno-workspace-member"); continue; }
+          workspace(location, item);
+        }
       }
+      for (const local of localSources) {
+        const all = declarations(local.source, local.kind), declared = new Map([...all].map(([key,items])=>[key,items.filter(item=>item.scope !== "development")]).filter(([,items])=>items.length)), locked = new Set();
+        for(const [key,items] of declared) for(const item of items) if(item.localProtocol) {
+          if(item.localTarget) {edge(local.node,item.localTarget,item.dependency,item.scope);locked.add(key);}else gap("unresolved-deno-local-protocol");
+        }
+        for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
+          const values = local.metadata?.[field] ?? [];
+          if (!Array.isArray(values)) { gap("malformed-deno-local-lock-dependencies"); continue; }
+          for (const value of values) {
+            const req = requirement(value), direct = directLocalTarget(declared,req), target = direct === undefined ? resolveReq(value,local.source) : direct;
+            if(req && all.has(canonical(req)) && !declared.has(canonical(req))) continue;
+            if (!req || !target || !declared.has(canonical(req))) { gap("stale-deno-local-declaration"); continue; }
+            locked.add(canonical(req));
+            for (const item of declared.get(canonical(req))) edge(local.node, target, item.dependency, item.scope);
+          }
+        }
+        for (const key of declared.keys()) if (!locked.has(key)) gap("stale-deno-local-declaration");
+        gaps.push({path:local.source.file, reason:"deno-local-package-content-unverified"});
+        if (local.kind === "deno") coveredImports.push(local.source.file);
+      }
+      for (const key of Object.keys(object(lockedLinks) ? lockedLinks : {})) if (!matchedLinks.has(key)) gap("deno-local-links-or-overrides-unverified");
+      graph.importMaps.sort();
+      graph.localMappings=[...new Map(graph.localMappings.map(item=>[JSON.stringify(item),item])).values()];
     } catch { gap("invalid-or-unsupported-deno-lock-syntax"); }
     const outgoing = new Map(), usage = new Map();
     for (const link of graph.edges) { if (!outgoing.has(link.from)) outgoing.set(link.from, []); outgoing.get(link.from).push(link); }
@@ -315,7 +409,7 @@
     graph.roots.sort((a,b) => a.manifest.localeCompare(b.manifest));
     return {graph, inventory, gaps, coveredImports:graph.complete ? coveredImports : []};
   }
-  const api = Object.freeze({readDenoLock, discoverLocks, relativePath, protectedTarget});
+  const api = Object.freeze({readDenoLock, discoverLocks, relativePath, protectedTarget, discoverInputs:resolution.discoverInputs});
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (typeof globalThis !== "undefined") globalThis.FrontendDenoLock = api;
 })();

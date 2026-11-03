@@ -2,7 +2,7 @@
 
 2026-11-02 · 기준 `4269e22` · 위험 수준 2: 외부 입력 parser, 공개 결과 스키마와 보안 기준선의 해결 판정에 영향을 준다. 제품 전체 종료 정책과 개별 채널 일정을 분리한다. CVE 스냅샷 확인일 2026-10-30과 지원 정책 확인일 2026-11-02는 유지한다.
 
-2026-11-03 후속 [legacy v1·v2·custom lock·literal local 연결](deno-legacy-custom-local.md)을 추가했다. 아래 검증 수치는 PR #8 당시 기록이다.
+2026-11-03 후속 [legacy v1·v2·custom lock·literal local 연결](deno-legacy-custom-local.md)을 추가했다. [glob·protocol·중첩 멤버·외부 map](deno-local-resolution.md)도 이어 확장했다. 아래 검증 수치는 PR #8 당시 기록이다.
 
 ## 범위와 공식 근거
 
