@@ -73,7 +73,7 @@ test('bare duplicate versions and missing edges remain gaps instead of selecting
 
 test('root and a member named root remain distinct and package.json roles stay scoped', () => {
   const data=lock({workspace:{dependencies:['npm:next@^16.4.0'],members:{root:{packageJson:{dependencies:['npm:next@^16.4.0']}}}}});
-  const result=inspect([...files(data),rec('root/package.json',{devDependencies:{next:'^16.4.0'}})]);
+  const result=inspect([...files(data,{workspace:['./root'],imports:{next:'npm:next@^16.4.0'}}),rec('root/package.json',{devDependencies:{next:'^16.4.0'}})]);
   assert.equal(result.graphs[0].roots.length,2);
   assert.equal(new Set(result.graphs[0].roots.map(item=>item.node)).size,2);
   const uses=result.inventory.find(item=>item.provenance === 'lockfile').workspaceUsage;

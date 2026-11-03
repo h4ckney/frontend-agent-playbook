@@ -90,7 +90,7 @@ async function scanCommand(options) {
   const scopePolicyDigest = digest({
     rootLabel,
     limits: analyzer.analysisLimits,
-    exclusions: "analyzer-v2-deno-custom",
+    exclusions: "analyzer-v3-deno-resolution",
     seoScope: options.seoScope || profile?.project?.visibility || "unknown"
   });
   const bundle = contract.createAuditBundle({

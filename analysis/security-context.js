@@ -233,6 +233,8 @@
       }
     }
 
+    for (const file of discovery.importMapConfigs) if (!denoCoveredImports.has(file)) addGap(file, "deno-import-map-lock-coverage-unavailable");
+
     function collectGraph(record) {
       const result = lockGraph.readLockGraphs(record, manifests);
       graphs.push(...result.graphs); graphLocks.add(record.path);

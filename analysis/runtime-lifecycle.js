@@ -1,6 +1,7 @@
 (function () {
   "use strict";
   const parser = typeof module !== "undefined" && module.exports ? require("./lockfile-graph.js") : globalThis.FrontendLockGraph;
+  const resolution = typeof module !== "undefined" && module.exports ? require("./deno-resolution.js") : globalThis.FrontendDenoResolution;
   const CHECKED_AT = "2026-11-02";
   const SOURCES = Object.freeze({
     node: "https://raw.githubusercontent.com/nodejs/Release/main/schedule.json",
@@ -98,6 +99,7 @@
     const age = asOf === null ? NaN : (Date.parse(asOf) - Date.parse(CHECKED_AT)) / 86400000;
     const freshness = !Number.isFinite(age) || age < 0 ? "unverified-clock" : age > 30 ? "stale" : "within-30-days";
     const candidates = [], gaps = [], dependencyGaps = [];
+    const configContext = resolution.createContext(records);
     const add = item => {
       if (item.manifest.length + item.path.length > 1700 || candidates.length >= 20000) { gaps.push({ path: item.manifest, reason: "lifecycle-evidence-budget" }); return; }
       candidates.push(item);
@@ -142,12 +144,14 @@
         if (object(data.deploy)) add({ component: "deno-deploy", manifest: record.path, path: "deploy", phase: "runtime", sourceKind: "deployment-configuration", version: null });
         else if (data.deploy !== undefined) gaps.push({ path: record.path, reason: "invalid-deploy-configuration" });
         const hasJsr = value => typeof value === "string" && /^(?:jsr:|https:\/\/jsr\.io\/)/.test(value);
-        const external = value => typeof value === "string" && /^(?:npm:|jsr:|https?:\/\/)/.test(value);
+        const external = value => typeof value === "string" && /^(?:npm:|jsr:|https?:\/\/|\.\.?\/)/.test(value);
         if (Object.values(data.imports || {}).some(external) || Object.values(data.scopes || {}).some(scope => Object.values(scope || {}).some(external))) {
           dependencyGaps.push({ path: record.path, reason: "deno-dependency-lock-coverage-unavailable" });
         }
-        if (Object.values(data.imports || {}).some(hasJsr) || Object.values(data.scopes || {}).some(scope => Object.values(scope || {}).some(hasJsr))) {
-          add({ component: "jsr", manifest: record.path, path: "imports", phase: "unknown", sourceKind: "registry-configuration", version: null });
+        const mapped = data.importMap !== undefined ? configContext.importMap({file:record.path,value:data}, reason=>gaps.push({path:record.path,reason})) : null;
+        const registryData = mapped?.value || data;
+        if (Object.values(registryData.imports || {}).some(hasJsr) || Object.values(registryData.scopes || {}).some(scope => Object.values(scope || {}).some(hasJsr))) {
+          add({ component: "jsr", manifest: mapped?.file || record.path, path: "imports", phase: "unknown", sourceKind: "registry-configuration", version: null });
         }
         commandUsage(data.tasks, record, "tasks");
       } else if (/(^|\/)jsr\.jsonc?$/.test(record.path)) {

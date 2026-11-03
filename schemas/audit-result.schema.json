@@ -1143,6 +1143,39 @@
               "remoteIntegrityCount": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "importMaps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "localMappings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "source",
+                    "target",
+                    "prefix",
+                    "exists"
+                  ],
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "string"
+                    },
+                    "prefix": {
+                      "type": "boolean"
+                    },
+                    "exists": {
+                      "type": "boolean"
+                    }
+                  }
+                }
               }
             }
           }

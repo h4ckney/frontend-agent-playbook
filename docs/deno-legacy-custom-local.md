@@ -2,6 +2,8 @@
 
 2026-11-03 · 기준 `2a4baf7` · 위험 수준 2: 파일 수집 범위·의존성 연결·보안 기준선의 해결 판정을 바꾼다. [이전 v3–v5·LTS 확장](deno-lock-lts.md)에 이어 적용한다. CVE 스냅샷과 지원 달력의 확인일을 새로 갱신한 것은 아니다.
 
+2026-11-03 후속 [glob·protocol·중첩 멤버·외부 import map](deno-local-resolution.md)을 추가했다. 아래 지원·검증 수치는 PR #9 당시 기록이다.
+
 ## 지원 범위와 판단 근거
 
 | 대상 | 이번 처리 | 확정하지 않는 것 |
@@ -46,4 +48,4 @@ graph의 `complete`는 해석한 연결에 대한 상태다. local graph가 완�
 
 관찰 신호는 고정 반례에서 잘못된 해결·소유 위치 혼동·루트 밖 읽기가 발생하지 않는 것이다. 실제 운영 채널·SBOM·패키지 내용·취약한 호출 경로는 아직 확인하지 않았다. 운영 효과 측정은 실제 배포 자료 확보 후 가능하며 담당자·기간은 미정이고 자동 예약도 만들지 않았다.
 
-남은 우선순위는 local glob·file/workspace protocol·중첩 workspace의 실제 fixture, 별도 import map 연결, JSR 권고와 실제 실행 채널/SBOM 근거다. 지원 범위 밖의 입력은 미검증을 유지한다.
+local glob·file/workspace protocol·중첩 멤버·별도 import map은 [후속 확장](deno-local-resolution.md)을 따른다. 남은 우선순위는 JSR 권고와 실제 실행 채널/SBOM 근거다. 지원 범위 밖의 입력은 미검증을 유지한다.
