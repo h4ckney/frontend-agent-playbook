@@ -1,0 +1,108 @@
+{
+  "checkedAt": "2026-11-22T15:14:28.814650+00:00",
+  "scope": "Read-only public TUF refresh and operator-controlled example SQLite persistence; no OIDC issuance, Rekor publication, production adoption or deployment",
+  "mirror": "https://tuf-repo-cdn.sigstore.dev",
+  "node": "v24.22.3",
+  "steps": [
+    {
+      "command": "init",
+      "exitCode": 0,
+      "result": {
+        "status": "initialized"
+      }
+    },
+    {
+      "command": "adopt",
+      "exitCode": 0,
+      "result": {
+        "status": "adopted",
+        "organizationId": "example-platform",
+        "revision": 1
+      }
+    },
+    {
+      "command": "refresh",
+      "exitCode": 0,
+      "result": {
+        "status": "verified",
+        "reason": "sigstore-tuf-metadata-and-target-verified",
+        "organizationId": "example-platform",
+        "trustDomain": "sigstore-public"
+      }
+    },
+    {
+      "command": "status",
+      "exitCode": 0,
+      "result": {
+        "organizationId": "example-platform",
+        "policyRevision": 1,
+        "storeGeneration": 3,
+        "domains": [
+          {
+            "id": "sigstore-public",
+            "status": "ready",
+            "lastRefreshAt": "2026-11-22T15:14:29.822Z",
+            "versions": {
+              "root": 16,
+              "timestamp": 841,
+              "snapshot": 166,
+              "targets": 14
+            }
+          }
+        ]
+      }
+    },
+    {
+      "command": "refresh",
+      "exitCode": 0,
+      "result": {
+        "status": "verified",
+        "reason": "sigstore-tuf-metadata-and-target-verified",
+        "organizationId": "example-platform",
+        "trustDomain": "sigstore-public"
+      }
+    },
+    {
+      "command": "status",
+      "exitCode": 0,
+      "result": {
+        "organizationId": "example-platform",
+        "policyRevision": 1,
+        "storeGeneration": 5,
+        "domains": [
+          {
+            "id": "sigstore-public",
+            "status": "ready",
+            "lastRefreshAt": "2026-11-22T15:14:30.947Z",
+            "versions": {
+              "root": 16,
+              "timestamp": 841,
+              "snapshot": 166,
+              "targets": 14
+            }
+          }
+        ]
+      }
+    },
+    {
+      "command": "snapshot-in-separate-process",
+      "exitCode": 0,
+      "result": {
+        "context": {
+          "organizationId": "example-platform",
+          "profileId": "frontend-main",
+          "trustDomain": "sigstore-public",
+          "policyRevision": 1,
+          "policyDigest": "sha256:f910c8fb5e26e5240db28c40c5a23fcfc3ccf783f5e11675d816594f34d28b75",
+          "storeGeneration": 5,
+          "checkedAt": "2026-11-22T15:14:31.059Z",
+          "lastRefreshAt": "2026-11-22T15:14:30.947Z",
+          "expiresAt": "2026-11-23T15:14:30.947Z"
+        },
+        "scopeDigest": "sha256:fb5a0bbf9f80b276087e202b399fedbb69b191b9999b4cc35012adda3257e061",
+        "policyLoaded": true,
+        "signedRepositoryRetained": true
+      }
+    }
+  ]
+}

@@ -13,7 +13,7 @@ const contract = require(path.join(repoRoot, "analysis", "audit-contract.js"));
 
 const commands = new Set(["scan", "baseline"]);
 const valueOptions = new Set([
-  "root", "trust-policy", "sigstore-trusted-root", "sigstore-tuf-state", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
+  "organization-policy", "organization", "trust-profile", "trust-store", "root", "trust-policy", "sigstore-trusted-root", "sigstore-tuf-state", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
 ]);
 const booleanOptions = new Set(["quiet", "allow-partial-baseline", "help"]);
 const formats = new Set(["json", "markdown", "summary"]);
@@ -65,6 +65,18 @@ function parseArguments(argv) {
 async function scanCommand(options) {
   const root = await fs.realpath(path.resolve(options.root || "."));
   if (!(await fs.stat(root)).isDirectory()) throw new Error("scan root must be a directory");
+  const organizationValues=[options.organizationPolicy,options.organization,options.trustProfile,options.trustStore];
+  let organizationVerification,organizationPolicyPath;
+  if(organizationValues.some(v=>v!==undefined)) {
+    if(!organizationValues.every(Boolean)||options.trustPolicy||options.sigstoreTrustedRoot||options.sigstoreTufState)throw Error("select all organization options and no standalone trust source");
+    const organizations=require("../verification/organization-trust.cjs");
+    organizationPolicyPath=await fs.realpath(path.resolve(options.organizationPolicy));
+    const compiled=await organizations.compilePolicy(organizations.readJSON(organizationPolicyPath));
+    const store=organizations.openStore(options.trustStore);
+    try{organizationVerification=organizations.snapshot(store,compiled,options.organization,options.trustProfile);}finally{store.close();}
+    const storePath=await fs.realpath(options.trustStore);
+    if(storePath===root||storePath.startsWith(root+path.sep))throw Error("organization trust store must be outside scan root");
+  }
   if(options.sigstoreTrustedRoot && options.sigstoreTufState) throw Error("select one Sigstore trust source");
   const tufPath=options.sigstoreTufState ? await fs.realpath(path.resolve(root,options.sigstoreTufState)) : null;
   const sigstoreTufState=tufPath ? await readJson(tufPath,"explicit Sigstore TUF state",4_500_000,true) : undefined;
@@ -89,7 +101,7 @@ async function scanCommand(options) {
   if (profileErrors.length) throw new Error("invalid project profile: " + profileErrors.join("; "));
 
   const excludedArtifacts = new Set(
-    [profilePath, baselinePath, outputPath, trustPath, rootPath, tufPath].filter(Boolean).map((value) => path.resolve(value))
+    [profilePath, baselinePath, outputPath, trustPath, rootPath, tufPath, organizationPolicyPath].filter(Boolean).map((value) => path.resolve(value))
   );
   const collection = await collectRecords(root, excludedArtifacts);
   const rootLabel = profile?.project?.id || path.basename(root);
@@ -101,6 +113,7 @@ async function scanCommand(options) {
     seoScope: options.seoScope || profile?.project?.visibility || "unknown"
   });
   const bundle = await contract.createAuditBundleAsync({
+    organizationVerification,
     trustPolicy,
     sigstoreTrustedRoot,
     sigstoreTufState,
@@ -417,6 +430,7 @@ function helpText() {
     "Usage:",
     "  frontend-agent-audit scan [--root .] [--profile file] [--baseline file]",
     "    [--format json|markdown|summary] [--output file] [--seo-scope scope]",
+    "  scan --organization-policy PATH --organization ID --trust-profile ID --trust-store PATH",
     "  frontend-agent-audit baseline --from result.json --output baseline.json",
     "    [--allow-partial-baseline --reason text]",
     "  scan --sigstore-tuf-state PATH: reverify explicitly selected TUF trust state offline",

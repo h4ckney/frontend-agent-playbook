@@ -65,6 +65,62 @@
     },
     "securityContext": {
       "$ref": "#/$defs/securityContext"
+    },
+    "trustContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "organizationId",
+        "profileId",
+        "trustDomain",
+        "policyDigest",
+        "checkedAt",
+        "lastRefreshAt",
+        "expiresAt",
+        "policyRevision",
+        "storeGeneration"
+      ],
+      "properties": {
+        "organizationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profileId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trustDomain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policyDigest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "checkedAt": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        "lastRefreshAt": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        "policyRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "storeGeneration": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
     }
   },
   "$defs": {

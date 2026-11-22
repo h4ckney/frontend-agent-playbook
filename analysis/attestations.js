@@ -71,6 +71,9 @@
     if(new Set(rules.map(r=>r.tufBootstrapRootDigest?"tuf":"pinned")).size>1 || new Set(rules.filter(r=>r.tufBootstrapRootDigest).map(r=>r.tufBootstrapRootDigest)).size>1) throw Error("ambiguous trust source");
     return rules;
   }
+  async function validateTrustPolicy(policy) {
+    try {const copy=parse(JSON.stringify(policy));if(JSON.stringify(copy).length>100000)throw Error();await policyKeys(copy,Date.now(),cryptoSubtle());keylessRules(copy);return [];}catch{return ["invalid-trust-policy"];}
+  }
   function matches(entries,name,sha,field="name",algorithm="sha256") {
     if(!Array.isArray(entries) || entries.length>200) return false;
     const selected=entries.filter(item=>object(item) && item[field]===name);
@@ -176,7 +179,7 @@
     if(!cached || !Number.isFinite(now) || now<cached.now || now>cached.validUntil || records.length!==cached.snapshot.length || records.some((r,i)=>r.path!==cached.snapshot[i].path || r.content!==cached.snapshot[i].content)) return empty();
     return JSON.parse(JSON.stringify(cached.result));
   }
-  const api=Object.freeze({PAYLOAD_TYPE,BUILD,DEPLOY,prepare,read,pae,base64,rawSignature,verifySignature});
+  const api=Object.freeze({PAYLOAD_TYPE,BUILD,DEPLOY,prepare,read,validateTrustPolicy,pae,base64,rawSignature,verifySignature});
   if(typeof module!=="undefined" && module.exports) module.exports=api;
   if(typeof globalThis!=="undefined") globalThis.FrontendAttestations=api;
 })();
