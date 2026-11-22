@@ -1,0 +1,63 @@
+{
+  "checkedAt": "2026-11-22T13:32:53.126Z",
+  "package": "@sigstore/verify@4.1.3",
+  "expectedIdentity": {
+    "certificateIdentity": "https://github.com/sigstore/sigstore-js/.github/workflows/release.yml@refs/heads/main",
+    "oidcIssuer": "https://token.actions.githubusercontent.com",
+    "notBefore": "2026-01-01T00:00:00Z",
+    "notAfter": "2027-01-01T00:00:00Z"
+  },
+  "bootstrapRootDigest": "sha256:27aea7e372aa7864065174f0661784fcf8b0e28b1dbfebeada31a0f1fb19167f",
+  "tuf": {
+    "bootstrapRootDigest": "sha256:27aea7e372aa7864065174f0661784fcf8b0e28b1dbfebeada31a0f1fb19167f",
+    "rootVersion": 16,
+    "timestampVersion": 841,
+    "snapshotVersion": 166,
+    "targetsVersion": 14,
+    "expiresAt": "2026-11-29T01:19:39.000Z",
+    "checkedAt": "2026-11-22T13:32:52.195Z",
+    "targetDigest": "sha256:6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66"
+  },
+  "keyless": {
+    "verifier": "@sigstore/verify@4.1.3",
+    "trustedRootDigest": "sha256:2d3d1c0f3bef09777ec628921a56847ddb6a1660bd832240433d5ea98488203d",
+    "certificateChainVerified": true,
+    "oidcIssuerVerified": true,
+    "certificateIdentityVerified": true,
+    "certificateTransparencyVerified": true,
+    "rekorInclusionVerified": true,
+    "signedTimeVerified": true,
+    "signingTimes": [
+      "2026-11-05T00:18:00.000Z"
+    ]
+  },
+  "source": {
+    "revision": "4576519f81b93bf96bd7457fc7252b8cfa11e67f",
+    "workflow": {
+      "ref": "refs/heads/main",
+      "repository": "https://github.com/sigstore/sigstore-js",
+      "path": ".github/workflows/release.yml"
+    },
+    "builderId": "https://github.com/actions/runner/github-hosted",
+    "matched": true
+  },
+  "artifact": {
+    "algorithm": "sha512",
+    "digest": "5768a4f9f2f3d984d9395e144959e3bcb2560e39813168bb5e1151f02369d6d8fbcb4f4eae8803c4f65975b4965c803b2297a7253c86ba4220176085b47ffcac",
+    "bytes": 18412,
+    "signedSubjectMatched": true
+  },
+  "rekor": {
+    "url": "https://rekor.sigstore.dev/api/v1/log/entries?logIndex=3692194751",
+    "globalIndex": "3692194751",
+    "proofShardIndex": "3570290489",
+    "liveBodyMatched": true,
+    "liveProofVerified": true
+  },
+  "sources": {
+    "package": "https://registry.npmjs.org/@sigstore/verify/4.1.3",
+    "attestations": "https://registry.npmjs.org/-/npm/v1/attestations/@sigstore%2fverify@4.1.3",
+    "artifact": "https://registry.npmjs.org/@sigstore/verify/-/verify-4.1.3.tgz"
+  },
+  "scope": "published public evidence only; no new OIDC login, signing, log write or deployment"
+}

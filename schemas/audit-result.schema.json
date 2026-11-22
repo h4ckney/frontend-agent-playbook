@@ -1740,6 +1740,50 @@
                                   "items": {
                                     "type": "string"
                                   }
+                                },
+                                "tuf": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "rootVersion",
+                                    "timestampVersion",
+                                    "snapshotVersion",
+                                    "targetsVersion",
+                                    "bootstrapRootDigest",
+                                    "expiresAt",
+                                    "checkedAt",
+                                    "targetDigest"
+                                  ],
+                                  "properties": {
+                                    "rootVersion": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "timestampVersion": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "snapshotVersion": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "targetsVersion": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "bootstrapRootDigest": {
+                                      "type": "string"
+                                    },
+                                    "expiresAt": {
+                                      "type": "string"
+                                    },
+                                    "checkedAt": {
+                                      "type": "string"
+                                    },
+                                    "targetDigest": {
+                                      "type": "string"
+                                    }
+                                  }
                                 }
                               }
                             }

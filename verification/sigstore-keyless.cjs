@@ -33,12 +33,12 @@ function verifyBundle(raw,rules,trustedRoot,now) {
     const leaf=vm.certificate || vm.x509CertificateChain?.certificates[0];
     if(typeof leaf?.rawBytes!=="string" || leaf.rawBytes.length>22000) return fail("sigstore-certificate-budget");
     const stamps=vm.timestampVerificationData?.rfc3161Timestamps||[];
-    if(!Array.isArray(stamps) || stamps.length>2 || vm.timestampVerificationData && !stamps.length) return fail("unsupported-sigstore-timestamps");
+    if(!Array.isArray(stamps) || stamps.length>2 || vm.timestampVerificationData!==undefined && (!object(vm.timestampVerificationData) || Object.keys(vm.timestampVerificationData).some(key=>key!=="rfc3161Timestamps"))) return fail("unsupported-sigstore-timestamps");
     if(stamps.length && (!Array.isArray(trustedRoot.timestampAuthorities) || !trustedRoot.timestampAuthorities.length || trustedRoot.timestampAuthorities.length>8 || trustedRoot.timestampAuthorities.some(ca=>!Array.isArray(ca?.certChain?.certificates) || !ca.certChain.certificates.length || ca.certChain.certificates.length>4))) return fail("sigstore-timestamp-authority-required");
     const seen=new Set();
     for(const entry of vm.tlogEntries) {
       if(!object(entry) || !entry.inclusionProof?.checkpoint?.envelope || !Array.isArray(entry.inclusionProof.hashes) || entry.inclusionProof.hashes.length>64
-        || entry.logIndex!==entry.inclusionProof.logIndex || (!entry.inclusionPromise?.signedEntryTimestamp && !stamps.length)
+        || (!entry.inclusionPromise?.signedEntryTimestamp && !stamps.length)
         || (entry.inclusionPromise && (typeof entry.integratedTime!=="string" || !/^[1-9][0-9]{0,12}$/.test(entry.integratedTime) || !Number.isSafeInteger(Number(entry.integratedTime)) || Number(entry.integratedTime)*1000>now))) return fail("sigstore-signed-time-and-inclusion-required");
       const note=entry.inclusionProof.checkpoint.envelope.split("\n");
       if(note[1]!==entry.inclusionProof.treeSize || note[2]!==entry.inclusionProof.rootHash) return fail("sigstore-inclusion-metadata-mismatch");

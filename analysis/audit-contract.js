@@ -23,7 +23,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "13";
+  const DETECTOR_CATALOG_VERSION = "14";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -33,7 +33,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-22.3")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-22.4")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -67,7 +67,7 @@
   async function createAuditBundleAsync(input={}) {
     const at=input.now ?? input.generatedAt ?? new Date().toISOString();
     const records=(Array.isArray(input.records)?input.records:[]).filter(record=>!analyzer.isGeneratedRecord(record));
-    const verification=await attestations.prepare(records,input.trustPolicy,at,{sigstoreTrustedRoot:input.sigstoreTrustedRoot});
+    const verification=await attestations.prepare(records,input.trustPolicy,at,{sigstoreTrustedRoot:input.sigstoreTrustedRoot,sigstoreTufState:input.sigstoreTufState});
     return createAuditBundle({...input,now:at,attestationVerification:verification});
   }
 
