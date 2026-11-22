@@ -21,6 +21,9 @@ let activeFilter = "all";
 let identityGeneration = 0;
 let scanGeneration = 0;
 let scanPending = false;
+let trustLoadGeneration = 0;
+let trustPolicy = null;
+let attestationVerification = null;
 
 const areaLabels = {
   rules: "프로젝트 환경",
@@ -68,6 +71,7 @@ input.addEventListener("change", async (event) => {
   const files = Array.from(event.target.files);
   if (!files.length) return;
   const generation = ++scanGeneration;
+  attestationVerification = null;
   identityGeneration += 1;
   scanPending = true;
   triageDocument = null;
@@ -81,7 +85,9 @@ input.addEventListener("change", async (event) => {
 
   try {
     const { records, scope } = await readFiles(files);
+    const verification = await FrontendAttestations.prepare(records,trustPolicy,new Date().toISOString());
     if (generation !== scanGeneration) return;
+    attestationVerification = verification;
     const name = files[0].webkitRelativePath.split("/")[0] || "선택한 프로젝트";
     currentAudit = {
       name,
@@ -102,6 +108,30 @@ input.addEventListener("change", async (event) => {
   }
   if (generation === scanGeneration) input.value = "";
 });
+
+document.querySelector("#chooseTrustPolicy").addEventListener("click",()=>document.querySelector("#trustPolicyInput").click());
+document.querySelector("#clearTrustPolicy").addEventListener("click",()=>{trustLoadGeneration++;return refreshTrustPolicy(null);});
+document.querySelector("#trustPolicyInput").addEventListener("change",async event=>{
+  const file=event.target.files?.[0];if(!file) return;
+  const loadGeneration=++trustLoadGeneration,scanAtStart=scanGeneration;
+  let policy=null;
+  try {if(file.size>100000) throw Error();const text=await file.text();FrontendLockGraph.parseJSONC(text);policy=JSON.parse(text);}catch {document.querySelector("#trustPolicyStatus").textContent="정책 파일을 읽을 수 없습니다. 기존 정책을 해제합니다.";}
+  if(loadGeneration!==trustLoadGeneration || scanAtStart!==scanGeneration) return;
+  await refreshTrustPolicy(policy);event.target.value="";
+});
+async function refreshTrustPolicy(policy) {
+  const generation=++scanGeneration;identityGeneration++;scanPending=true;trustPolicy=policy;attestationVerification=null;
+  triageDocument=null;persistedTriage=null;reviewDigests=null;pendingClose=[];document.querySelector("#projectIdentity").value="";
+  document.querySelector("#trustPolicyStatus").textContent="서명과 대상 연결을 검증하고 있습니다.";
+  state=createState();render();
+  try {
+    const verification=await FrontendAttestations.prepare(currentAudit.records,trustPolicy,new Date().toISOString());
+    if(generation!==scanGeneration) return;
+    attestationVerification=verification;scanPending=false;state=createState();render();
+    const detail=FrontendAttestations.read(verification,currentAudit.records,new Date().toISOString());
+    document.querySelector("#trustPolicyStatus").textContent=policy ? (detail.reason!=="verification-completed"?"정책 또는 검증 환경을 확인해주세요. 인증은 미검증입니다.":"선택한 공개키 정책으로 검사했습니다. 항목별 결과를 확인해주세요. 현재 탭에만 적용됩니다.") : "별도 신뢰 정책 없음 · 프로젝트가 제공한 키는 자동 신뢰하지 않습니다.";
+  } catch {if(generation!==scanGeneration) return;scanPending=false;attestationVerification=null;state=createState();render();document.querySelector("#trustPolicyStatus").textContent="검증하지 못했습니다. 인증은 미검증입니다.";}
+}
 
 seoScopeInputs.forEach((control) => {
   control.addEventListener("change", () => {
@@ -154,12 +184,13 @@ function createState() {
   const bundle = createAuditBundle({
     name: currentAudit.name,
     records: currentAudit.records,
+    attestationVerification,
     meta: currentAudit.meta,
     scope: currentAudit.scope,
     context: { seoScope: selectedSeoScope },
     analysisMode: "static-lite",
     capabilities: ["route-path-inference", "text-patterns"],
-    scopePolicyDigest: "browser-static-lite-relative-v5-execution-evidence"
+    scopePolicyDigest: "browser-static-lite-relative-v6-attestation"
   });
   currentAuditResult = bundle.audit;
   return createUiState(bundle.audit, currentAudit.meta);
@@ -302,7 +333,7 @@ function renderSecurityContext() {
     (security.snapshot.freshness === "within-30-days" ? '' : '<p class="context-status">권고 목록의 시점 확인이 필요합니다. 최신 전체 취약점 목록과의 비교는 별도 실행해야 합니다.</p>') +
     (security.graphs?.length ? '<p>공유 lockfile 그래프 ' + security.graphs.length + '개 · workspace 근거 ' + security.graphs.reduce((sum, graph) => sum + graph.roots.filter(root => root.phase !== "build").length, 0) + '개 · 실제 코드 실행 경로는 미확인</p>' : '') +
     (security.graphs?.some(graph => graph.format === 'deno') ? '<ul class="dependency-inventory">' + security.graphs.filter(graph => graph.format === 'deno').slice(0,30).map(graph => '<li data-deno-lock="' + escapeHtml(graph.lockfile) + '" data-graph-complete="' + graph.complete + '">' + escapeHtml(graph.lockfile) + ' · Deno lock v' + escapeHtml(graph.lockVersion || '미확인') + ' · 로컬 패키지 연결 ' + graph.nodes.filter(node => node.kind === 'local').length + '개 · 원격 무결성 기록 ' + (graph.remoteIntegrityCount || 0) + '개 · import map 파일 ' + (graph.importMaps?.length || 0) + '개 · 로컬 파일 매핑 ' + (graph.localMappings?.length || 0) + '개 · ' + (graph.complete ? '선언 연결 해석됨' : '연결 미검증') + ' (내용·안전성 미검증)' + (graph.importMaps?.length ? '<br><small>' + escapeHtml(graph.importMaps.slice(0,10).join(' / ')) + '</small>' : '') + (graph.localMappings?.length ? '<br><small>' + escapeHtml(graph.localMappings.slice(0,5).map(item => item.source + ' → ' + item.target + (item.exists ? '' : ' (선택 파일 없음)')).join(' / ')) + '</small>' : '') + (graph.nodes.some(node => node.kind === 'local') ? '<br><small>' + escapeHtml(graph.nodes.filter(node => node.kind === 'local').slice(0,10).map(node => node.name + ' · ' + node.manifest).join(' / ')) + '</small>' : '') + '</li>').join('') + '</ul>' : '') +
-    (security.executionEvidence ? '<section data-execution-evidence><h3>설치·SBOM·배포 근거 연결</h3><p>선택한 보고서의 해시와 대상 일치를 대조합니다. 보고서 진위·실제 운영 상태·취약한 호출 경로는 미검증입니다.</p><ul class="dependency-inventory">' + security.executionEvidence.subjects.map(subject => '<li data-evidence-subject="' + escapeHtml(subject.id) + '" data-evidence-status="' + subject.status + '"><strong>' + escapeHtml(subject.manifest) + '</strong> · ' + (subject.status === 'linked' ? '선언한 근거 연결됨' : subject.status === 'rejected' ? '대상 근거 불일치' : '연결 미검증') + '<br><small>보고 시각 ' + escapeHtml(subject.observedAt) + ' · ' + escapeHtml(subject.freshness) + '<br>manifest 해시 ' + (subject.manifestMatched ? '일치' : '미검증') + ' · lock 해시 ' + (subject.lockfileMatched ? '일치' : '미검증') + '</small>' + subject.artifacts.map(item => '<br><small>' + escapeHtml(item.kind + ' · ' + item.path + ' · ' + item.integrity + ' · ' + item.componentCount + '개') + '</small>').join('') + (subject.deployment ? '<br><small>배포 보고 · ' + escapeHtml(subject.deployment.environment) + ' · ' + (subject.deployment.linked ? '산출물·revision 연결됨' : '연결 미검증') + '</small>' : '') + '<details><summary>패키지 대조 ' + subject.components.length + '개 (최대 30개 표시)</summary><ul>' + subject.components.slice(0,30).map(item => '<li>' + escapeHtml(item.ecosystem + ':' + item.name + '@' + item.version + ' · ' + item.sources.join('/') + ' · ' + item.comparison) + '</li>').join('') + '</ul></details></li>').join('') + '</ul></section>' : '') +
+    (security.executionEvidence ? '<section data-execution-evidence><h3>설치·SBOM·배포 근거 연결</h3><p>선택한 보고서의 해시와 대상 일치를 대조합니다. 보고서 서명·대상 인증은 아래에 별도로 표시합니다. 실제 운영 상태·취약한 호출 경로는 미검증입니다.</p><ul class="dependency-inventory">' + security.executionEvidence.subjects.map(subject => '<li data-evidence-subject="' + escapeHtml(subject.id) + '" data-evidence-status="' + subject.status + '"><strong>' + escapeHtml(subject.manifest) + '</strong> · ' + (subject.status === 'linked' ? '선언한 근거 연결됨' : subject.status === 'rejected' ? '대상 근거 불일치' : '연결 미검증') + '<br><small>보고 시각 ' + escapeHtml(subject.observedAt) + ' · ' + escapeHtml(subject.freshness) + '<br>manifest 해시 ' + (subject.manifestMatched ? '일치' : '미검증') + ' · lock 해시 ' + (subject.lockfileMatched ? '일치' : '미검증') + '</small>' + subject.artifacts.map(item => '<br><small>' + escapeHtml(item.kind + ' · ' + item.path + ' · ' + item.integrity + ' · ' + item.componentCount + '개') + '</small>').join('') + (subject.deployment ? '<br><small>배포 보고 · ' + escapeHtml(subject.deployment.environment) + ' · ' + (subject.deployment.linked ? '산출물·revision 연결됨' : '연결 미검증') + '</small>' : '') + (subject.authentication ? '<br><small data-authentication-status="' + subject.authentication.status + '">서명·대상 검증 · ' + (subject.authentication.status === 'verified' ? '고정 공개키로 보고서 인증됨 (운영·안전성 미검증)' : '인증 미검증') + '</small>' + subject.authentication.attestations.map(item=>'<br><small>' + escapeHtml(item.kind + ' · ' + item.status + ' · ' + item.reason) + '</small>').join('') : '') + '<details><summary>패키지 대조 ' + subject.components.length + '개 (최대 30개 표시)</summary><ul>' + subject.components.slice(0,30).map(item => '<li>' + escapeHtml(item.ecosystem + ':' + item.name + '@' + item.version + ' · ' + item.sources.join('/') + ' · ' + item.comparison) + '</li>').join('') + '</ul></details></li>').join('') + '</ul></section>' : '') +
     '<details><summary>버전 근거 ' + security.inventory.length + '개 보기 (최대 30개 표시)</summary><ul class="dependency-inventory">' +
     security.inventory.slice(0, 30).map((entry) => '<li><strong>' + escapeHtml((entry.ecosystem === 'jsr' ? 'JSR · ' : '') + entry.name + (entry.version.endsWith(':<source-redacted>') ? ' · 출처 지정(상세 값 생략)' : '@' + entry.version)) + '</strong> · ' + phases[entry.phase] +
       (entry.lockContext === "boot" ? '<br><small>패키지 매니저·설정 도구의 버전 근거</small>' : '') +

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1",
+  "keys": [
+    {
+      "keyId": "sha256:ee5e53fd0135c31a37e87630ae537a329e0c44589900ccf3a4acec8b38be590e",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE72MGxg+q5c2omNWoIA8keR6dKAb/\nOgjk97CC3pIniLq/mSg4lsqXyJO6IvxpGeDOE43Jx9dA0bAPPuu/O+rdvQ==\n-----END PUBLIC KEY-----\n",
+      "algorithm": "ecdsa-p256-sha256",
+      "signatureEncoding": "der",
+      "roles": [
+        "build",
+        "deployment"
+      ],
+      "repository": "git+https://github.com/example/web@refs/heads/main",
+      "builderId": "https://ci.example/builders/isolated-v1",
+      "buildType": "https://ci.example/build-types/web-v1",
+      "externalParameters": {
+        "target": "web",
+        "ref": "refs/heads/main",
+        "frontendEvidence": {
+          "installation": {
+            "format": "npm-ls",
+            "mode": "installed-tree"
+          },
+          "sbom": {
+            "format": "cyclonedx-json"
+          }
+        }
+      },
+      "environments": [
+        "production"
+      ],
+      "notBefore": "2026-10-23T03:00:00.000Z",
+      "notAfter": "2027-11-22T03:00:00.000Z"
+    }
+  ]
+}

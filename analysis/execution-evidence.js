@@ -39,7 +39,7 @@
     try {
       const value=read(records.find(item=>item.path === CONFIG).content);
       if(!Array.isArray(value.subjects) || value.subjects.length > 100) return [];
-      return [...new Set(value.subjects.flatMap(subject=>[subject?.installation,subject?.sbom,subject?.deployment].map(item=>item?.path)).filter(safePath))];
+      return [...new Set(value.subjects.flatMap(subject=>[subject?.installation,subject?.sbom,subject?.deployment,...(Array.isArray(subject?.attestations)?subject.attestations.slice(0,2):[])].map(item=>item?.path)).filter(safePath))];
     } catch {return [];}
   }
   function inspect(records, inventory, options={}) {
@@ -193,10 +193,23 @@
       for(const item of subject.components) item.deploymentLinked=Boolean(subject.deployment?.linked && item.sources.includes("sbom"));
       if(gaps.length===start && subject.deployment?.linked) subject.status="linked";
     }
-    gap(CONFIG,"execution-evidence-authenticity-unverified");
+    const attest=typeof module!=="undefined" && module.exports ? require("./attestations.js") : globalThis.FrontendAttestations;
+    const verification=attest.read(options.attestationVerification,records,options.now);
+    for(const subject of subjects) {
+      const input=data.subjects.find(item=>item?.id===subject.id);if(input?.attestations===undefined) continue;
+      const checks=verification.subjects.find(item=>item.id===subject.id)?.attestations||[];
+      const verified=new Set(checks.filter(item=>item.status==="verified").map(item=>item.kind));
+      const reports=subject.artifacts.filter(item=>verified.has(item.kind==="deployment"?"deployment":"build") && item.integrity==="matched").map(item=>item.kind).sort();
+      const complete=subject.status!=="rejected" && subject.manifestMatched && subject.lockfileMatched && verified.has("build") && verified.has("deployment") && reports.length===subject.artifacts.length && reports.length>0;
+      subject.authentication={status:complete?"verified":checks.some(item=>item.status==="rejected")?"rejected":verified.size?"partial":"unverified",policyDigest:verification.policyDigest,checkedAt:verification.checkedAt,verifiedReports:reports,attestations:checks};
+      if(!complete) gap(CONFIG,"attestation-authentication-unverified");
+    }
+    if(!subjects.length || subjects.some(subject=>subject.authentication?.status!=="verified")) gap(CONFIG,"execution-evidence-authenticity-unverified");
+    // Authentication is not vulnerable-call or live-operation verification.
+    if(subjects.some(subject=>subject.authentication?.status==="verified")) gap(CONFIG,"signed-evidence-operation-unverified");
     return {schemaVersion:"1",subjects,additions,gaps:[...new Map(gaps.map(item=>[item.path+":"+item.reason,item])).values()]};
   }
-  const api=Object.freeze({CONFIG,sha256,discoverInputs,inspect});
+  const api=Object.freeze({CONFIG,sha256,safePath,discoverInputs,inspect});
   if(typeof module!=="undefined" && module.exports) module.exports=api;
   if(typeof globalThis!=="undefined") globalThis.FrontendExecutionEvidence=api;
 })();

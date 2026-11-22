@@ -434,3 +434,22 @@ test('CLI refuses symlink evidence reports without exposing their contents',asyn
  const output=run(['scan','--root','.','--format','json'],root);assert.equal(output.status,0,output.stderr);const result=JSON.parse(output.stdout);assert.ok(result.scope.partial);assert.equal(result.scope.excludedByReason.symlink,1);assert.ok(result.securityContext.coverage.gaps.some(x=>x.reason==='evidence-report-unavailable'));
  assert.ok(!result.securityContext.inventory.some(x=>x.provenance==='installation-report'));
 });
+
+test('CLI verifies signed evidence only with an explicitly selected public-key trust policy',async t=>{
+ const {signedFixture,signedRecords}=await import('../analysis/fixtures/signed-evidence.mjs');
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-signed-evidence-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const f=signedFixture({time:new Date().toISOString()});
+ for(const record of signedRecords(f)) {const target=path.join(root,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}
+ await fs.writeFile(path.join(root,'public-policy.json'),JSON.stringify(f.policy));
+ const unsigned=run(['scan','--root','.','--format','json'],root);assert.equal(unsigned.status,0,unsigned.stderr);assert.equal(JSON.parse(unsigned.stdout).securityContext.executionEvidence.subjects[0].authentication.status,'unverified');
+ const signed=run(['scan','--root','.','--trust-policy','public-policy.json','--format','json'],root);assert.equal(signed.status,0,signed.stderr);const result=JSON.parse(signed.stdout);assert.equal(result.securityContext.executionEvidence.subjects[0].authentication.status,'verified');assert.ok(result.scopePolicyDigest!==JSON.parse(unsigned.stdout).scopePolicyDigest);
+ assert.doesNotMatch(signed.stdout,/BEGIN PUBLIC KEY|unauthenticated-hint/);
+});
+test('CLI leaves missing signed evidence unverified and rejects tampered proof under a chosen policy',async t=>{
+ const {signedFixture,signedRecords}=await import('../analysis/fixtures/signed-evidence.mjs');const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-tampered-proof-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const f=signedFixture({time:new Date().toISOString()});f.build.predicate.runDetails.builder.id='https://other.invalid/builder';
+ for(const record of signedRecords(f)) {const target=path.join(root,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}
+ await fs.writeFile(path.join(root,'public-policy.json'),JSON.stringify(f.policy));const out=run(['scan','--root','.','--trust-policy','public-policy.json','--format','json'],root);assert.equal(out.status,0,out.stderr);assert.ok(JSON.parse(out.stdout).findings.some(x=>x.id==='security.attestation-integrity'));assert.doesNotMatch(out.stdout,/other.invalid/);
+});
+
+test('CLI rejects duplicate-key trust policy input instead of choosing the last key set',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-duplicate-trust-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await fs.writeFile(path.join(root,'policy.json'),'{"schemaVersion":"1","keys":[],"keys":[]}');const result=run(['scan','--root','.','--trust-policy','policy.json','--format','json'],root);assert.equal(result.status,2);assert.match(result.stderr,/explicit trust policy/);
+});

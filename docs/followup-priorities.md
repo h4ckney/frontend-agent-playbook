@@ -1,6 +1,8 @@
 # 후속 작업 우선순위와 이번 실행
 
-2026-11-22에는 [설치·SBOM·배포 보고 근거 연결](execution-evidence.md)을 추가했다. 다음 우선순위는 실제 운영 acceptance·서명/attestation, 공유 SBOM 선택자·산출물 종류와 JSR 권고 갱신이다.
+2026-11-22에는 [빌드·배포 DSSE 서명 검증](attestation-verification.md)을 확장했다. 다음 우선순위는 keyless Sigstore·발급자/로그·trusted root 검증과 실제 조직 자료 acceptance다.
+
+2026-11-22에는 [설치·SBOM·배포 보고 근거 연결](execution-evidence.md)을 추가했다. PR #11 당시 후속이던 서명/attestation은 위 확장 문서를 따른다. 실제 운영 acceptance, 공유 SBOM 선택자·산출물 종류와 JSR 권고 갱신은 남아 있다.
 
 2026-11-01 · 기준 `8701eba` · 위험 수준 2: 기준선의 해결 판정과 PR 검증 경로 변경.
 

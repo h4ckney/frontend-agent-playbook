@@ -152,6 +152,8 @@ Deno v1 무결성 기록·v2 npm pin, 명시적 custom lock과 literal local 연
 
 선택한 npm/Composer 설치 보고서·CycloneDX/SPDX SBOM·배포 관찰을 workspace/lock 해시와 산출물 식별자로 연결합니다. [수집 방법·근거·한계](docs/execution-evidence.md)를 참고하세요. 자료의 일치는 진위나 실제 운영 확인을 뜻하지 않습니다.
 
+[빌드·배포 DSSE attestation 검증](docs/attestation-verification.md)은 별도로 선택한 고정 공개키 정책으로 실제 ECDSA 서명을 검사합니다. 서명·소스/보고서 연결·운영 안전성은 분리하며 [서명 예제](examples/signed-evidence/README.md)를 제공합니다.
+
 ### Analyzer CLI 프리뷰
 
 pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [형식 범위·프로토콜 우선순위](docs/lock-protocol-priorities.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.
@@ -265,6 +267,7 @@ node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
 node --check analysis/security-context.js
+node --check analysis/attestations.js
 node --check analysis/execution-evidence.js
 node --check analysis/deno-resolution.js
 node --check analysis/deno-lock.js

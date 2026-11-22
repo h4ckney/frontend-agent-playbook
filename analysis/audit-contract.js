@@ -18,10 +18,12 @@
   if (!artifactSchemas) throw new Error("Artifact schemas must be loaded before FrontendAuditContract");
   if (!security) throw new Error("Security context must be loaded before FrontendAuditContract");
 
+  const attestations = typeof module!=="undefined" && module.exports ? require("./attestations.js") : globalThis.FrontendAttestations;
+
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "11";
+  const DETECTOR_CATALOG_VERSION = "12";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -31,7 +33,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-22.1")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-22.2")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -62,6 +64,13 @@
     });
   }
 
+  async function createAuditBundleAsync(input={}) {
+    const at=input.now ?? input.generatedAt ?? new Date().toISOString();
+    const records=(Array.isArray(input.records)?input.records:[]).filter(record=>!analyzer.isGeneratedRecord(record));
+    const verification=await attestations.prepare(records,input.trustPolicy,at);
+    return createAuditBundle({...input,now:at,attestationVerification:verification});
+  }
+
   function createAuditBundle(input) {
     const options = input || {};
     const inputRecords = Array.isArray(options.records) ? options.records : [];
@@ -86,7 +95,7 @@
     const seoScope = resolveSeoScope(options.context?.seoScope, profile);
     const context = { ...(options.context || {}), seoScope };
     const findings = analyzer.analyzeRecords(records, { seoScope });
-    const securityReport = security.inspectSecurityContext(records, { now: options.now || options.generatedAt });
+    const securityReport = security.inspectSecurityContext(records, { now: options.now ?? options.generatedAt, attestationVerification:options.attestationVerification });
     findings.push(...securityReport.findings);
     const legacy = analyzer.createAuditResult(
       options.name || "project",
@@ -100,6 +109,7 @@
     legacy.securityContext = securityContext;
     const audit = normalizeLegacyAudit(legacy, records, {
       ...options,
+      scopePolicyDigest:(options.scopePolicyDigest || "static-lite-default-v1")+(attestations.read(options.attestationVerification,records,options.now ?? options.generatedAt).policyDigest ? ":trust:"+attestations.read(options.attestationVerification,records,options.now ?? options.generatedAt).policyDigest : ""),
       context,
       profile
     });
@@ -768,6 +778,7 @@
         || support.gaps.length || !lifecycleEntry || ["unknown", "not-released"].includes(lifecycleEntry.state)
         || output.findings.some(item => lifecycleDetectors.has(item.detectorId) && item.fingerprint.endsWith(":" + lifecycleScope)));
       if (activeDetectors.get(previous.detectorId) !== previous.detectorVersion || result.scope.partial
+        || previous.detectorId === "security.attestation-integrity"
         || previous.fingerprint.includes(":.frontend-evidence.json#subjects/")
         || (versionDetectors.has(previous.detectorId) && versionComparisonIncomplete) || lifecycleIncomplete) {
         diff.unverified.push(previous.fingerprint);
@@ -1043,6 +1054,7 @@
         lines.push("- " + cell(subject.manifest) + ": " + cell(subject.status) + "; " + cell(subject.observedAt) + "; manifest hash " + subject.manifestMatched + "; lock hash " + subject.lockfileMatched);
         for(const report of subject.artifacts) lines.push("  - " + cell(report.kind + ": " + report.path + "; " + report.integrity + "; " + report.componentCount + " components"));
         for(const item of subject.components) lines.push("  - " + cell(item.ecosystem + ":" + item.name + "@" + item.version + "; " + item.sources.join("/") + "; " + item.comparison));
+        if(subject.authentication) {lines.push("  - authentication: " + cell(subject.authentication.status) + "; checked " + cell(subject.authentication.checkedAt || "unknown"));for(const check of subject.authentication.attestations) lines.push("    - " + cell(check.kind + ": " + check.status + "; signature " + check.signatureVerified + "; bindings " + check.bindingsVerified + "; " + check.reason));}
         if(subject.deployment) lines.push("  - deployment: " + cell(subject.deployment.environment) + "; subject chain linked " + subject.deployment.linked);
       }
     }
@@ -1647,6 +1659,7 @@
     buildAuditSummary,
     compareWithBaseline,
     createAuditBundle,
+    createAuditBundleAsync,
     createBaseline,
     detectorCatalog,
     normalizeLegacyAudit,

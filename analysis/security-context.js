@@ -26,7 +26,7 @@
   const DETECTOR_IDS = Object.freeze([
     "security.node-brotli-2026", "security.php-oom-2026", "security.php-stale-state-2026",
     "security.react2shell", "security.rsc-typed-array-rce", "security.next-image-svg-rce",
-    "security.runtime-eol", "security.support-ending", "security.lifecycle-coverage", "security.dependency-coverage"
+    "security.attestation-integrity", "security.runtime-eol", "security.support-ending", "security.lifecycle-coverage", "security.dependency-coverage"
   ]);
   const BUILD_TOOLS = new Set(["vite", "webpack", "rollup", "esbuild", "typescript", "@swc/core", "@babel/core", "parcel"]);
   const ADVISORIES = [
@@ -250,6 +250,9 @@
     // Report authenticity and deployed reachability are not established by matching.
     const matchable = inventory.filter((item) => ["locked-exact", "runtime-pin", "image-pin", "reported-exact", "runtime-observation"].includes(item.versionKind) && exactVersion(item.version));
     const findings = [];
+    const rejectedAttestations=(executionResult?.subjects||[]).flatMap(subject=>subject.authentication?.policyDigest ? subject.authentication.attestations.filter(check=>check.status==="rejected") : []);
+    if(rejectedAttestations.length) findings.push(makeFinding({id:"security.attestation-integrity",severity:"medium",title:"서명·대상 검증에 실패한 attestation이 있음",evidencePaths:rejectedAttestations.map(check=>check.path),sources:[],
+      observedFact:"명시한 신뢰 정책에서 거절한 attestation "+rejectedAttestations.length+"개",whyRisky:"서명이나 저장소·입력·산출물 연결이 맞지 않는 자료를 인증된 배포 근거로 사용할 수 없습니다.",possibleImpact:"다른 빌드 또는 변조 자료의 오인증",riskFactors:"잘못된 키 정책·손상된 서명·소스 또는 보고서 불일치",recommendation:"별도 공개키 정책과 발급자의 원본 DSSE, 서명된 입력·보고서 hash를 확인합니다. 실패 자료를 제거한 것만으로 이전 위험을 해결 처리하지 않습니다."}));
     const matched = new Set();
     for (const advisory of ADVISORIES) {
       const occurrences = matchable.filter((item) => advisory.matches(item, exactVersion(item.version)));
@@ -345,7 +348,7 @@
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
       inventory, findings, ...(executionResult ? {executionEvidence:{schemaVersion:executionResult.schemaVersion,subjects:executionResult.subjects}} : {}), lifecycle: support, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
-        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "Selected installation/SBOM/deployment reports are consistency-checked evidence, not authenticated operational observations", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "Deno v1 remote integrity metadata, v2-v5 npm/JSR inventory, declared custom lock and literal local links; JSR advisories, remote/local contents and legacy optional metadata remain unverified", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "Selected report authenticity is separately indicated by explicit pinned-key verification; live operation remains unverified", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "Deno v1 remote integrity metadata, v2-v5 npm/JSR inventory, declared custom lock and literal local links; JSR advisories, remote/local contents and legacy optional metadata remain unverified", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
     };
   }
