@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "resolved": "file:../private/tmp/playbook-install-observation",
+  "name": "playbook-observation-root",
+  "dependencies": {
+    "@playbook/leaf": {
+      "version": "1.0.0",
+      "resolved": "file:../../leaf",
+      "overridden": false
+    }
+  }
+}

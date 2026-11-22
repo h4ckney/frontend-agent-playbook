@@ -6,6 +6,7 @@
   const lockGraph = typeof module !== "undefined" && module.exports ? require("./lockfile-graph.js") : globalThis.FrontendLockGraph;
   const lifecycle = typeof module !== "undefined" && module.exports ? require("./runtime-lifecycle.js") : globalThis.FrontendRuntimeLifecycle;
   const denoLock = typeof module !== "undefined" && module.exports ? require("./deno-lock.js") : globalThis.FrontendDenoLock;
+  const execution = typeof module !== "undefined" && module.exports ? require("./execution-evidence.js") : globalThis.FrontendExecutionEvidence;
   const CHECKED_AT = "2026-10-30";
   const SNAPSHOT_ID = "security-context-2026-10-30-v1";
   const MAX_INVENTORY = 20_000;
@@ -242,9 +243,12 @@
       result.gaps.forEach(item => addGap(item.path, item.reason));
     }
 
-    // Manifest declarations are retained, but a matching lock entry is the version
-    // evidence used for matching. No range solving or registry access occurs here.
-    const matchable = inventory.filter((item) => ["locked-exact", "runtime-pin", "image-pin"].includes(item.versionKind));
+    const executionResult=execution.inspect(records,inventory,options);
+    if(executionResult) {executionResult.additions.forEach(add);executionResult.gaps.forEach(item=>addGap(item.path,item.reason));}
+
+    // Declarations remain distinct from locked pins and reported exact observations.
+    // Report authenticity and deployed reachability are not established by matching.
+    const matchable = inventory.filter((item) => ["locked-exact", "runtime-pin", "image-pin", "reported-exact", "runtime-observation"].includes(item.versionKind) && exactVersion(item.version));
     const findings = [];
     const matched = new Set();
     for (const advisory of ADVISORIES) {
@@ -339,9 +343,9 @@
     }
     return {
       schemaVersion: "1", snapshot: { id: SNAPSHOT_ID, checkedAt: CHECKED_AT, timeZone: "Asia/Seoul", freshness, advisoryCount: ADVISORIES.length, sources: Object.values(SOURCES), liveLookup: false },
-      inventory, findings, lifecycle: support, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
+      inventory, findings, ...(executionResult ? {executionEvidence:{schemaVersion:executionResult.schemaVersion,subjects:executionResult.subjects}} : {}), lifecycle: support, ...(graphs.length ? { graphs } : {}), coverage: { complete: false, inventoryCount: inventory.length, exactVersionCount: matchable.length,
         advisoryMatchedOccurrences: matched.size, unresolvedVersionCount: unresolved.length, gaps: dedupedGaps,
-        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "Deno v1 remote integrity metadata, v2-v5 npm/JSR inventory, declared custom lock and literal local links; JSR advisories, remote/local contents and legacy optional metadata remain unverified", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
+        limitations: ["Finite advisory snapshot, not a universal or live CVE database", "Selected installation/SBOM/deployment reports are consistency-checked evidence, not authenticated operational observations", "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification", "Deno v1 remote integrity metadata, v2-v5 npm/JSR inventory, declared custom lock and literal local links; JSR advisories, remote/local contents and legacy optional metadata remain unverified", "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code", "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified", "Build/development phase can still expose CI credentials, artifacts and developer machines",
           ...(hasPhpContext ? ["PHP: 2026-10-23 session upload progress configuration advisory and 2026-10-26 Windows Brotli package rebuild (-1) are not auto-matched by the runtime number; verify applicable settings, OS and package revision: " + SOURCES.phpUpdate] : [])] }
     };
   }
