@@ -154,6 +154,8 @@ Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment 
 
 [Offline Sigstore keyless verification](docs/sigstore-keyless.md) extends the Node CLI with an explicitly pinned Fulcio/CT/Rekor root and exact OIDC certificate identity. The browser keeps keyless evidence unverified. See the [controlled keyless example](examples/keyless-evidence/README.md).
 
+[TUF trust rotation and removal](docs/tuf-trust-lifecycle.md) adds explicit refresh, protected rollback state and offline scan revalidation. An actual public npm/Fulcio/GitHub OIDC/Rekor read-only probe is captured separately from controlled tests and deployment evidence.
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.

@@ -693,6 +693,13 @@ try {
   await page.locator("#clearTrustPolicy").click();await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "rejected");
   assert.doesNotMatch(await authStatus.textContent(),/고정 공개키로 보고서 인증됨/);
   recordCheck("modified keyless bundle bytes produce one integrity parent and never inherit a prior authenticated state");
+  await fs.rm(fixture,{recursive:true,force:true});await fs.cp(keylessExample,fixture,{recursive:true});
+  const tufPolicy=JSON.parse(await fs.readFile(path.join(fixture,"public-policy.json"),"utf8"));delete tufPolicy.keyless[0].trustedRootDigest;tufPolicy.keyless[0].tufBootstrapRootDigest="sha256:"+"a".repeat(64);
+  await fs.writeFile(path.join(fixture,"tuf-policy.json"),JSON.stringify(tufPolicy));await fs.writeFile(path.join(fixture,"tuf-state.json"),JSON.stringify({status:"verified",trustedRoot:{}}));
+  await page.locator("#folderInput").setInputFiles(fixture);await page.locator("#trustPolicyInput").setInputFiles(path.join(fixture,"tuf-policy.json"));
+  await page.waitForFunction(()=>document.querySelector('[data-evidence-subject="web"]')?.textContent.includes("sigstore-node-verifier-required"));assert.equal(await authStatus.getAttribute("data-authentication-status"),"unverified");
+  await page.locator("#securityContext").evaluate(node=>{node.open=true;node.querySelectorAll("details").forEach(item=>item.open=true);});await authStatus.scrollIntoViewIfNeeded();await settleView(page);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(values.output,"dashboard-tuf-unverified-390.png")});
+  recordCheck("a TUF-bound identity policy and project-supplied success JSON cannot authenticate browser keyless evidence");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

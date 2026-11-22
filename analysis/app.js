@@ -190,7 +190,7 @@ function createState() {
     context: { seoScope: selectedSeoScope },
     analysisMode: "static-lite",
     capabilities: ["route-path-inference", "text-patterns"],
-    scopePolicyDigest: "browser-static-lite-relative-v7-sigstore"
+    scopePolicyDigest: "browser-static-lite-relative-v8-tuf"
   });
   currentAuditResult = bundle.audit;
   return createUiState(bundle.audit, currentAudit.meta);

@@ -60,14 +60,15 @@
   function keylessRules(policy) {
     const rules=[];
     for(const rule of policy.keyless||[]) {
-      if(!object(rule) || Object.keys(rule).some(k=>!["oidcIssuer","certificateIdentity","trustedRootDigest","roles","repository","builderId","buildType","externalParameters","environments","notBefore","notAfter"].includes(k))
-        || !webURI(rule.oidcIssuer) || typeof rule.certificateIdentity!=="string" || !rule.certificateIdentity.length || rule.certificateIdentity.length>1000 || /[\x00-\x20]/.test(rule.certificateIdentity) || !digest(rule.trustedRootDigest)
+      if(!object(rule) || Object.keys(rule).some(k=>!["oidcIssuer","certificateIdentity","trustedRootDigest","tufBootstrapRootDigest","roles","repository","builderId","buildType","externalParameters","environments","notBefore","notAfter"].includes(k))
+        || !webURI(rule.oidcIssuer) || typeof rule.certificateIdentity!=="string" || !rule.certificateIdentity.length || rule.certificateIdentity.length>1000 || /[\x00-\x20]/.test(rule.certificateIdentity) || (digest(rule.trustedRootDigest)===digest(rule.tufBootstrapRootDigest)) || rule.trustedRootDigest!==undefined && !digest(rule.trustedRootDigest) || rule.tufBootstrapRootDigest!==undefined && !digest(rule.tufBootstrapRootDigest)
         || !Array.isArray(rule.roles) || !rule.roles.length || rule.roles.some(r=>!["build","deployment"].includes(r)) || new Set(rule.roles).size!==rule.roles.length || !webURI(rule.repository,true) || !webURI(rule.builderId)
         || !date(rule.notBefore) || !date(rule.notAfter) || Date.parse(rule.notAfter)<=Date.parse(rule.notBefore)
         || rule.roles.includes("build") && (!webURI(rule.buildType) || !object(rule.externalParameters))
         || rule.roles.includes("deployment") && (!Array.isArray(rule.environments) || !rule.environments.length || rule.environments.some(v=>!["production","staging","preview"].includes(v)))) throw Error("policy");
       rules.push(rule);
     }
+    if(new Set(rules.map(r=>r.tufBootstrapRootDigest?"tuf":"pinned")).size>1 || new Set(rules.filter(r=>r.tufBootstrapRootDigest).map(r=>r.tufBootstrapRootDigest)).size>1) throw Error("ambiguous trust source");
     return rules;
   }
   function matches(entries,name,sha,field="name",algorithm="sha256") {
@@ -109,6 +110,12 @@
     const subtle=cryptoSubtle();let keys=[],keyless=[];
     if(policy!==null && subtle) {try {keys=await policyKeys(policy,now,subtle);keyless=keylessRules(policy);validUntil=Math.min(validUntil,...keys.filter(k=>k.active).map(k=>Date.parse(k.rule.notAfter)),...keyless.filter(k=>now>=Date.parse(k.notBefore) && now<=Date.parse(k.notAfter)).map(k=>Date.parse(k.notAfter)));result.reason="verification-completed";}catch {keys=[];keyless=[];result.reason="invalid-trust-policy";}}
     else if(!subtle) result.reason="crypto-unavailable";
+    let tufState,tufVerification;
+    try {if(options.sigstoreTufState!==undefined){const text=JSON.stringify(options.sigstoreTufState);if(text.length>4500000) throw Error();tufState=parse(text);}}catch {tufState={};}
+    if(keyless.some(r=>r.tufBootstrapRootDigest) && typeof module!=="undefined" && module.exports) {
+      try {tufVerification=require("../verification/sigstore-tuf.cjs").verifyState(tufState,keyless[0].tufBootstrapRootDigest,now);}catch {tufVerification={status:"unverified",reason:"sigstore-tuf-verifier-unavailable"};}
+      if(tufVerification.status==="verified") validUntil=Math.min(validUntil,Date.parse(tufVerification.proof.expiresAt)-1);
+    }
     let work=0,envelopes=0;
     for(const input of config.subjects) {
       if(!object(input) || typeof input.id!=="string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(input.id)) continue;
@@ -121,16 +128,21 @@
         if(!files.has(ref.path) || evidence.sha256(files.get(ref.path))!==ref.sha256) {check.status="rejected";check.reason="attestation-file-unavailable-or-hash-mismatch";continue;}
         if(ref.format==="sigstore-bundle") {
           check.method="sigstore-keyless";
-          const rules=keyless.filter(rule=>rule.roles.includes(ref.kind) && now>=Date.parse(rule.notBefore) && now<=Date.parse(rule.notAfter));
+          let rules=keyless.filter(rule=>rule.roles.includes(ref.kind) && now>=Date.parse(rule.notBefore) && now<=Date.parse(rule.notAfter));
           if(result.reason!=="verification-completed") continue;
           if(!rules.length) {check.status="rejected";check.reason="no-active-authorized-keyless-identity";continue;}
           if(++envelopes>50 || ++work>256) {check.reason="attestation-work-budget";continue;}
           if(typeof module==="undefined" || !module.exports) {check.reason="sigstore-node-verifier-required";continue;}
+          let verificationRoot=trustedRoot;
+          if(rules[0].tufBootstrapRootDigest) {
+            if(tufVerification?.status!=="verified") {check.status=tufVerification?.status||"unverified";check.reason=tufVerification?.reason||"sigstore-tuf-state-required";continue;}
+            verificationRoot=tufVerification.trustedRoot;rules=rules.map(rule=>({...rule,trustedRootDigest:tufVerification.rootDigest}));
+          }
           let verified;
-          try {verified=require("../verification/sigstore-keyless.cjs").verifyBundle(parse(files.get(ref.path)),rules,trustedRoot,now);}catch {verified={status:"rejected",reason:"malformed-or-unverifiable-sigstore-bundle"};}
+          try {verified=require("../verification/sigstore-keyless.cjs").verifyBundle(parse(files.get(ref.path)),rules,verificationRoot,now);}catch {verified={status:"rejected",reason:"malformed-or-unverifiable-sigstore-bundle"};}
           check.status=verified.status;check.reason=verified.reason;
           if(verified.status!=="verified") continue;
-          check.signatureVerified=true;check.keyId=verified.keyId;check.keyless=verified.proof;
+          check.signatureVerified=true;check.keyId=verified.keyId;check.keyless={...verified.proof,...(tufVerification?.status==="verified"?{tuf:tufVerification.proof}:{})};
           let statement;try {statement=parse(new TextDecoder("utf-8",{fatal:true}).decode(base64(verified.envelope.payload)));}catch {check.status="rejected";check.reason="malformed-keyless-statement";continue;}
           const observed=ref.kind==="build"?statement.predicate?.runDetails?.metadata?.finishedOn:statement.predicate?.observedAt;
           if(verified.rules.some(rule=>bindings(statement,ref.kind,input,rule,files,now)) && date(observed) && verified.proof.signingTimes.every(t=>Date.parse(t)+999>=Date.parse(observed))) {check.bindingsVerified=true;check.reason="signature-and-bindings-verified";}

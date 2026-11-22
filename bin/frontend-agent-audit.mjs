@@ -13,7 +13,7 @@ const contract = require(path.join(repoRoot, "analysis", "audit-contract.js"));
 
 const commands = new Set(["scan", "baseline"]);
 const valueOptions = new Set([
-  "root", "trust-policy", "sigstore-trusted-root", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
+  "root", "trust-policy", "sigstore-trusted-root", "sigstore-tuf-state", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
 ]);
 const booleanOptions = new Set(["quiet", "allow-partial-baseline", "help"]);
 const formats = new Set(["json", "markdown", "summary"]);
@@ -65,6 +65,9 @@ function parseArguments(argv) {
 async function scanCommand(options) {
   const root = await fs.realpath(path.resolve(options.root || "."));
   if (!(await fs.stat(root)).isDirectory()) throw new Error("scan root must be a directory");
+  if(options.sigstoreTrustedRoot && options.sigstoreTufState) throw Error("select one Sigstore trust source");
+  const tufPath=options.sigstoreTufState ? await fs.realpath(path.resolve(root,options.sigstoreTufState)) : null;
+  const sigstoreTufState=tufPath ? await readJson(tufPath,"explicit Sigstore TUF state",4_500_000,true) : undefined;
   const rootPath=options.sigstoreTrustedRoot ? await fs.realpath(path.resolve(root,options.sigstoreTrustedRoot)) : null;
   const sigstoreTrustedRoot=rootPath ? await readJson(rootPath,"explicit Sigstore trusted root",200_000,true) : undefined;
   const trustPath=options.trustPolicy ? await fs.realpath(path.resolve(root,options.trustPolicy)) : null;
@@ -86,7 +89,7 @@ async function scanCommand(options) {
   if (profileErrors.length) throw new Error("invalid project profile: " + profileErrors.join("; "));
 
   const excludedArtifacts = new Set(
-    [profilePath, baselinePath, outputPath, trustPath, rootPath].filter(Boolean).map((value) => path.resolve(value))
+    [profilePath, baselinePath, outputPath, trustPath, rootPath, tufPath].filter(Boolean).map((value) => path.resolve(value))
   );
   const collection = await collectRecords(root, excludedArtifacts);
   const rootLabel = profile?.project?.id || path.basename(root);
@@ -94,12 +97,13 @@ async function scanCommand(options) {
   const scopePolicyDigest = digest({
     rootLabel,
     limits: analyzer.analysisLimits,
-    exclusions: "analyzer-v6-sigstore",
+    exclusions: "analyzer-v7-sigstore-tuf",
     seoScope: options.seoScope || profile?.project?.visibility || "unknown"
   });
   const bundle = await contract.createAuditBundleAsync({
     trustPolicy,
     sigstoreTrustedRoot,
+    sigstoreTufState,
     name: rootLabel,
     records: collection.records,
     meta: collection.scope.includedFiles + " text files inspected",
@@ -415,6 +419,7 @@ function helpText() {
     "    [--format json|markdown|summary] [--output file] [--seo-scope scope]",
     "  frontend-agent-audit baseline --from result.json --output baseline.json",
     "    [--allow-partial-baseline --reason text]",
+    "  scan --sigstore-tuf-state PATH: reverify explicitly selected TUF trust state offline",
     "  scan --sigstore-trusted-root PATH: explicitly pin offline Fulcio/CT/Rekor trust material",
     "  scan --trust-policy PATH: explicitly load reviewer-pinned keys/keyless identities; never auto-load project trust",
     "",
