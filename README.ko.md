@@ -154,6 +154,8 @@ Deno v1 무결성 기록·v2 npm pin, 명시적 custom lock과 literal local 연
 
 [빌드·배포 DSSE attestation 검증](docs/attestation-verification.md)은 별도로 선택한 고정 공개키 정책으로 실제 ECDSA 서명을 검사합니다. 서명·소스/보고서 연결·운영 안전성은 분리하며 [서명 예제](examples/signed-evidence/README.md)를 제공합니다.
 
+[오프라인 Sigstore keyless 검증](docs/sigstore-keyless.md)은 명시적으로 고정한 Fulcio/CT/Rekor root와 정확한 OIDC 인증서 신원으로 Node CLI를 확장합니다. 브라우저의 keyless 근거는 미검증으로 유지합니다. [제어된 예제](examples/keyless-evidence/README.md)를 참고하세요.
+
 ### Analyzer CLI 프리뷰
 
 pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [형식 범위·프로토콜 우선순위](docs/lock-protocol-priorities.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.
@@ -256,7 +258,7 @@ baseline이 없으면 finding은 `unbaselined`, 호환되지 않는 baseline 비
 
 ## 검증
 
-커밋 전에 다음 검증 명령을 실행합니다. YAML 파서는 저장소에 포함되어 별도 패키지 설치가 필요하지 않습니다.
+커밋 전에 다음 검증 명령을 실행합니다. YAML 파서는 저장소에 포함되어 있습니다. 전체 테스트는 별도 Sigstore 검증/테스트 도구를 scripts 비활성 상태로 설치합니다.
 
 ```bash
 node scripts/validate-docs.mjs
@@ -273,6 +275,7 @@ node --check analysis/deno-resolution.js
 node --check analysis/deno-lock.js
 node --check analysis/runtime-lifecycle.js
 node --check bin/frontend-agent-audit.mjs
+npm ci --prefix verification/sigstore --ignore-scripts --no-audit --no-fund
 node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs scripts/query-osv.test.mjs scripts/dashboard-provenance.test.mjs
 ```
 

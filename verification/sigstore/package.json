@@ -1,0 +1,18 @@
+{
+  "name": "frontend-playbook-sigstore-verification",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Optional offline Sigstore keyless verifier; no project dependencies are executed",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "dependencies": {
+    "@sigstore/verify": "4.1.3",
+    "@sigstore/bundle": "5.0.1",
+    "@sigstore/protobuf-specs": "0.5.2",
+    "@sigstore/core": "4.0.1"
+  },
+  "devDependencies": {
+    "@sigstore/mock": "0.13.1"
+  }
+}

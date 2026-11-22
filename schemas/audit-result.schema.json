@@ -1692,6 +1692,56 @@
                             },
                             "reason": {
                               "type": "string"
+                            },
+                            "method": {
+                              "const": "sigstore-keyless"
+                            },
+                            "keyless": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "verifier",
+                                "trustedRootDigest",
+                                "certificateChainVerified",
+                                "oidcIssuerVerified",
+                                "certificateIdentityVerified",
+                                "certificateTransparencyVerified",
+                                "rekorInclusionVerified",
+                                "signedTimeVerified",
+                                "signingTimes"
+                              ],
+                              "properties": {
+                                "verifier": {
+                                  "const": "@sigstore/verify@4.1.3"
+                                },
+                                "trustedRootDigest": {
+                                  "type": "string"
+                                },
+                                "certificateChainVerified": {
+                                  "type": "boolean"
+                                },
+                                "oidcIssuerVerified": {
+                                  "type": "boolean"
+                                },
+                                "certificateIdentityVerified": {
+                                  "type": "boolean"
+                                },
+                                "certificateTransparencyVerified": {
+                                  "type": "boolean"
+                                },
+                                "rekorInclusionVerified": {
+                                  "type": "boolean"
+                                },
+                                "signedTimeVerified": {
+                                  "type": "boolean"
+                                },
+                                "signingTimes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
                             }
                           }
                         }

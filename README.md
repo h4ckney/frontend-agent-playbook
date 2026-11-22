@@ -152,11 +152,13 @@ Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment 
 
 [Build/deployment DSSE attestation verification](docs/attestation-verification.md) adds actual ECDSA checks under an explicitly selected, pinned public-key policy. Signature validity, source/report binding and operational safety remain separate. Try the [controlled signed example](examples/signed-evidence/README.md).
 
+[Offline Sigstore keyless verification](docs/sigstore-keyless.md) extends the Node CLI with an explicitly pinned Fulcio/CT/Rekor root and exact OIDC certificate identity. The browser keeps keyless evidence unverified. See the [controlled keyless example](examples/keyless-evidence/README.md).
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
 
-The unreleased `main` branch also provides a CLI requiring no package installation that uses the same analyzer and normalized `AuditResult` contract as the browser:
+The unreleased `main` branch also provides a static CLI requiring no package installation (optional keyless verification needs its isolated tool dependencies) that uses the same analyzer and normalized `AuditResult` contract as the browser:
 
 ```bash
 node bin/frontend-agent-audit.mjs scan \
@@ -254,7 +256,7 @@ Existing patterns do not justify preserving known correctness, security, or acce
 
 ## Validation
 
-Run the validation commands before committing changes (the YAML parser is vendored; no package installation is required):
+Run the validation commands before committing changes. The YAML parser is vendored; the full suite installs isolated Sigstore verification/test tooling with scripts disabled:
 
 ```bash
 node scripts/validate-docs.mjs
@@ -271,12 +273,13 @@ node --check analysis/deno-resolution.js
 node --check analysis/deno-lock.js
 node --check analysis/runtime-lifecycle.js
 node --check bin/frontend-agent-audit.mjs
+npm ci --prefix verification/sigstore --ignore-scripts --no-audit --no-fund
 node --test analysis/*.test.mjs bin/frontend-agent-audit.test.mjs scripts/guidance-approval.test.mjs scripts/query-osv.test.mjs scripts/dashboard-provenance.test.mjs
 ```
 
 The documentation script checks local Markdown links, unresolved TODO markers, required rule and workflow sections, skill frontmatter, skill UI metadata references, and detector-to-rule links. The package sync check prevents installable plugin copies from drifting from their canonical sources. GitHub Actions runs the same documentation, package, analyzer, browser-smoke, CLI, contract, and approval-gate checks for pull requests and pushes to `main`.
 
-The separate `dashboard-browser` CI job installs pinned Playwright tooling outside the checkout and runs real Chromium verification for PR/main after the checks that require no package installation. Source/served/browser hashes and screenshots are retained as a seven-day artifact. This covers the audit dashboard with synthetic inputs, not deployed product routes or physical devices. Local verification can also use caller-provided Playwright and an existing server:
+The separate `dashboard-browser` CI job installs pinned Playwright tooling outside the checkout and runs real Chromium verification for PR/main after the analyzer checks (which install isolated Sigstore verification/test tooling). Source/served/browser hashes and screenshots are retained as a seven-day artifact. This covers the audit dashboard with synthetic inputs, not deployed product routes or physical devices. Local verification can also use caller-provided Playwright and an existing server:
 
 ```bash
 node scripts/verify-dashboard.mjs --url http://127.0.0.1:4381/analysis/ --output docs/evidence/browser --channel chrome

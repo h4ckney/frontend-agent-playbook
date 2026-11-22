@@ -2,6 +2,8 @@
 
 2026-11-22 · 기준 `7bbadda` · 위험 수준 2: 보고서 진위와 검토·보안 기준선의 신뢰 경계를 바꾼다. [이전 자료 연결](execution-evidence.md)은 hash·대상 일치를 확인했다. 이번에는 검토자가 따로 선택한 공개키 정책으로 실제 서명을 검사한다. CVE·런타임 지원 정책의 기존 확인일을 갱신하지 않는다.
 
+후속 [Sigstore keyless 확장](sigstore-keyless.md)은 Node CLI에서 별도 root·OIDC 신원·Fulcio/CT/Rekor를 검증한다. 아래 공개키 profile은 PR #12 기록이며 계속 지원한다.
+
 ## 지원 범위와 판단
 
 [DSSE 1.0.2](https://github.com/dsse-lf/dsse/blob/master/protocol.md)의 PAE를 정확한 payload bytes에 적용하고 플랫폼 WebCrypto의 ECDSA P-256/SHA-256으로 검사한다. PKIX SPKI 공개키 PEM과 `sha256:<SPKI DER hash>`를 고정한다. 서명 인코딩은 정책에서 `der` 또는 `ieee-p1363`를 명시하며 자동으로 알고리즘·인코딩을 낮추지 않는다. 표준·URL-safe Base64를 지원한다. envelope `keyid`는 인증되지 않은 힌트여서 신뢰 근거로 사용하지 않는다.
@@ -47,4 +49,4 @@ CLI scan은 비동기 `createAuditBundleAsync({ records, trustPolicy, ... })`를
 
 구현 리뷰에서 검증 캐시가 키 만료를 넘기거나 늦은 정책 읽기가 새 선택을 덮을 수 있는 경우를 차단했다. 서명만 통과하고 입력·보고서 바인딩이 어긋나는 반례, 결과 객체 위조와 source bytes 변경도 고정했다. 최종 테스트·보안 검토·CI와 머지 상태는 PR의 실제 기록을 따른다. 실패 시 첫 확인은 authentication.attestations의 signature/bindings/reason, 외부 정책의 keyId·roles·유효 기간, signed subject/resolvedDependencies와 현재 파일 hash다. 되돌리기는 해당 PR revert다.
 
-관찰 기준은 변조·타 build·만료 키·자체 신뢰 정책으로 인증 상태가 올라가지 않는 것이다. 실제 조직 자료의 acceptance·운영 위험 감소 측정은 신뢰된 발급자와 관찰 환경이 확보된 뒤 가능하며 담당자·측정 기간은 미정이다. 자동 감시를 예약하지 않았다. 후속은 Sigstore keyless bundle의 Fulcio/OIDC·Rekor·trusted root/timestamp 검증, provider별 buildType/환경 관찰, 공유 SBOM 선택자와 OCI 산출물 종류 검증이다. 현재 인증은 공개키를 고정한 DSSE subset이며 SLSA 등급·라이브 배포·안전한 호출 경로를 확정하지 않는다.
+관찰 기준은 변조·타 build·만료 키·자체 신뢰 정책으로 인증 상태가 올라가지 않는 것이다. 실제 조직 자료의 acceptance·운영 위험 감소 측정은 신뢰된 발급자와 관찰 환경이 확보된 뒤 가능하며 담당자·측정 기간은 미정이다. 자동 감시를 예약하지 않았다. keyless 후속 구현은 위 확장 문서를 따른다. 남은 작업은 TUF·실제 조직 자료 acceptance, provider별 buildType/환경 관찰, 공유 SBOM 선택자와 OCI 산출물 종류 검증이다. 이 문서의 공개키 인증은 DSSE subset이며 SLSA 등급·라이브 배포·안전한 호출 경로를 확정하지 않는다.
