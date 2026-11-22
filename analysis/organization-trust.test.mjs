@@ -730,3 +730,44 @@ test("refresh age is expired at the exact boundary and malformed explicit floors
   p.trustDomains[0].minimumFloor = null;
   await assert.rejects(org.compilePolicy(p), /invalid-trust-floor/);
 });
+
+test("selected local repository read or parse failure blocks the previous successful state", async (t) => {
+  const x = await fixture(t);
+  refresh(x);
+  const p = path.join(x.dir, "policy.json"),
+    repo = path.join(x.dir, "selected.json");
+  fs.writeFileSync(p, JSON.stringify(x.p));
+  const args = [
+    "refresh",
+    "--store",
+    x.root,
+    "--organization",
+    x.p.organizationId,
+    "--policy",
+    p,
+    "--trust-domain",
+    "public",
+    "--repository",
+    repo,
+  ];
+  for (const content of [null, "{invalid"]) {
+    if (content !== null) fs.writeFileSync(repo, content);
+    const r = run(args);
+    assert.equal(r.status, 2);
+    assert.equal(
+      org.status(x.store, x.compiled, x.p.organizationId).domains[0].status,
+      "rejected",
+    );
+    assert.throws(() => snapshot(x));
+    assert.equal(
+      refresh(x, x.f.make({ version: 2 }), false).status,
+      "verified",
+    );
+  }
+  assert.equal(
+    JSON.parse(
+      x.store.db.prepare("SELECT checkpoint FROM domains").get().checkpoint,
+    ).versions.targets,
+    2,
+  );
+});

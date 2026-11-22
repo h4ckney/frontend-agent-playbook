@@ -69,10 +69,7 @@ async function main() {
       throw Error("explicit-bootstrap-initialization-required");
     if (!args["--repository"] && !domain.mirror)
       throw Error("approved-mirror-or-repository-required");
-    // Bound and parse local inputs before acquiring a durable network lease.
-    const local = args["--repository"]
-      ? org.readJSON(args["--repository"], 4000000)
-      : null;
+    // Validate the explicit initialization anchor before creating any state.
     let bootstrap;
     if (args["--bootstrap"]) {
       const fd = fs.openSync(
@@ -107,14 +104,15 @@ async function main() {
         };
     let state;
     try {
-      const repository =
-        local ||
-        (await fetchRepository(
-          domain.mirror,
-          previous,
-          bootstrap,
-          domain.bootstrapRootDigest,
-        ));
+      // A selected repository read/parse failure is a failed refresh, too.
+      const repository = args["--repository"]
+        ? org.readJSON(args["--repository"], 4000000)
+        : await fetchRepository(
+            domain.mirror,
+            previous,
+            bootstrap,
+            domain.bootstrapRootDigest,
+          );
       if (repository.bootstrapRoot !== bootstrap)
         throw Error("bootstrap-changed");
       const verified = tuf.verifyRepository(
