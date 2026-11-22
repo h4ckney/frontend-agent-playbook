@@ -38,3 +38,5 @@ Rekor v2는 top-level logIndex와 서명된 checkpoint의 root/tree size가 권�
 - **First look:** Actions receipt/failureStage → TUF·정확한 workflow identity·OIDC job 권한 → bundle의 TSA/checkpoint 및 AuditResult의 signature/bindings 순서다.
 
 복구는 workflow/probe 변경 PR revert다. 네트워크 장애를 성공으로 바꾸거나 과거 증명으로 대체하지 않는다. 신규 공개 게시의 운영 비용·빈도와 실제 조직 자료 적용은 소유자·기간을 정한 뒤 측정하며, 자동 예약을 만들지 않았다. [최초 실제 신규 발급·게시와 독립 재검증 근거](evidence/live-round-trip-2026-11-22.md)를 보존했다. 최종 PR/main CI 상태는 Actions 기록을 따른다. 현재 통제 범위 밖인 물리 기기·서비스 배포·실제 설치·개별 사용자/산출물 revocation은 수행하지 않는다.
+
+후속 [조직 신뢰 정책·영속 TUF 운영](organization-trust.md)은 별도 운영자 store의 연속 상태를 제공한다. 기존 합성 round-trip workflow는 run별 state를 유지하며 신규 store를 자동 채택하지 않는다.

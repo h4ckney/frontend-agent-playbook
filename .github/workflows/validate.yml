@@ -59,6 +59,9 @@ jobs:
           node --check verification/round-trip/run.mjs
           node --check verification/round-trip/check-public-evidence.mjs
           node --check verification/sigstore-tuf.cjs
+          node --check verification/organization-trust.cjs
+          node --check verification/organization-trust.mjs
+          node --check verification/tuf-source.mjs
           node --check verification/refresh-sigstore-tuf.mjs
           node --check verification/sigstore-keyless.cjs
           node --check analysis/attestations.js

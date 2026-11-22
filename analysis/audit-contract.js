@@ -23,7 +23,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "15";
+  const DETECTOR_CATALOG_VERSION = "16";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -33,7 +33,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-22.5")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-23.1")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -67,8 +67,19 @@
   async function createAuditBundleAsync(input={}) {
     const at=input.now ?? input.generatedAt ?? new Date().toISOString();
     const records=(Array.isArray(input.records)?input.records:[]).filter(record=>!analyzer.isGeneratedRecord(record));
-    const verification=await attestations.prepare(records,input.trustPolicy,at,{sigstoreTrustedRoot:input.sigstoreTrustedRoot,sigstoreTufState:input.sigstoreTufState});
-    return createAuditBundle({...input,now:at,attestationVerification:verification});
+    let organization;
+    const organizationMode=input.organizationVerification!==undefined;
+    const organizations=organizationMode && typeof module!=="undefined" && module.exports ? require("../verification/organization-trust.cjs") : null;
+    if(organizationMode) {
+      if(!organizations || input.trustPolicy!==undefined || input.sigstoreTrustedRoot!==undefined || input.sigstoreTufState!==undefined || !Number.isFinite(Date.parse(at)) || Math.abs(Date.now()-Date.parse(at))>30000) throw Error("organization-trust-selection-invalid");
+      organization=organizations.read(input.organizationVerification);
+    }
+    const verification=await attestations.prepare(records,organization?.trustPolicy ?? input.trustPolicy,at,{sigstoreTrustedRoot:input.sigstoreTrustedRoot,sigstoreTufState:organization?.sigstoreTufState ?? input.sigstoreTufState});
+    // Policy adoption, refresh, recovery or expiry during async verification invalidates this scan.
+    if(organizationMode) organizations.read(input.organizationVerification);
+    const bundle=createAuditBundle({...input,now:at,scopePolicyDigest:(input.scopePolicyDigest || "static-lite-default-v1")+(organization?":organization:"+organization.scopeDigest:""),attestationVerification:verification});
+    if(organization) bundle.audit.trustContext=organization.context;
+    return bundle;
   }
 
   function createAuditBundle(input) {
@@ -1046,6 +1057,7 @@
       korean ? "유한한 오프라인 권고 목록입니다. 일치 없음은 안전 판정이 아니며, 실제 설치·배포·공격 경로는 미확인입니다." : "Finite offline advisory snapshot. No match is not a clean security result; installation, deployment and vulnerable data flow remain unverified.", "",
       "| " + (korean ? "모듈 | 버전 | 버전 근거 | 단계 | 파일·위치 | 단계 판정 근거" : "Module | Version | Version evidence | Phase | File/location | Phase evidence") + " |",
       "| --- | --- | --- | --- | --- | --- |"];
+    if(result.trustContext) {const t=result.trustContext;lines.splice(5,0,"Organization trust: "+[t.organizationId,t.profileId,t.trustDomain,"policy "+t.policyRevision,t.policyDigest,"refresh "+t.lastRefreshAt,"expires "+t.expiresAt].map(cell).join(" / "),"");}
     for (const item of context.inventory) lines.push("| " + [(item.ecosystem === "jsr" ? "JSR: " : "") + item.name, item.version, item.versionKind, item.phase, item.manifest + "#" + item.path, item.phaseEvidence + workspaceLabel(item)].map(cell).join(" | ") + " |");
     for (const graph of context.graphs || []) if (graph.format === "deno") lines.push("- " + cell(graph.lockfile) + ": Deno lock v" + cell(graph.lockVersion || "unknown") + "; local connections " + graph.nodes.filter(node => node.kind === "local").length + "; remote integrity records " + (graph.remoteIntegrityCount || 0) + "; import maps " + (graph.importMaps || []).map(cell).join(", ") + "; local file mappings " + (graph.localMappings?.length || 0) + "; content/security not verified");
     if(context.executionEvidence) {

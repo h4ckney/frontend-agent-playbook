@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1",
+  "organizationId": "example-platform",
+  "revision": 1,
+  "trustDomains": [
+    {
+      "id": "sigstore-public",
+      "bootstrapRootDigest": "sha256:27aea7e372aa7864065174f0661784fcf8b0e28b1dbfebeada31a0f1fb19167f",
+      "mirror": "https://tuf-repo-cdn.sigstore.dev",
+      "maxRefreshAgeSeconds": 86400,
+      "minimumFloor": {
+        "versions": {
+          "root": 16,
+          "timestamp": 841,
+          "snapshot": 166,
+          "targets": 14
+        },
+        "signedDigests": {
+          "root": "sha256:7a3db8be7ada52bfb182c5dc449d211761e8a96daddf00c73877994749684197",
+          "timestamp": "sha256:a1ac441e5df31c958dd9880a3d5f65fe75fe54b4cf2d233da5ca38722c7078a9",
+          "snapshot": "sha256:cf092ac4629d4bd5f7db4b1627f83ceff9a9f0268efaf32e9cf001d5b5f7e904",
+          "targets": "sha256:bfb1be8b08bf4a5ac83ea922f0b432db9723602e51515b466a01ca31cd9cf9a3"
+        },
+        "snapshotMeta": {
+          "registry.npmjs.org.json": 9,
+          "rekor.json": 3,
+          "revocation.json": 2,
+          "root.json": 2,
+          "staging.json": 2,
+          "targets.json": 14
+        },
+        "snapshotFromTimestamp": 166
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": "frontend-main",
+      "trustDomain": "sigstore-public",
+      "repository": "git+https://github.com/example/frontend@refs/heads/main",
+      "trustPolicy": {
+        "schemaVersion": "1",
+        "keyless": [
+          {
+            "roles": [
+              "build"
+            ],
+            "repository": "git+https://github.com/example/frontend@refs/heads/main",
+            "builderId": "https://github.com/example/frontend/.github/workflows/build.yml@refs/heads/main",
+            "buildType": "https://example.com/buildtypes/frontend/v1",
+            "externalParameters": {
+              "frontendEvidence": {
+                "sbom": {
+                  "format": "cyclonedx-json"
+                }
+              }
+            },
+            "oidcIssuer": "https://token.actions.githubusercontent.com",
+            "certificateIdentity": "https://github.com/example/frontend/.github/workflows/build.yml@refs/heads/main",
+            "tufBootstrapRootDigest": "sha256:27aea7e372aa7864065174f0661784fcf8b0e28b1dbfebeada31a0f1fb19167f",
+            "notBefore": "2026-11-22T15:00:00Z",
+            "notAfter": "2026-11-23T15:00:00Z"
+          }
+        ]
+      }
+    }
+  ]
+}
