@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {fixture as executionFixture, records as executionRecords} from "../analysis/fixtures/execution-evidence.mjs";
 // Optional real-browser verification. Playwright is supplied by the caller,
 // installed only by the separate browser CI job, never by the static analyzer.
 import assert from "node:assert/strict";
@@ -618,6 +619,36 @@ try {
   assert.ok(await page.locator("code").filter({hasText:/^security\.dependency-coverage$/}).count()>0);
   assert.equal(await customGraph.getAttribute("data-graph-complete"),"false");
   recordCheck("an unsupported member workspace root declaration retains coverage diagnostics instead of being silently flattened");
+  const executionData=executionFixture({version:"16.5.0"});
+  const evidenceNow=new Date().toISOString();
+  await page.clock.setFixedTime(new Date(evidenceNow));
+  executionData.config.subjects[0].observedAt=evidenceNow;
+  executionData.sbom.metadata.timestamp=evidenceNow;executionData.deployment.observedAt=evidenceNow;
+  async function writeExecutionRecords() {
+    for(const record of executionRecords(executionData)) {const target=path.join(fixture,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}
+  }
+  await writeExecutionRecords();await page.locator("#folderInput").setInputFiles(fixture);
+  const executionSubject=page.locator('[data-evidence-subject="web"]');
+  await page.waitForFunction(()=>document.querySelector('[data-evidence-subject="web"]')?.dataset.evidenceStatus === "linked");
+  assert.match(await executionSubject.textContent(),/산출물·revision 연결됨/);
+  assert.match(await executionSubject.textContent(),/matches-lock/);
+  await page.locator("#securityContext").evaluate(node=>{node.open=true;node.querySelectorAll("details").forEach(item=>item.open=true);});
+  for(const width of [320,390]) {
+    await page.setViewportSize({width,height:1000});await executionSubject.scrollIntoViewIfNeeded();await settleView(page);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth),"execution evidence overflow at "+width);
+    await page.screenshot({path:path.join(values.output,"dashboard-execution-evidence-"+width+".png")});
+  }
+  recordCheck("installation, SBOM and deployment reports show a matched workspace/artifact chain while keeping authenticity and operation unverified at 320/390px");
+  await fs.appendFile(path.join(fixture,"evidence/sbom.cdx")," ");await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(()=>document.querySelector('[data-evidence-subject="web"]')?.textContent.includes("mismatch"));
+  assert.equal(await executionSubject.getAttribute("data-evidence-status"),"partial");assert.doesNotMatch(await executionSubject.textContent(),/산출물·revision 연결됨/);
+  recordCheck("tampered report bytes retain a mismatch and cannot promote the deployment chain");
+  executionData.installation.dependencies.next.version="16.4.0";await writeExecutionRecords();await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(()=>document.querySelector('[data-evidence-subject="web"]')?.textContent.includes("differs-lock"));
+  assert.equal(await executionSubject.getAttribute("data-evidence-status"),"partial");
+  assert.ok(await page.locator("code").filter({hasText:/^security\.rsc-typed-array-rce$/}).count()>0);
+  assert.doesNotMatch(await executionSubject.textContent(),/산출물·revision 연결됨/);
+  recordCheck("a reported vulnerable installation remains visible beside a fixed lock and SBOM without being borrowed from another workspace");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

@@ -148,6 +148,8 @@ Deno lock v3/v4/v5 inventories npm and JSR separately, and an explicit LTS selec
 
 Deno legacy v1 integrity metadata, v2 npm pins, explicitly configured custom locks and literal local links are supported within the [documented path, graph and verification boundaries](docs/deno-legacy-custom-local.md). Local globs, relative file/workspace protocols, nested member paths and selected external import maps follow the [resolution coverage and evidence](docs/deno-local-resolution.md).
 
+Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment observations can be bound to workspace/lock hashes and artifact identities. See [execution evidence, capture steps and limits](docs/execution-evidence.md); a matching chain does not independently verify report authenticity or operation.
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
@@ -261,6 +263,7 @@ node --check analysis/analyzer.js
 node --check analysis/audit-contract.js
 node --check analysis/triage-state.js
 node --check analysis/security-context.js
+node --check analysis/execution-evidence.js
 node --check analysis/deno-resolution.js
 node --check analysis/deno-lock.js
 node --check analysis/runtime-lifecycle.js

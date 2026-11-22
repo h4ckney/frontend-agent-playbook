@@ -416,3 +416,21 @@ test('CLI workspace protocol binds declared members and refuses a symlink extern
  assert.ok(audit.securityContext.coverage.gaps.some(item=>item.reason === 'deno-import-map-unavailable-or-invalid'));
  assert.doesNotMatch(blocked.stdout,/never-disclose/);
 });
+
+test('CLI admits only explicitly referenced report extensions and exports evidence/advisory children',async t=>{
+ const {fixture:make,records:makeRecords}=await import('../analysis/fixtures/execution-evidence.mjs');
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-reported-evidence-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ for(const record of makeRecords(make())) {const target=path.join(root,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}
+ await fs.writeFile(path.join(root,'evidence/unreferenced.tree'),'PRIVATE_EVIDENCE=must-not-appear');
+ const output=run(['scan','--root','.','--format','json'],root);assert.equal(output.status,0,output.stderr);const result=JSON.parse(output.stdout);
+ assert.equal(result.securityContext.executionEvidence.subjects[0].artifacts.length,3);assert.ok(result.securityContext.inventory.some(x=>x.provenance==='installation-report'));assert.doesNotMatch(output.stdout,/PRIVATE_EVIDENCE|must-not-appear/);
+ assert.equal(result.findings.filter(x=>x.id==='security.rsc-typed-array-rce').length,3);
+});
+test('CLI refuses symlink evidence reports without exposing their contents',async t=>{
+ const {fixture:make,records:makeRecords}=await import('../analysis/fixtures/execution-evidence.mjs');
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-report-symlink-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ const f=make();for(const record of makeRecords(f)) {const target=path.join(root,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}
+ const target=path.join(root,f.config.subjects[0].installation.path);await fs.unlink(target);await fs.symlink('/etc/hosts',target);
+ const output=run(['scan','--root','.','--format','json'],root);assert.equal(output.status,0,output.stderr);const result=JSON.parse(output.stdout);assert.ok(result.scope.partial);assert.equal(result.scope.excludedByReason.symlink,1);assert.ok(result.securityContext.coverage.gaps.some(x=>x.reason==='evidence-report-unavailable'));
+ assert.ok(!result.securityContext.inventory.some(x=>x.provenance==='installation-report'));
+});

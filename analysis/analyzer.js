@@ -273,7 +273,8 @@ function selectFilesWithinBudget(files) {
 
 function extendSelectionForDenoLocks(files, records, selection) {
   const deno = typeof module !== "undefined" && module.exports ? require("./deno-lock.js") : globalThis.FrontendDenoLock;
-  const paths = new Set(deno.discoverInputs(records));
+  const execution = typeof module !== "undefined" && module.exports ? require("./execution-evidence.js") : globalThis.FrontendExecutionEvidence;
+  const paths = new Set([...deno.discoverInputs(records), ...execution.discoverInputs(records)]);
   const accepted = [...selection.accepted], additional = [], excludedByReason = {...selection.excludedByReason};
   let acceptedBytes = selection.acceptedBytes;
   for (const file of files) {

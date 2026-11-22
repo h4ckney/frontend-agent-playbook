@@ -1,10 +1,10 @@
 # 보안 버전과 실행 단계 점검
 
-이 분석기는 선택한 파일을 로컬에서 읽고 **설정·lockfile의 버전 근거**를 정리합니다. 실제 설치, 배포, 서비스 노출, 취약한 API 도달 가능성을 확인한 결과와 구분합니다. 프로젝트 코드를 실행하거나 의존성을 설치하지 않습니다.
+이 분석기는 선택한 파일을 로컬에서 읽고 **설정·lockfile의 버전 근거**를 정리합니다. [설치·SBOM·배포 보고서 연결](execution-evidence.md)은 선택한 자료와 대상의 해시·식별자를 대조합니다. 실제 설치, 배포, 서비스 노출, 취약한 API 도달 가능성을 독립적으로 확인한 결과와 구분합니다. 프로젝트 코드를 실행하거나 의존성을 설치하지 않습니다.
 
 ## 어떤 결과를 얻는가
 
-`analysis/security-context.js`의 `inspectSecurityContext(records, { now })`는 `snapshot`, `inventory`, `findings`, `coverage`와 선택적인 `lifecycle`, 해당 형식에서 선택적인 `graphs`를 반환합니다. `records`는 `{ path, content }` 배열입니다. Node CommonJS와 브라우저의 `FrontendSecurityContext`를 모두 지원합니다.
+`analysis/security-context.js`의 `inspectSecurityContext(records, { now })`는 `snapshot`, `inventory`, `findings`, `coverage`와 선택적인 `lifecycle`, `executionEvidence`, 해당 형식에서 선택적인 `graphs`를 반환합니다. `records`는 `{ path, content }` 배열입니다. Node CommonJS와 브라우저의 `FrontendSecurityContext`를 모두 지원합니다.
 
 | 항목 | 의미 |
 | --- | --- |
@@ -14,6 +14,7 @@
 | `phase`, `phaseEvidence` | `runtime`, `build`, `development`, `unknown`과 분류 이유 |
 | `direct` | lock 근거가 있는 workspace 중 직접 연결이 있는지. workspace별 근거는 workspaceUsage. 배포·실행 증거 아님 |
 | `graphs` / `workspaceUsage` | 명시된 lock 연결·root와 workspace별 사용 역할. 전체 JSON에 보존, UI는 일부 요약 |
+| `executionEvidence` | 선택한 설치·SBOM·배포 보고 자료의 대상·해시·좌표 대조. 진위·운영 상태 미검증 |
 | `coverage` | 해석하지 못한 파일·버전과 점검 한계. `complete`는 항상 `false` |
 
 동일 권고는 하나의 상위 이슈로 만들고 패키지·모듈·버전 근거는 하위 발생으로 남깁니다. 예를 들어 같은 typed array 문제의 React 상위 권고와 Next.js 하위 권고는 하나의 권고 묶음으로 취급합니다. 원인이 다른 CVE는 별도 이슈입니다. 검토 후 닫기는 버전 수정이나 보안 해결을 증명하지 않습니다.
@@ -22,6 +23,7 @@
 
 | 입력 | 현재 해석 | 확인하지 못하는 부분 |
 | --- | --- | --- |
+| `.frontend-evidence.json`과 명시한 보고서 | npm tree·Composer 2 installed, CycloneDX 1.4–1.7·SPDX 2.2/2.3, 배포 관찰 v1 | [지원 필드·연결 조건](execution-evidence.md). 서명·실제 운영·도달성 미검증 |
 | `package.json` | dependencies, optional/dev/peer 구분, Node engines | 선언 범위만으로 설치 버전 확정 불가 |
 | npm lock v1/v2/v3, shrinkwrap | 정확한 버전, 중첩·scope 패키지, dev flag | v2/v3의 명시적 link/가까운 node_modules graph 지원. 실제 설치·배포·번들 포함은 미확인 |
 | Yarn Classic v1 | 일반 version stanza의 정확한 버전·grouped/scoped 이름 | 전체 graph·workspace 연결·실행 단계는 미확인 |
@@ -36,7 +38,7 @@
 
 빌드·개발 도구도 CI 비밀정보, 소스와 배포 산출물에 접근할 수 있습니다. `devDependencies`라는 이유로 위험을 자동 제외하거나 낮추지 않습니다. 브라우저에 포함되는 코드, 서버의 요청 처리, 빌드 worker, 개발 서버의 노출을 각각 확인해야 합니다.
 
-Composer `config.platform.php`는 의존성 해석을 위한 **가상 플랫폼 값**이며, 실행 중 PHP 버전의 증거로 사용하지 않습니다. Node engines도 허용 범위입니다. 패키지 선언의 정확한 버전조차 lock 근거 없이 설치 버전으로 취급하지 않습니다. 권고 매칭은 정확한 lock 버전 또는 런타임·이미지 pin에 한정합니다.
+Composer `config.platform.php`는 의존성 해석을 위한 **가상 플랫폼 값**이며, 실행 중 PHP 버전의 증거로 사용하지 않습니다. Node engines도 허용 범위입니다. 패키지 선언의 정확한 버전조차 lock 근거 없이 설치 버전으로 취급하지 않습니다. 권고 매칭은 정확한 lock 버전·런타임/이미지 pin과 구분된 보고서의 정확한 버전에 적용합니다. 보고된 버전은 설치·운영 진위가 미검증인 출처로 유지합니다.
 
 PHP 소스가 있지만 비교할 실행 버전 설정이 없으면 버전 정보 부족을 한 번 표시합니다. PHP 파일의 존재만으로 특정 CVE에 취약하다고 판정하지 않습니다. 문서만 있는 폴더에는 이 경고를 만들지 않습니다.
 

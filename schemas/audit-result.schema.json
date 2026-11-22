@@ -1389,6 +1389,222 @@
               }
             }
           }
+        },
+        "executionEvidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "subjects"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "1"
+            },
+            "subjects": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "manifest",
+                  "revision",
+                  "observedAt",
+                  "freshness",
+                  "status",
+                  "manifestMatched",
+                  "lockfileMatched",
+                  "artifacts",
+                  "components",
+                  "deployment"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "manifest": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "string"
+                  },
+                  "observedAt": {
+                    "type": "string"
+                  },
+                  "freshness": {
+                    "type": "string",
+                    "enum": [
+                      "within-30-days",
+                      "stale",
+                      "unverified-clock"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "linked",
+                      "partial",
+                      "rejected"
+                    ]
+                  },
+                  "manifestMatched": {
+                    "type": "boolean"
+                  },
+                  "lockfileMatched": {
+                    "type": "boolean"
+                  },
+                  "artifacts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "path",
+                        "format",
+                        "integrity",
+                        "componentCount"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "installation",
+                            "sbom",
+                            "deployment"
+                          ]
+                        },
+                        "path": {
+                          "type": "string"
+                        },
+                        "format": {
+                          "type": "string"
+                        },
+                        "integrity": {
+                          "type": "string",
+                          "enum": [
+                            "matched",
+                            "mismatch",
+                            "unavailable"
+                          ]
+                        },
+                        "componentCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  },
+                  "components": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "ecosystem",
+                        "name",
+                        "version",
+                        "sources",
+                        "lockVersions",
+                        "comparison",
+                        "deploymentLinked"
+                      ],
+                      "properties": {
+                        "ecosystem": {
+                          "type": "string",
+                          "enum": [
+                            "npm",
+                            "composer"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "installation",
+                              "sbom"
+                            ]
+                          }
+                        },
+                        "lockVersions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "comparison": {
+                          "type": "string",
+                          "enum": [
+                            "matches-lock",
+                            "differs-lock",
+                            "not-in-lock"
+                          ]
+                        },
+                        "deploymentLinked": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  },
+                  "deployment": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": false,
+                    "required": [
+                      "status",
+                      "linked",
+                      "environment",
+                      "artifactDigest",
+                      "observedAt"
+                    ],
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "reported",
+                          "rejected"
+                        ]
+                      },
+                      "linked": {
+                        "type": "boolean"
+                      },
+                      "environment": {
+                        "type": "string",
+                        "enum": [
+                          "production",
+                          "staging",
+                          "preview",
+                          "unknown"
+                        ]
+                      },
+                      "artifactDigest": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "observedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

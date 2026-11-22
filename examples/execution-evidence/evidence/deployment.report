@@ -1,0 +1,1 @@
+{"schemaVersion":"1","kind":"deployment","status":"succeeded","environment":"production","manifest":"apps/web/package.json","revision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","artifactDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","observedAt":"2026-11-22T03:00:00.000Z","runtimes":[{"name":"node","version":"24.22.0"}]}
