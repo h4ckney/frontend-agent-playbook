@@ -1,6 +1,6 @@
 # 후속 작업 우선순위와 이번 실행
 
-2026-11-22에는 [TUF root 갱신·폐기와 실제 공개 Sigstore 읽기 검증](tuf-trust-lifecycle.md)을 확장했다. 다음 우선순위는 조직별 bootstrap/state 운영·신규 OIDC 발급 round-trip acceptance, provider별 buildType/배포 관찰이다. [기존 keyless 범위](sigstore-keyless.md)와 현재 지원 profile을 구분한다. 기존 [공개키 DSSE 검증](attestation-verification.md)도 유지한다.
+2026-11-22에는 [TUF root 갱신·폐기와 실제 공개 Sigstore 읽기 검증](tuf-trust-lifecycle.md)을 확장했다. [신규 OIDC/Fulcio/Rekor 실제 round-trip](keyless-live-round-trip.md)까지 확장했고, 다음 우선순위는 조직별 bootstrap/state 운영·정책 수용, provider별 buildType/배포 관찰이다. [기존 keyless 범위](sigstore-keyless.md)와 현재 지원 profile을 구분한다. 기존 [공개키 DSSE 검증](attestation-verification.md)도 유지한다.
 
 2026-11-22에는 [설치·SBOM·배포 보고 근거 연결](execution-evidence.md)을 추가했다. PR #11 당시 후속이던 서명/attestation은 위 확장 문서를 따른다. 실제 운영 acceptance, 공유 SBOM 선택자·산출물 종류와 JSR 권고 갱신은 남아 있다.
 

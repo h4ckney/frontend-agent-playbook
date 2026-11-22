@@ -1,0 +1,1 @@
+{"bomFormat":"CycloneDX","specVersion":"1.6","metadata":{"timestamp":"2026-11-22T14:36:59.181Z","component":{"type":"application","name":"synthetic-keyless-probe","hashes":[{"alg":"SHA-256","content":"d7e2dd254c3337b1b2611138a375f55921ebff26b749eb1046874496aee1f9bf"}]}},"components":[{"type":"library","name":"next","version":"16.5.0","purl":"pkg:npm/next@16.5.0"}]}

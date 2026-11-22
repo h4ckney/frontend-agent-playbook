@@ -2,6 +2,8 @@
 
 2026-11-22 · 기준 `bf6356a` · Risk: Level 2 — 신뢰 루트 변경이 보고서 인증을 바꾼다. [기존 keyless 검증](sigstore-keyless.md)은 고정한 TrustedRoot만 사용했다. 이번 확장은 검토자가 고정한 **TUF bootstrap root의 원본 bytes hash**에서 최신 서명 메타데이터와 `trusted_root.json`을 검증한다. 프로젝트 코드 실행·배포, CVE snapshot/수명 정책의 확인일 갱신은 포함하지 않는다.
 
+후속 [신규 OIDC·Fulcio·Rekor 실제 round-trip](keyless-live-round-trip.md)은 이 저장소 CI의 새 발급·게시를 검증한다. 아래 공개 자료 읽기 검증은 PR #14 당시 범위로 보존한다.
+
 ## 판단과 경계
 
 수동으로 TrustedRoot hash를 교체하는 기존 방식도 지원한다. 갱신·폐기 이력을 적용하려면 TUF 경로를 명시한다. 직접 TUF 서명 알고리즘을 구현하는 대신 [tuf-js 6.0.3](https://github.com/theupdateframework/tuf-js/commit/043f5e08fb601713c47f74071d97b32741f448cd)의 `TrustedMetadataStore`를 사용한다. 이 클래스는 package 최상위 공개 API가 아니므로 exact version·lockfile·호환 회귀 검사로 통제한다. 고수준 Updater가 네트워크·캐시를 관리하게 두는 대안보다 오프라인 scan과 검토자 소유 state를 분리하기 쉽다는 판단이다. upstream API 변경 시 재검토가 필요하다.
