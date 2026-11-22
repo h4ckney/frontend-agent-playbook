@@ -1600,6 +1600,103 @@
                         ]
                       }
                     }
+                  },
+                  "authentication": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "status",
+                      "policyDigest",
+                      "checkedAt",
+                      "verifiedReports",
+                      "attestations"
+                    ],
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "verified",
+                          "partial",
+                          "unverified",
+                          "rejected"
+                        ]
+                      },
+                      "policyDigest": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "checkedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "verifiedReports": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "installation",
+                            "sbom",
+                            "deployment"
+                          ]
+                        }
+                      },
+                      "attestations": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "path",
+                            "status",
+                            "signatureVerified",
+                            "bindingsVerified",
+                            "keyId",
+                            "reason"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "build",
+                                "deployment",
+                                "unknown"
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "verified",
+                                "rejected",
+                                "unverified"
+                              ]
+                            },
+                            "signatureVerified": {
+                              "type": "boolean"
+                            },
+                            "bindingsVerified": {
+                              "type": "boolean"
+                            },
+                            "keyId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }

@@ -1,6 +1,6 @@
 # 보안 버전과 실행 단계 점검
 
-이 분석기는 선택한 파일을 로컬에서 읽고 **설정·lockfile의 버전 근거**를 정리합니다. [설치·SBOM·배포 보고서 연결](execution-evidence.md)은 선택한 자료와 대상의 해시·식별자를 대조합니다. 실제 설치, 배포, 서비스 노출, 취약한 API 도달 가능성을 독립적으로 확인한 결과와 구분합니다. 프로젝트 코드를 실행하거나 의존성을 설치하지 않습니다.
+이 분석기는 선택한 파일을 로컬에서 읽고 **설정·lockfile의 버전 근거**를 정리합니다. [설치·SBOM·배포 보고서 연결](execution-evidence.md)은 선택한 자료와 대상의 해시·식별자를 대조합니다. 실제 설치, 배포, 서비스 노출, 취약한 API 도달 가능성을 독립적으로 확인한 결과와 구분합니다. [서명 검증](attestation-verification.md)은 별도 공개키 정책으로 인증 상태를 추가합니다. 프로젝트 코드를 실행하거나 의존성을 설치하지 않습니다.
 
 ## 어떤 결과를 얻는가
 
@@ -23,7 +23,7 @@
 
 | 입력 | 현재 해석 | 확인하지 못하는 부분 |
 | --- | --- | --- |
-| `.frontend-evidence.json`과 명시한 보고서 | npm tree·Composer 2 installed, CycloneDX 1.4–1.7·SPDX 2.2/2.3, 배포 관찰 v1 | [지원 필드·연결 조건](execution-evidence.md). 서명·실제 운영·도달성 미검증 |
+| `.frontend-evidence.json`과 명시한 보고서 | npm tree·Composer 2 installed, CycloneDX 1.4–1.7·SPDX 2.2/2.3, 배포 관찰 v1 | [지원 필드·연결 조건](execution-evidence.md). [고정 공개키 DSSE 서명 검증](attestation-verification.md) 별도 지원. 실제 운영·도달성 미검증 |
 | `package.json` | dependencies, optional/dev/peer 구분, Node engines | 선언 범위만으로 설치 버전 확정 불가 |
 | npm lock v1/v2/v3, shrinkwrap | 정확한 버전, 중첩·scope 패키지, dev flag | v2/v3의 명시적 link/가까운 node_modules graph 지원. 실제 설치·배포·번들 포함은 미확인 |
 | Yarn Classic v1 | 일반 version stanza의 정확한 버전·grouped/scoped 이름 | 전체 graph·workspace 연결·실행 단계는 미확인 |

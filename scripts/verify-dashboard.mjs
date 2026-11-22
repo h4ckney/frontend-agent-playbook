@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {signedFixture, signedRecords, envelope as signedEnvelope} from "../analysis/fixtures/signed-evidence.mjs";
 import {fixture as executionFixture, records as executionRecords} from "../analysis/fixtures/execution-evidence.mjs";
 // Optional real-browser verification. Playwright is supplied by the caller,
 // installed only by the separate browser CI job, never by the static analyzer.
@@ -649,6 +650,30 @@ try {
   assert.ok(await page.locator("code").filter({hasText:/^security\.rsc-typed-array-rce$/}).count()>0);
   assert.doesNotMatch(await executionSubject.textContent(),/산출물·revision 연결됨/);
   recordCheck("a reported vulnerable installation remains visible beside a fixed lock and SBOM without being borrowed from another workspace");
+  const signedData=signedFixture();
+  await page.clock.setFixedTime(new Date(signedData.f.config.subjects[0].observedAt));
+  async function writeSignedRecords(options) {for(const record of signedRecords(signedData,options)) {const target=path.join(fixture,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}}
+  await writeSignedRecords();
+  const publicPolicyPath=path.join(fixture,"test-public-policy.json");await fs.writeFile(publicPolicyPath,JSON.stringify(signedData.policy));
+  await page.locator("#folderInput").setInputFiles(fixture);
+  const authStatus=page.locator('[data-evidence-subject="web"] [data-authentication-status]');
+  await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "unverified");
+  recordCheck("a project-provided public policy and valid DSSE files are not automatically trusted");
+  await page.locator("#trustPolicyInput").setInputFiles(publicPolicyPath);
+  await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "verified");
+  assert.match(await authStatus.textContent(),/고정 공개키로 보고서 인증됨/);
+  await page.locator("#securityContext").evaluate(node=>{node.open=true;node.querySelectorAll("details").forEach(item=>item.open=true);});
+  for(const width of [320,390]) {await page.setViewportSize({width,height:1000});await authStatus.scrollIntoViewIfNeeded();await settleView(page);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),"attestation overflow at "+width);await page.screenshot({path:path.join(values.output,"dashboard-attestation-"+width+".png")});}
+  recordCheck("browser WebCrypto verifies real DER ECDSA build and deployment signatures with explicit policy and bound reports at 320/390px");
+  const tampered=signedEnvelope(signedData.build,signedData.privateKey),changed=JSON.parse(Buffer.from(tampered.payload,"base64").toString("utf8"));changed.predicate.runDetails.builder.id="https://other.invalid/builder";tampered.payload=Buffer.from(JSON.stringify(changed)).toString("base64");
+  await writeSignedRecords({envelopes:{build:tampered}});await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "rejected");
+  assert.match(await page.locator('[data-evidence-subject="web"]').textContent(),/invalid-or-untrusted-signature/);
+  assert.equal(await page.locator("code").filter({hasText:/^security\.attestation-integrity$/}).count(),1);
+  recordCheck("tampering with signed payload bytes is rejected under the selected policy and shown as one actionable integrity parent");
+  await page.locator("#clearTrustPolicy").click();await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "unverified");
+  assert.equal(await page.locator("code").filter({hasText:/^security\.attestation-integrity$/}).count(),0);
+  recordCheck("clearing the tab-only trust policy immediately removes authentication and retains unverified report evidence");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

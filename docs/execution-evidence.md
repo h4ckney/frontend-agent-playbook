@@ -2,6 +2,8 @@
 
 2026-11-22 · 기준 `eb0c4fd` · 위험 수준 2: 파일 선택, 의존성 버전과 보안 기준선의 의미를 확장한다. [선언 연결 분석](deno-local-resolution.md)에 이어 선택한 보고서를 연결한다. CVE 스냅샷(2026-10-30)과 지원 정책(2026-11-02)을 이번 날짜로 갱신하지 않는다.
 
+2026-11-22 후속 [고정 공개키 기반 DSSE attestation 검증](attestation-verification.md)을 추가했다. 아래 지원·검증 수치는 PR #11 당시 기록이다.
+
 ## 결정과 구조
 
 lockfile은 의도한 설치 연결이고 설치 목록·SBOM·배포 관찰은 각각 별도 시점의 보고다. 어느 workspace·revision·산출물의 자료인지 묶지 않으면 다른 빌드의 안전한 버전으로 현재 위험을 가릴 수 있다. 이번 구현은 **선택한 자료의 해시와 선언한 대상의 일치**를 대조한다. 파일끼리 맞는 것과 보고서 작성자의 진위, 실제 바이너리 실행·운영 상태는 별개다.
@@ -42,7 +44,7 @@ manifest hash가 다르거나 없으면 해당 대상은 거절한다. lock hash
 
 보고된 정확한 패키지·런타임 버전은 기존 유한 권고와 비교하되 `reported-exact`·`runtime-observation`으로 분리한다. 안전한 SBOM/lock이 있어도 취약 설치 보고서를 지우지 않는다. phase는 npm 설치 dev 표시와 명시적인 runtime 관찰 외에는 unknown이며, SBOM에 있다는 이유로 서버 runtime으로 바꾸지 않는다. 명시적 OSV 조회 도구는 현재 `locked-exact`만 보내므로 보고된 버전은 전송하지 않는다.
 
-`execution-evidence-authenticity-unverified`를 항상 남긴다. 이 근거를 포함한 결과가 전체 보안 검증 완료를 뜻하지 않는다. 보고서 기반 권고와 수명 경고는 보고서/config가 삭제되거나 수정 버전만 남아도 이전 baseline에서 **자동 resolved가 되지 않고 unverified**로 남긴다. 보고서의 부재·해시 일치·스캐너 무경고가 운영 취약점 해결 증거는 아니다. 기존 검토 후 닫기·재열기와 별도로 운영 수정 확인이 필요하다.
+PR #11에서는 `execution-evidence-authenticity-unverified`를 항상 남겼다. 후속 서명 검증의 구체적인 인증 조건은 [attestation 범위](attestation-verification.md)를 따른다. 이 근거를 포함한 결과가 전체 보안 검증 완료를 뜻하지 않는다. 보고서 기반 권고와 수명 경고는 보고서/config가 삭제되거나 수정 버전만 남아도 이전 baseline에서 **자동 resolved가 되지 않고 unverified**로 남긴다. 보고서의 부재·해시 일치·스캐너 무경고가 운영 취약점 해결 증거는 아니다. 기존 검토 후 닫기·재열기와 별도로 운영 수정 확인이 필요하다.
 
 ## 검증과 후속
 

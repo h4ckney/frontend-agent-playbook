@@ -13,7 +13,7 @@ const contract = require(path.join(repoRoot, "analysis", "audit-contract.js"));
 
 const commands = new Set(["scan", "baseline"]);
 const valueOptions = new Set([
-  "root", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
+  "root", "trust-policy", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
 ]);
 const booleanOptions = new Set(["quiet", "allow-partial-baseline", "help"]);
 const formats = new Set(["json", "markdown", "summary"]);
@@ -65,6 +65,8 @@ function parseArguments(argv) {
 async function scanCommand(options) {
   const root = await fs.realpath(path.resolve(options.root || "."));
   if (!(await fs.stat(root)).isDirectory()) throw new Error("scan root must be a directory");
+  const trustPath=options.trustPolicy ? await fs.realpath(path.resolve(root,options.trustPolicy)) : null;
+  const trustPolicy=trustPath ? await readJson(trustPath,"explicit trust policy",100_000,true) : undefined;
   const profilePath = options.profile ? await resolveInsideRoot(root, options.profile, true) : null;
   const baselinePath = options.baseline ? await resolveInsideRoot(root, options.baseline, true) : null;
   const outputPath = options.output ? await resolveInsideRoot(root, options.output, false) : null;
@@ -82,7 +84,7 @@ async function scanCommand(options) {
   if (profileErrors.length) throw new Error("invalid project profile: " + profileErrors.join("; "));
 
   const excludedArtifacts = new Set(
-    [profilePath, baselinePath, outputPath].filter(Boolean).map((value) => path.resolve(value))
+    [profilePath, baselinePath, outputPath, trustPath].filter(Boolean).map((value) => path.resolve(value))
   );
   const collection = await collectRecords(root, excludedArtifacts);
   const rootLabel = profile?.project?.id || path.basename(root);
@@ -90,10 +92,11 @@ async function scanCommand(options) {
   const scopePolicyDigest = digest({
     rootLabel,
     limits: analyzer.analysisLimits,
-    exclusions: "analyzer-v4-execution-evidence",
+    exclusions: "analyzer-v5-attestation",
     seoScope: options.seoScope || profile?.project?.visibility || "unknown"
   });
-  const bundle = contract.createAuditBundle({
+  const bundle = await contract.createAuditBundleAsync({
+    trustPolicy,
     name: rootLabel,
     records: collection.records,
     meta: collection.scope.includedFiles + " text files inspected",
@@ -281,12 +284,13 @@ async function resolveInsideRoot(root, input, mustExist) {
   return resolved;
 }
 
-async function readJson(filePath, label, maxBytes) {
+async function readJson(filePath, label, maxBytes, strict = false) {
   let content;
   try {
     const stat = await fs.stat(filePath);
     if (!stat.isFile() || stat.size > maxBytes) throw new Error("size");
     content = await fs.readFile(filePath, "utf8");
+    if(strict) require(path.join(repoRoot,"analysis","lockfile-graph.js")).parseJSONC(content);
     return JSON.parse(content);
   } catch {
     throw new Error("could not read valid " + label + " JSON");
@@ -408,6 +412,7 @@ function helpText() {
     "    [--format json|markdown|summary] [--output file] [--seo-scope scope]",
     "  frontend-agent-audit baseline --from result.json --output baseline.json",
     "    [--allow-partial-baseline --reason text]",
+    "  scan --trust-policy PATH: explicitly load reviewer-pinned public keys; never auto-load project trust",
     "",
     "Exit codes: 0 success, 1 configured new/worsened finding, 2 usage/error, 3 incomplete required scan.",
     ""
