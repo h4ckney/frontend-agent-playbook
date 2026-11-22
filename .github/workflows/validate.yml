@@ -34,6 +34,9 @@ jobs:
       - name: Record validation runtime
         run: node --version
 
+      - name: Install pinned offline Sigstore verifier and test tooling
+        run: npm ci --prefix verification/sigstore --ignore-scripts --no-audit --no-fund
+
       - name: Validate browser artifact schemas
         run: node scripts/sync-artifact-schemas.mjs --check
 
@@ -52,6 +55,7 @@ jobs:
           node --check analysis/lockfile-graph.js
           node --check analysis/vendor/js-yaml-5.5.0.js
           node --check analysis/deno-resolution.js
+          node --check verification/sigstore-keyless.cjs
           node --check analysis/attestations.js
           node --check analysis/execution-evidence.js
           node --check analysis/deno-lock.js

@@ -63,7 +63,7 @@ export async function verifyDashboardPreview(input, sourceRoot, previous) {
 
 export async function hashVerificationSources(sourceRoot) {
   const hashes = {};
-  for (const file of ["scripts/verify-dashboard.mjs", "scripts/dashboard-provenance.mjs", "scripts/verify-dashboard-ci.mjs", "analysis/fixtures/execution-evidence.mjs", "analysis/fixtures/signed-evidence.mjs"]) {
+  for (const file of ["scripts/verify-dashboard.mjs", "scripts/dashboard-provenance.mjs", "scripts/verify-dashboard-ci.mjs", "analysis/fixtures/execution-evidence.mjs", "analysis/fixtures/signed-evidence.mjs", "examples/keyless-evidence/.frontend-evidence.json", "examples/keyless-evidence/public-policy.json", "examples/keyless-evidence/trusted-root.json", "examples/keyless-evidence/evidence/build.sigstore", "examples/keyless-evidence/evidence/deployment.sigstore", "examples/keyless-evidence/evidence/install.tree", "examples/keyless-evidence/evidence/sbom.cdx", "examples/keyless-evidence/evidence/deployment.report", "examples/keyless-evidence/apps/web/package.json", "examples/keyless-evidence/apps/web/package-lock.json"]) {
     hashes[file] = sha256(await fs.readFile(path.join(sourceRoot, file)));
   }
   return hashes;

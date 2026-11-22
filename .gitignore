@@ -1,3 +1,5 @@
 .DS_Store
 
 .frontend-audit/
+
+verification/sigstore/node_modules/

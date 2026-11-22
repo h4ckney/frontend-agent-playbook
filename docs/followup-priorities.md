@@ -1,6 +1,6 @@
 # 후속 작업 우선순위와 이번 실행
 
-2026-11-22에는 [빌드·배포 DSSE 서명 검증](attestation-verification.md)을 확장했다. 다음 우선순위는 keyless Sigstore·발급자/로그·trusted root 검증과 실제 조직 자료 acceptance다.
+2026-11-22에는 [Sigstore keyless·Fulcio/OIDC/Rekor 오프라인 검증](sigstore-keyless.md)을 확장했다. 다음 우선순위는 독립 TUF root 갱신·폐기 정책과 실제 조직 bundle acceptance, provider별 buildType/배포 관찰이다. 기존 [공개키 DSSE 검증](attestation-verification.md)도 유지한다.
 
 2026-11-22에는 [설치·SBOM·배포 보고 근거 연결](execution-evidence.md)을 추가했다. PR #11 당시 후속이던 서명/attestation은 위 확장 문서를 따른다. 실제 운영 acceptance, 공유 SBOM 선택자·산출물 종류와 JSR 권고 갱신은 남아 있다.
 
@@ -32,7 +32,7 @@
 
 ## 브라우저 CI의 범위와 실행
 
-기본 Node 22/24/26 검사 후 별도 `dashboard-browser` job이 Node 24에서 Playwright 1.64.1과 그 Chromium을 설치한다. 도구는 runner 임시 폴더에만 설치하며 프로젝트 의존성을 설치하거나 소스를 외부로 보내지 않는다. 기본 검사·로컬 CLI에는 패키지 설치가 필요하지 않다. 이후 modern lock 확장에서는 검토한 YAML parser를 고정해 저장소에 포함하며 출처·라이선스·hash를 기록한다.
+기본 Node 22/24/26 검사 후 별도 `dashboard-browser` job이 Node 24에서 Playwright 1.64.1과 그 Chromium을 설치한다. 도구는 runner 임시 폴더에만 설치하며 프로젝트 의존성을 설치하거나 소스를 외부로 보내지 않는다. 당시 기본 검사·로컬 CLI에는 패키지 설치가 필요하지 않았다. keyless 확장 후 기본 정적 CLI는 그대로 설치 없이 실행하고, keyless 검증·회귀 CI는 별도 `verification/sigstore` 도구를 설치한다. 이후 modern lock 확장에서는 검토한 YAML parser를 고정해 저장소에 포함하며 출처·라이선스·hash를 기록한다.
 
 [CI 실행기](../scripts/verify-dashboard-ci.mjs)는 이 체크아웃의 analysis 파일만 제공하는 loopback 임시 포트를 열고 [기존 브라우저 검사](../scripts/verify-dashboard.mjs)를 실행한다. 자식 검사 실패·신호 종료는 실패로 전파하고 서버를 닫는다. 브라우저 실행에는 4분, job에는 10분 한도를 둔다. 설치나 검사가 실패하면 성공으로 건너뛰지 않는다.
 

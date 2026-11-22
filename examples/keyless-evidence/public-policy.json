@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1",
+  "keyless": [
+    {
+      "roles": [
+        "build",
+        "deployment"
+      ],
+      "repository": "git+https://github.com/example/web@refs/heads/main",
+      "builderId": "https://ci.example/builders/isolated-v1",
+      "buildType": "https://ci.example/build-types/web-v1",
+      "externalParameters": {
+        "target": "web",
+        "ref": "refs/heads/main",
+        "frontendEvidence": {
+          "installation": {
+            "format": "npm-ls",
+            "mode": "installed-tree"
+          },
+          "sbom": {
+            "format": "cyclonedx-json"
+          }
+        }
+      },
+      "environments": [
+        "production"
+      ],
+      "notBefore": "2026-10-23T13:03:58.446Z",
+      "notAfter": "2027-11-22T13:03:58.446Z",
+      "oidcIssuer": "https://token.actions.example",
+      "certificateIdentity": "https://github.com/example/web/.github/workflows/build.yml@refs/heads/main",
+      "trustedRootDigest": "sha256:b2c02d286e20bc147d9b5e1749a01c38d731a8f8a66e1aaa9689b1dde76e3054"
+    }
+  ]
+}

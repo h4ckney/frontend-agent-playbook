@@ -453,3 +453,22 @@ test('CLI leaves missing signed evidence unverified and rejects tampered proof u
 test('CLI rejects duplicate-key trust policy input instead of choosing the last key set',async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-duplicate-trust-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));await fs.writeFile(path.join(root,'policy.json'),'{"schemaVersion":"1","keys":[],"keys":[]}');const result=run(['scan','--root','.','--trust-policy','policy.json','--format','json'],root);assert.equal(result.status,2);assert.match(result.stderr,/explicit trust policy/);
 });
+
+test('CLI keyless verification requires independent explicit policy and root selections',async t=>{
+ const {keylessFixture}=await import('../analysis/fixtures/keyless-evidence.mjs');const f=await keylessFixture();
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-keyless-cli-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ for(const record of f.records) {const target=path.join(root,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}
+ await fs.writeFile(path.join(root,'policy.json'),JSON.stringify(f.policy));await fs.writeFile(path.join(root,'trusted-root.json'),JSON.stringify(f.root));
+ const auth=result=>JSON.parse(result.stdout).securityContext.executionEvidence.subjects[0].authentication;
+ for(const options of [[],['--sigstore-trusted-root','trusted-root.json'],['--trust-policy','policy.json']]) {const result=run(['scan','--root','.','--format','json',...options],root);assert.equal(result.status,0,result.stderr);assert.equal(auth(result).status,'unverified');}
+ const args=['scan','--root','.','--format','json','--trust-policy','policy.json','--sigstore-trusted-root','trusted-root.json'];
+ const good=run(args,root);assert.equal(good.status,0,good.stderr);assert.equal(auth(good).status,'verified');assert.deepEqual(require('../analysis/audit-contract.js').validateAuditResult(JSON.parse(good.stdout)),[]);assert.doesNotMatch(good.stdout,/BEGIN CERTIFICATE|token.actions.example/);
+ f.policy.keyless[0].oidcIssuer='https://other.example';await fs.writeFile(path.join(root,'policy.json'),JSON.stringify(f.policy));const bad=run(args,root);assert.equal(bad.status,0,bad.stderr);assert.equal(auth(bad).status,'rejected');assert.equal(JSON.parse(bad.stdout).findings.filter(x=>x.id==='security.attestation-integrity').length,2);
+});
+test('CLI refuses duplicate-key trusted root and unavailable symlink bundle',async t=>{
+ const {keylessFixture}=await import('../analysis/fixtures/keyless-evidence.mjs');const f=await keylessFixture();const root=await fs.mkdtemp(path.join(os.tmpdir(),'frontend-keyless-boundary-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ for(const record of f.records) {const target=path.join(root,record.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,record.content);}
+ await fs.writeFile(path.join(root,'policy.json'),JSON.stringify(f.policy));await fs.writeFile(path.join(root,'trusted-root.json'),'{"mediaType":"a","mediaType":"b"}');
+ const args=['scan','--root','.','--format','json','--trust-policy','policy.json','--sigstore-trusted-root','trusted-root.json'];const invalid=run(args,root);assert.equal(invalid.status,2);assert.match(invalid.stderr,/explicit Sigstore trusted root/);
+ await fs.writeFile(path.join(root,'trusted-root.json'),JSON.stringify(f.root));await fs.unlink(path.join(root,'evidence/build.sigstore'));await fs.symlink('/etc/hosts',path.join(root,'evidence/build.sigstore'));const result=run(args,root);assert.equal(result.status,0,result.stderr);const audit=JSON.parse(result.stdout);assert.equal(audit.scope.excludedByReason.symlink,1);assert.notEqual(audit.securityContext.executionEvidence.subjects[0].authentication.status,'verified');
+});

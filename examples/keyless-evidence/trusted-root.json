@@ -1,0 +1,54 @@
+{
+  "mediaType": "application/vnd.dev.sigstore.trustedroot+json;version=0.1",
+  "certificateAuthorities": [
+    {
+      "uri": "https://fulcio.mock.invalid",
+      "certChain": {
+        "certificates": [
+          {
+            "rawBytes": "MIIBqTCCAU6gAwIBAgIBATAKBggqhkjOPQQDAzArMREwDwYDVQQDEwhzaWdzdG9yZTEWMBQGA1UEChMNc2lnc3RvcmUubW9jazAeFw0yNjExMjIxMzAzNThaFw0yNzExMjIxMzAzNThaMCsxETAPBgNVBAMTCHNpZ3N0b3JlMRYwFAYDVQQKEw1zaWdzdG9yZS5tb2NrMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOPBsgu6vG3/EWZrv8n0vIRhhg8OE4nTvaB7//EORobMFRKc4t6qxUrwD4pW35t4U6tUjL01SyrKdMcbC86vv8aNjMGEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFEsJ00xG9V16KXHigRUmsX/MOzwSMB8GA1UdIwQYMBaAFEsJ00xG9V16KXHigRUmsX/MOzwSMAoGCCqGSM49BAMDA0kAMEYCIQCKs6U6E+EN8gCMA0F+Ofmadg4xUhbWXfnoka414ww65wIhAPnWwxPKMJF7GY5/fNnyMPzc/QJaX18ORpBbbqNQFGdj"
+          }
+        ]
+      },
+      "validFor": {
+        "start": "2026-11-21T13:03:58.454Z",
+        "end": "2027-11-21T13:03:58.454Z"
+      }
+    }
+  ],
+  "ctlogs": [
+    {
+      "baseUrl": "https://ct.mock.invalid",
+      "hashAlgorithm": "SHA2_256",
+      "publicKey": {
+        "rawBytes": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJrtagdHfAaaptKBBVN0zaDjErURMqNT2uGxaGzx/3MAf/4RblfW0aKugsDg00toTMgIO8/IwxSe6yZRWuWYapQ==",
+        "keyDetails": "PKIX_ECDSA_P256_SHA_256",
+        "validFor": {
+          "start": "2026-11-21T13:03:58.454Z",
+          "end": "2027-11-21T13:03:58.454Z"
+        }
+      },
+      "logId": {
+        "keyId": "nHQbpLbjkvLUvQH0EZcYebKpr9NvOWa2Pi+N5D072Us="
+      }
+    }
+  ],
+  "tlogs": [
+    {
+      "baseUrl": "https://rekor.mock.invalid",
+      "hashAlgorithm": "SHA2_256",
+      "publicKey": {
+        "rawBytes": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERq8ZodpHLtfaVXjPxdukRXBi3aqUrZQlvu0OnLhBdlmBNafyQ5/8dIHlXrolhnV6kfQU0XiGgqRXhd2Ucfg+jA==",
+        "keyDetails": "PKIX_ECDSA_P256_SHA_256",
+        "validFor": {
+          "start": "2026-11-21T13:03:58.454Z",
+          "end": "2027-11-21T13:03:58.454Z"
+        }
+      },
+      "logId": {
+        "keyId": "tH7Xq4MGJ5fWDp8RXRl654Ti/oqO3wdurNRIOUO/Pyo="
+      }
+    }
+  ],
+  "timestampAuthorities": []
+}

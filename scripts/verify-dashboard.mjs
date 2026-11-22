@@ -674,6 +674,25 @@ try {
   await page.locator("#clearTrustPolicy").click();await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "unverified");
   assert.equal(await page.locator("code").filter({hasText:/^security\.attestation-integrity$/}).count(),0);
   recordCheck("clearing the tab-only trust policy immediately removes authentication and retains unverified report evidence");
+  // The committed controlled keyless bundle needs no Node verifier in this browser job.
+  const keylessExample=path.join(sourceRoot,"examples/keyless-evidence");
+  await fs.rm(fixture,{recursive:true,force:true});await fs.cp(keylessExample,fixture,{recursive:true});
+  const keylessConfig=JSON.parse(await fs.readFile(path.join(fixture,".frontend-evidence.json"),"utf8"));
+  await page.clock.setFixedTime(new Date(keylessConfig.subjects[0].observedAt));
+  await page.locator("#folderInput").setInputFiles(fixture);
+  await page.locator("#trustPolicyInput").setInputFiles(path.join(fixture,"public-policy.json"));
+  await page.waitForFunction(()=>document.querySelector('[data-evidence-subject="web"]')?.textContent.includes("sigstore-node-verifier-required"));
+  assert.equal(await authStatus.getAttribute("data-authentication-status"),"unverified");
+  assert.match(await executionSubject.textContent(),/Sigstore keyless/);
+  await page.locator("#securityContext").evaluate(node=>{node.open=true;node.querySelectorAll("details").forEach(item=>item.open=true);});
+  for(const width of [320,390]) {await page.setViewportSize({width,height:1000});await authStatus.scrollIntoViewIfNeeded();await settleView(page);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),"keyless overflow at "+width);await page.screenshot({path:path.join(values.output,"dashboard-keyless-unverified-"+width+".png")});}
+  recordCheck("a controlled Sigstore bundle and separately selected policy stay unverified in the browser with an explicit Node verifier reason at 320/390px");
+  await fs.appendFile(path.join(fixture,"evidence/build.sigstore")," ");await page.locator("#folderInput").setInputFiles(fixture);
+  await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "rejected");
+  assert.equal(await page.locator("code").filter({hasText:/^security\.attestation-integrity$/}).count(),1);
+  await page.locator("#clearTrustPolicy").click();await page.waitForFunction(()=>document.querySelector('[data-authentication-status]')?.dataset.authenticationStatus === "rejected");
+  assert.doesNotMatch(await authStatus.textContent(),/고정 공개키로 보고서 인증됨/);
+  recordCheck("modified keyless bundle bytes produce one integrity parent and never inherit a prior authenticated state");
   await Promise.all(responseChecks);
   assert.equal(errors.length, 0, errors.join("\n"));
   assert.deepEqual(browserResponseHashes, previewBefore.diskHashes, "all linked dashboard assets must be observed in browser responses");

@@ -23,7 +23,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "12";
+  const DETECTOR_CATALOG_VERSION = "13";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -33,7 +33,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-22.2")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-22.3")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -67,7 +67,7 @@
   async function createAuditBundleAsync(input={}) {
     const at=input.now ?? input.generatedAt ?? new Date().toISOString();
     const records=(Array.isArray(input.records)?input.records:[]).filter(record=>!analyzer.isGeneratedRecord(record));
-    const verification=await attestations.prepare(records,input.trustPolicy,at);
+    const verification=await attestations.prepare(records,input.trustPolicy,at,{sigstoreTrustedRoot:input.sigstoreTrustedRoot});
     return createAuditBundle({...input,now:at,attestationVerification:verification});
   }
 
@@ -1049,7 +1049,7 @@
     for (const item of context.inventory) lines.push("| " + [(item.ecosystem === "jsr" ? "JSR: " : "") + item.name, item.version, item.versionKind, item.phase, item.manifest + "#" + item.path, item.phaseEvidence + workspaceLabel(item)].map(cell).join(" | ") + " |");
     for (const graph of context.graphs || []) if (graph.format === "deno") lines.push("- " + cell(graph.lockfile) + ": Deno lock v" + cell(graph.lockVersion || "unknown") + "; local connections " + graph.nodes.filter(node => node.kind === "local").length + "; remote integrity records " + (graph.remoteIntegrityCount || 0) + "; import maps " + (graph.importMaps || []).map(cell).join(", ") + "; local file mappings " + (graph.localMappings?.length || 0) + "; content/security not verified");
     if(context.executionEvidence) {
-      lines.push("", korean ? "설치·SBOM·배포 보고 근거 (진위·운영 상태 미검증):" : "Installation/SBOM/deployment reports (authenticity and operation unverified):", "");
+      lines.push("", korean ? "설치·SBOM·배포 보고 근거 (인증은 대상별 표시, 운영 상태 미검증):" : "Installation/SBOM/deployment reports (authentication per subject; operation unverified):", "");
       for(const subject of context.executionEvidence.subjects) {
         lines.push("- " + cell(subject.manifest) + ": " + cell(subject.status) + "; " + cell(subject.observedAt) + "; manifest hash " + subject.manifestMatched + "; lock hash " + subject.lockfileMatched);
         for(const report of subject.artifacts) lines.push("  - " + cell(report.kind + ": " + report.path + "; " + report.integrity + "; " + report.componentCount + " components"));
