@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1",
+  "keyless": [
+    {
+      "roles": [
+        "build"
+      ],
+      "repository": "git+https://github.com/h4ckney/frontend-agent-playbook@refs/heads/feature/keyless-live-round-trip",
+      "builderId": "https://github.com/h4ckney/frontend-agent-playbook/.github/workflows/keyless-round-trip.yml@refs/heads/feature/keyless-live-round-trip",
+      "buildType": "https://h4ckney.github.io/frontend-agent-playbook/buildtypes/keyless-round-trip/v1",
+      "externalParameters": {
+        "synthetic": true,
+        "frontendEvidence": {
+          "sbom": {
+            "format": "cyclonedx-json"
+          }
+        },
+        "run": {
+          "id": "45033765873",
+          "attempt": "1",
+          "ref": "refs/heads/feature/keyless-live-round-trip",
+          "sha": "12d92dcbc12618edf506a91970ae49d9950aef16"
+        }
+      },
+      "oidcIssuer": "https://token.actions.githubusercontent.com",
+      "certificateIdentity": "https://github.com/h4ckney/frontend-agent-playbook/.github/workflows/keyless-round-trip.yml@refs/heads/feature/keyless-live-round-trip",
+      "tufBootstrapRootDigest": "sha256:27aea7e372aa7864065174f0661784fcf8b0e28b1dbfebeada31a0f1fb19167f",
+      "notBefore": "2026-11-22T14:31:59.181Z",
+      "notAfter": "2026-11-22T15:06:59.181Z"
+    }
+  ]
+}

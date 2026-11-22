@@ -55,6 +55,9 @@ jobs:
           node --check analysis/lockfile-graph.js
           node --check analysis/vendor/js-yaml-5.5.0.js
           node --check analysis/deno-resolution.js
+          node --check verification/round-trip/probe.cjs
+          node --check verification/round-trip/run.mjs
+          node --check verification/round-trip/check-public-evidence.mjs
           node --check verification/sigstore-tuf.cjs
           node --check verification/refresh-sigstore-tuf.mjs
           node --check verification/sigstore-keyless.cjs

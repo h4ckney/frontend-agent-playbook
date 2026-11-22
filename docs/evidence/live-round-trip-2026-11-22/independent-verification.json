@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-11-22T14:39:00.534Z",
+  "workflowRun": "45033765873",
+  "sha": "12d92dcbc12618edf506a91970ae49d9950aef16",
+  "signatureVerified": true,
+  "bindingsVerified": true,
+  "aggregateAuthentication": "partial",
+  "verifiedReports": [
+    "sbom"
+  ],
+  "tuf": {
+    "bootstrapRootDigest": "sha256:27aea7e372aa7864065174f0661784fcf8b0e28b1dbfebeada31a0f1fb19167f",
+    "rootVersion": 16,
+    "timestampVersion": 841,
+    "snapshotVersion": 166,
+    "targetsVersion": 14,
+    "expiresAt": "2026-11-29T01:19:39.000Z",
+    "checkedAt": "2026-11-22T14:39:00.472Z",
+    "targetDigest": "sha256:6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66"
+  },
+  "rekorIndex": "210950482",
+  "zipDigest": "sha256:ea1bfb85b1ca4978f26d5c8641a1d94970a582eea335b0dbe60034db66f82128"
+}

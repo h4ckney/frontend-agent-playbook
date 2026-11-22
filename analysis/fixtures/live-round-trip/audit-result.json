@@ -1,0 +1,803 @@
+{
+  "schemaVersion": "1",
+  "toolVersion": "0.2.0-dev",
+  "generatedAt": "2026-11-22T14:37:02.577Z",
+  "scopePolicyDigest": "static-lite-default-v1:trust:sha256:d94d40f9e84e2e4775a590697395dc4cd0ce427c68f03d838659ff3e97d47b3d",
+  "engine": {
+    "analysisMode": "static-lite",
+    "capabilities": [
+      "route-path-inference",
+      "text-patterns"
+    ],
+    "detectorCatalogVersion": "15",
+    "profileDigest": null,
+    "externalTools": []
+  },
+  "project": {
+    "rootLabel": "synthetic-keyless-round-trip",
+    "framework": null,
+    "frameworkVersion": null,
+    "routerMode": "unknown",
+    "reactVersion": null,
+    "typescriptVersion": null,
+    "visibility": "unknown",
+    "profileSource": null
+  },
+  "scope": {
+    "selectedFiles": 6,
+    "includedFiles": 6,
+    "excludedFiles": 0,
+    "includedBytes": 0,
+    "excludedByReason": {},
+    "partial": false,
+    "partialReasons": []
+  },
+  "securityContext": {
+    "schemaVersion": "1",
+    "snapshot": {
+      "id": "security-context-2026-10-30-v1",
+      "checkedAt": "2026-10-30",
+      "timeZone": "Asia/Seoul",
+      "freshness": "within-30-days",
+      "advisoryCount": 6,
+      "sources": [
+        "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+        "https://nodejs.org/en/about/previous-releases",
+        "https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w",
+        "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp",
+        "https://www.php.net/supported-versions.php",
+        "https://www.php.net/archive/2026.php",
+        "https://github.com/react/react/security/advisories/GHSA-fv66-9v8q-g76r",
+        "https://github.com/react/react/security/advisories/GHSA-xqc2-xf4c-x3h3",
+        "https://github.com/vercel/next.js/security/advisories/GHSA-673q-mjm6-r5xr",
+        "https://github.com/vercel/next.js/security/advisories/GHSA-2464-fhr4-w9xw"
+      ],
+      "liveLookup": false
+    },
+    "inventory": [
+      {
+        "ecosystem": "npm",
+        "name": "next",
+        "version": "16.5.0",
+        "versionKind": "declared-exact",
+        "manifest": "synthetic/package.json",
+        "path": "dependencies/next",
+        "phase": "runtime",
+        "phaseEvidence": "manifest:dependencies; deployment not verified",
+        "direct": true,
+        "provenance": "manifest-declaration"
+      },
+      {
+        "ecosystem": "npm",
+        "name": "next",
+        "version": "16.5.0",
+        "versionKind": "locked-exact",
+        "manifest": "synthetic/package-lock.json",
+        "path": "node_modules/next",
+        "phase": "runtime",
+        "phaseEvidence": "workspace lock graph; declared role only, installation/deployment and executable reachability not verified",
+        "direct": true,
+        "provenance": "lockfile",
+        "workspaceUsage": [
+          {
+            "manifest": "synthetic/package.json",
+            "phase": "runtime",
+            "direct": true,
+            "dependency": "next"
+          }
+        ]
+      },
+      {
+        "ecosystem": "npm",
+        "name": "next",
+        "version": "16.5.0",
+        "versionKind": "reported-exact",
+        "manifest": ".frontend-evidence.json",
+        "path": "subjects/synthetic-keyless-probe/sbom/npm:next@16.5.0",
+        "phase": "unknown",
+        "phaseEvidence": "Selected sbom report for synthetic/package.json; report authenticity, execution and reachability unverified",
+        "direct": false,
+        "provenance": "sbom-report",
+        "workspaceUsage": [
+          {
+            "manifest": "synthetic/package.json",
+            "phase": "unknown",
+            "direct": false
+          }
+        ]
+      }
+    ],
+    "executionEvidence": {
+      "schemaVersion": "1",
+      "subjects": [
+        {
+          "id": "synthetic-keyless-probe",
+          "manifest": "synthetic/package.json",
+          "revision": "12d92dcbc12618edf506a91970ae49d9950aef16",
+          "observedAt": "2026-11-22T14:36:59.181Z",
+          "freshness": "within-30-days",
+          "status": "partial",
+          "manifestMatched": true,
+          "lockfileMatched": true,
+          "artifacts": [
+            {
+              "kind": "sbom",
+              "path": "evidence/synthetic.cdx.json",
+              "format": "cyclonedx-json",
+              "integrity": "matched",
+              "componentCount": 1
+            }
+          ],
+          "components": [
+            {
+              "ecosystem": "npm",
+              "name": "next",
+              "version": "16.5.0",
+              "sources": [
+                "sbom"
+              ],
+              "lockVersions": [
+                "16.5.0"
+              ],
+              "comparison": "matches-lock",
+              "deploymentLinked": false
+            }
+          ],
+          "deployment": null,
+          "authentication": {
+            "status": "partial",
+            "policyDigest": "sha256:d94d40f9e84e2e4775a590697395dc4cd0ce427c68f03d838659ff3e97d47b3d",
+            "checkedAt": "2026-11-22T14:37:02.471Z",
+            "verifiedReports": [
+              "sbom"
+            ],
+            "attestations": [
+              {
+                "kind": "build",
+                "path": "evidence/build.sigstore",
+                "status": "verified",
+                "signatureVerified": true,
+                "bindingsVerified": true,
+                "keyId": "sha256:9043099c475ced9251bef38d7ecf9ddca961853e655a120a9d1ca9d46f3ec037",
+                "reason": "signature-and-bindings-verified",
+                "method": "sigstore-keyless",
+                "keyless": {
+                  "verifier": "@sigstore/verify@4.1.3",
+                  "trustedRootDigest": "sha256:2d3d1c0f3bef09777ec628921a56847ddb6a1660bd832240433d5ea98488203d",
+                  "certificateChainVerified": true,
+                  "oidcIssuerVerified": true,
+                  "certificateIdentityVerified": true,
+                  "certificateTransparencyVerified": true,
+                  "rekorInclusionVerified": true,
+                  "signedTimeVerified": true,
+                  "signingTimes": [
+                    "2026-11-22T14:36:59.000Z"
+                  ],
+                  "tuf": {
+                    "bootstrapRootDigest": "sha256:27aea7e372aa7864065174f0661784fcf8b0e28b1dbfebeada31a0f1fb19167f",
+                    "rootVersion": 16,
+                    "timestampVersion": 841,
+                    "snapshotVersion": 166,
+                    "targetsVersion": 14,
+                    "expiresAt": "2026-11-29T01:19:39.000Z",
+                    "checkedAt": "2026-11-22T14:37:02.471Z",
+                    "targetDigest": "sha256:6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "lifecycle": {
+      "schemaVersion": "1",
+      "asOf": "2026-11-22",
+      "policy": {
+        "id": "runtime-lifecycle-2026-11-02",
+        "checkedAt": "2026-11-02",
+        "timeZone": "Asia/Seoul",
+        "freshness": "within-30-days",
+        "warningWindowDays": 180,
+        "sources": [
+          "https://raw.githubusercontent.com/nodejs/Release/main/schedule.json",
+          "https://www.php.net/supported-versions.php",
+          "https://www.php.net/eol.php",
+          "https://deno.com/blog/cloudflare",
+          "https://docs.deno.com/runtime/fundamentals/stability_and_releases/",
+          "https://docs.deno.com/deploy/",
+          "https://github.com/denoland/deployctl/blob/main/README.md",
+          "https://github.com/oven-sh/bun/blob/main/SECURITY.md"
+        ]
+      },
+      "entries": [],
+      "gaps": []
+    },
+    "graphs": [
+      {
+        "lockfile": "synthetic/package-lock.json",
+        "format": "npm",
+        "complete": true,
+        "nodes": [
+          {
+            "id": "node_modules/next",
+            "name": "next",
+            "version": "16.5.0",
+            "kind": "package"
+          },
+          {
+            "id": "workspace:.",
+            "name": "synthetic-keyless-probe",
+            "version": "0.0.0",
+            "kind": "workspace",
+            "manifest": "synthetic/package.json"
+          }
+        ],
+        "edges": [
+          {
+            "from": "workspace:.",
+            "to": "node_modules/next",
+            "dependency": "next",
+            "scope": "runtime"
+          }
+        ],
+        "roots": [
+          {
+            "manifest": "synthetic/package.json",
+            "node": "workspace:."
+          }
+        ]
+      }
+    ],
+    "coverage": {
+      "complete": false,
+      "inventoryCount": 3,
+      "exactVersionCount": 2,
+      "advisoryMatchedOccurrences": 0,
+      "unresolvedVersionCount": 0,
+      "gaps": [
+        {
+          "path": ".frontend-evidence.json",
+          "reason": "attestation-authentication-unverified"
+        },
+        {
+          "path": ".frontend-evidence.json",
+          "reason": "execution-evidence-authenticity-unverified"
+        }
+      ],
+      "limitations": [
+        "Finite advisory snapshot, not a universal or live CVE database",
+        "Selected report authenticity is separately indicated by explicit pinned-key verification; live operation remains unverified",
+        "No installed package, deployed image, SAPI, OS, vendor backport or vulnerable data-flow verification",
+        "Deno v1 remote integrity metadata, v2-v5 npm/JSR inventory, declared custom lock and literal local links; JSR advisories, remote/local contents and legacy optional metadata remain unverified",
+        "npm v1/v2/v3, Yarn Classic/Berry, pnpm 5.0-5.4/v6/v9 (including boot/project documents), Bun text v1 and Composer lock; binary Bun/other formats and OS packages require external tools; workspace graph is lock-declared dependency reachability, not executed code",
+        "Patched/revision packages are compared by their original registry version; modified contents and fix effectiveness remain unverified",
+        "Build/development phase can still expose CI credentials, artifacts and developer machines"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "id": "security.dependency-coverage",
+      "fingerprint": "security.dependency-coverage:.frontend-evidence.json",
+      "detectorId": "security.dependency-coverage",
+      "detectorVersion": "2026-11-22.5",
+      "ruleRefs": [
+        "security-privacy.dependency-exposure"
+      ],
+      "sourceRuleRefs": [],
+      "title": "보안 버전 점검에 미확인 범위가 있음",
+      "area": "security",
+      "type": "gap",
+      "severity": "low",
+      "evidenceLevel": "unknown",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          ".frontend-evidence.json"
+        ],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "control-unverified",
+          "security.dependency-coverage:.frontend-evidence.json"
+        ],
+        "reasons": [
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": ".frontend-evidence.json"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "해석하지 못한 범위 2개; 미확정 버전·제약 0개; 스냅샷 2026-10-30 (within-30-days)",
+      "whyRisky": "버전 범위, 지원하지 않는 lock 형식과 오래된 권고 목록은 현재 설치·배포된 모듈의 보안 상태를 확정하지 못합니다.",
+      "possibleImpact": "확인되지 않은 의존성이나 런타임을 안전한 것으로 오해할 수 있습니다.",
+      "riskFactors": "고정 버전·실제 설치 내역·최신 외부 권고 비교가 없는 경우",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "recommendation": "지원 lockfile과 실행 버전, 최신 npm/Composer 감사 또는 SBOM 결과를 별도로 확보합니다. 이 분석기는 해당 명령을 자동 실행하지 않습니다.",
+      "limitation": "오프라인 권고 스냅샷 2026-10-30; 설정·lockfile의 버전 일치이며 실행 중 악용 가능성은 미확인. ",
+      "clusterId": "security.dependency-coverage",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "seo.indexing-intent-unknown",
+      "fingerprint": "seo.indexing-intent-unknown:synthetic/package.json",
+      "detectorId": "seo.indexing-intent",
+      "detectorVersion": "2",
+      "ruleRefs": [
+        "seo.applicability"
+      ],
+      "sourceRuleRefs": [],
+      "title": "프로젝트의 검색 노출 범위가 지정되지 않음",
+      "area": "seo",
+      "type": "gap",
+      "severity": "low",
+      "evidenceLevel": "unknown",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "unknown",
+        "reasons": [
+          "Search exposure scope is not confirmed."
+        ],
+        "missingContext": [
+          "public and internal route boundaries"
+        ]
+      },
+      "scope": {
+        "paths": [
+          "synthetic/package.json"
+        ],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "control-unverified",
+          "seo.indexing-intent-unknown:synthetic/package.json"
+        ],
+        "reasons": [
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "synthetic/package.json"
+        },
+        {
+          "kind": "context",
+          "label": "사용자 입력: 검색 노출 범위 미확인"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "프로젝트의 검색 노출 범위가 지정되지 않음",
+      "whyRisky": "공개 URL이 있는지 모르면 메타데이터·sitemap 부재를 결함으로 잘못 판단하거나 필요한 검색 노출 검증을 놓칠 수 있습니다.",
+      "possibleImpact": "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다.",
+      "riskFactors": "공개·내부 라우트가 섞여 있거나 배포 환경과 인증 경계가 문서화되지 않은 경우",
+      "mitigatingControls": "제품 소유자가 검색 노출 대상 URL과 내부 전용 경계를 명시한 경우",
+      "recommendation": "공개 검색 유입이 필요한 URL이 있는지 확인한 뒤 SEO 검사를 적용하거나 제외합니다.",
+      "limitation": "정적 분석으로 확인할 수 없는 설정, 데이터 출처 또는 실행 결과를 추가로 확인해야 함",
+      "clusterId": "seo.indexing-intent",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "testing.e2e-path-missing",
+      "fingerprint": "testing.e2e-path-missing:synthetic/package.json",
+      "detectorId": "testing.critical-journeys",
+      "detectorVersion": "3",
+      "ruleRefs": [
+        "testing.critical-journeys"
+      ],
+      "sourceRuleRefs": [],
+      "title": "E2E 설정 또는 테스트 소스 경로를 찾지 못함",
+      "area": "testing",
+      "type": "gap",
+      "severity": "medium",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "synthetic/package.json"
+        ],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "control-unverified",
+          "testing.e2e-path-missing:synthetic/package.json"
+        ],
+        "reasons": [
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "synthetic/package.json"
+        },
+        {
+          "kind": "context",
+          "label": "Playwright·Cypress 설정 및 E2E 테스트 소스 경로 미발견"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "E2E 설정 또는 테스트 소스 경로를 찾지 못함",
+      "whyRisky": "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 라우팅, 인증, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+      "possibleImpact": "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다.",
+      "riskFactors": "고위험 다단계 여정이 있는데 통합 테스트나 합성 모니터링 같은 대체 검증도 없는 경우",
+      "mitigatingControls": "해당 제품에 고위험 여정이 없거나 다른 계층의 반복 가능한 전체 경로 검증이 있는 경우",
+      "recommendation": "고위험 사용자 여정이 존재하는지 확인한 뒤 우선순위가 높은 하나부터 추가합니다.",
+      "limitation": "정적 근거를 바탕으로 위험 가능성을 추정한 것으로, 결함이 확인된 것은 아님",
+      "clusterId": "testing.critical-journeys",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    },
+    {
+      "id": "testing.test-foundation-missing",
+      "fingerprint": "testing.test-foundation-missing:synthetic/package.json",
+      "detectorId": "testing.foundation",
+      "detectorVersion": "2",
+      "ruleRefs": [
+        "testing.test-foundation"
+      ],
+      "sourceRuleRefs": [],
+      "title": "테스트 기반을 찾지 못함",
+      "area": "testing",
+      "type": "gap",
+      "severity": "high",
+      "evidenceLevel": "inferred",
+      "exposure": "unknown",
+      "controlState": "unverified",
+      "applicability": {
+        "status": "conditional",
+        "reasons": [
+          "Static evidence requires repository or runtime confirmation."
+        ],
+        "missingContext": [
+          "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+        ]
+      },
+      "scope": {
+        "paths": [
+          "synthetic/package.json"
+        ],
+        "routes": [],
+        "journeys": []
+      },
+      "flow": {
+        "status": "not-assessed",
+        "sources": [],
+        "transforms": [],
+        "controls": [],
+        "sinks": [],
+        "unknowns": []
+      },
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "static-heuristic-review-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "control-unverified",
+          "testing.test-foundation-missing:synthetic/package.json"
+        ],
+        "reasons": [
+          "The detector describes potentially material impact if the hypothesis is confirmed.",
+          "The result is an inference or information gap that still requires verification."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+      },
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "synthetic/package.json"
+        },
+        {
+          "kind": "context",
+          "label": "`test` 스크립트와 test/spec 파일을 찾지 못함"
+        }
+      ],
+      "occurrenceCount": 1,
+      "observedFact": "테스트 기반을 찾지 못함",
+      "whyRisky": "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
+      "possibleImpact": "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다.",
+      "riskFactors": "변경이 잦거나 상태 전이가 복잡한데 CI에서 실행할 테스트 명령이 없는 경우",
+      "mitigatingControls": "상위 workspace나 외부 CI에서 검증하고 있어 선택한 폴더에서는 보이지 않는 경우",
+      "recommendation": "변경 위험이 큰 순수 로직이나 상태 전이부터 좁은 회귀 테스트를 추가합니다.",
+      "limitation": "정적 근거를 바탕으로 위험 가능성을 추정한 것으로, 결함이 확인된 것은 아님",
+      "clusterId": "testing.regression-safety-net",
+      "diffStatus": "unbaselined",
+      "suppression": null
+    }
+  ],
+  "clusters": [
+    {
+      "id": "security.dependency-coverage",
+      "title": "보안 버전 점검에 미확인 범위가 있음",
+      "severity": "low",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "security.dependency-coverage"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "security.dependency-coverage"
+        ],
+        "reasons": [
+          "버전 범위, 지원하지 않는 lock 형식과 오래된 권고 목록은 현재 설치·배포된 모듈의 보안 상태를 확정하지 못합니다.",
+          "확인되지 않은 의존성이나 런타임을 안전한 것으로 오해할 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다."
+      },
+      "whyRisky": "버전 범위, 지원하지 않는 lock 형식과 오래된 권고 목록은 현재 설치·배포된 모듈의 보안 상태를 확정하지 못합니다.",
+      "possibleImpact": "확인되지 않은 의존성이나 런타임을 안전한 것으로 오해할 수 있습니다.",
+      "riskFactors": "고정 버전·실제 설치 내역·최신 외부 권고 비교가 없는 경우",
+      "mitigatingControls": "미배포·빌드 전용 경로, 공급업체 백포트, 해당 API 비사용 여부를 별도로 검증해야 합니다. 개발 도구도 비밀정보와 산출물에 접근할 수 있습니다.",
+      "verification": "버전 근거와 실행 단계, 서비스 노출·관련 API·배포된 이미지 및 공급업체 패치 내역을 확인합니다.",
+      "recommendation": "지원 lockfile과 실행 버전, 최신 npm/Composer 감사 또는 SBOM 결과를 별도로 확보합니다. 이 분석기는 해당 명령을 자동 실행하지 않습니다.",
+      "evidence": [
+        {
+          "kind": "path",
+          "path": ".frontend-evidence.json"
+        }
+      ]
+    },
+    {
+      "id": "seo.indexing-intent",
+      "title": "검색 노출 범위 확인",
+      "severity": "low",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "seo.indexing-intent-unknown"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "information-gap",
+        "effectiveDecision": "information-gap",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "seo.indexing-intent"
+        ],
+        "reasons": [
+          "공개 URL이 있는지 모르면 메타데이터·sitemap 부재를 결함으로 잘못 판단하거나 필요한 검색 노출 검증을 놓칠 수 있습니다.",
+          "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다."
+      },
+      "whyRisky": "공개 URL이 있는지 모르면 메타데이터·sitemap 부재를 결함으로 잘못 판단하거나 필요한 검색 노출 검증을 놓칠 수 있습니다.",
+      "possibleImpact": "내부 서비스에 불필요한 SEO 작업을 만들거나 공개 서비스의 검색 노출 계약을 검토하지 못할 수 있습니다.",
+      "riskFactors": "공개·내부 라우트가 섞여 있거나 배포 환경과 인증 경계가 문서화되지 않은 경우",
+      "mitigatingControls": "제품 소유자가 검색 노출 대상 URL과 내부 전용 경계를 명시한 경우",
+      "verification": "공개 검색 유입이 필요한 URL과 인증·네트워크로 제한된 URL을 구분합니다.",
+      "recommendation": "공개 검색 유입이 필요한 URL이 있는지 확인한 뒤 SEO 검사를 적용하거나 제외합니다.",
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "사용자 입력: 검색 노출 범위 미확인"
+        }
+      ]
+    },
+    {
+      "id": "testing.critical-journeys",
+      "title": "고위험 사용자 여정 검증",
+      "severity": "medium",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "testing.e2e-path-missing"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "testing.critical-journeys"
+        ],
+        "reasons": [
+          "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 라우팅, 인증, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+          "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다."
+      },
+      "whyRisky": "여러 경계를 통과하는 핵심 여정은 단위 테스트만으로 라우팅, 인증, 결제 또는 제출 실패를 포착하기 어렵습니다.",
+      "possibleImpact": "가입·결제·제출 같은 전환 여정이 배포 후 중단될 수 있습니다.",
+      "riskFactors": "고위험 다단계 여정이 있는데 통합 테스트나 합성 모니터링 같은 대체 검증도 없는 경우",
+      "mitigatingControls": "해당 제품에 고위험 여정이 없거나 다른 계층의 반복 가능한 전체 경로 검증이 있는 경우",
+      "verification": "실패 비용이 큰 사용자 여정을 나열하고 현재 자동화가 각 경계를 실제로 통과하는지 확인합니다.",
+      "recommendation": "고위험 사용자 여정이 존재하는지 확인한 뒤 우선순위가 높은 하나부터 추가합니다.",
+      "evidence": [
+        {
+          "kind": "context",
+          "label": "Playwright·Cypress 설정 및 E2E 테스트 소스 경로 미발견"
+        }
+      ]
+    },
+    {
+      "id": "testing.regression-safety-net",
+      "title": "회귀 검증 기반 확인",
+      "severity": "high",
+      "type": "gap",
+      "types": [
+        "gap"
+      ],
+      "findingIds": [
+        "testing.test-foundation-missing"
+      ],
+      "occurrenceCount": 1,
+      "priority": {
+        "decision": "verify-first",
+        "effectiveDecision": "verify-first",
+        "policyId": "root-cause-cluster-v1",
+        "sortKeys": [
+          "unbaselined",
+          "material-impact",
+          "testing.regression-safety-net"
+        ],
+        "reasons": [
+          "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
+          "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다."
+        ],
+        "counterEvidence": [],
+        "missingEvidence": [
+          "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+        ],
+        "affectedJourney": null,
+        "verification": "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다."
+      },
+      "whyRisky": "자동 회귀 검증이 없으면 중요한 상태 전이나 순수 로직 변경의 실패를 반복 가능하게 탐지하기 어렵습니다.",
+      "possibleImpact": "변경 후 회귀가 늦게 발견되고 수동 검증 비용이 누적될 수 있습니다.",
+      "riskFactors": "변경이 잦거나 상태 전이가 복잡한데 CI에서 실행할 테스트 명령이 없는 경우",
+      "mitigatingControls": "상위 workspace나 외부 CI에서 검증하고 있어 선택한 폴더에서는 보이지 않는 경우",
+      "verification": "workspace 루트와 CI에서 실제 변경 경로를 검증하는 테스트 명령 및 최근 실행 결과를 확인합니다.",
+      "recommendation": "변경 위험이 큰 순수 로직이나 상태 전이부터 좁은 회귀 테스트를 추가합니다.",
+      "evidence": [
+        {
+          "kind": "path",
+          "path": "`test` 스크립트와 test/spec 파일을 찾지 못함"
+        }
+      ]
+    }
+  ],
+  "diff": {
+    "baselineId": null,
+    "unbaselined": [
+      "security.dependency-coverage:.frontend-evidence.json",
+      "seo.indexing-intent-unknown:synthetic/package.json",
+      "testing.e2e-path-missing:synthetic/package.json",
+      "testing.test-foundation-missing:synthetic/package.json"
+    ],
+    "new": [],
+    "worsened": [],
+    "unchanged": [],
+    "resolved": [],
+    "unverified": []
+  },
+  "diagnostics": [
+    {
+      "id": "project.context-missing",
+      "level": "info",
+      "message": "No approved project profile was provided; product-specific journeys, route policies, trust boundaries, and controls were not applied."
+    }
+  ]
+}

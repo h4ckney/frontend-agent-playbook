@@ -158,6 +158,8 @@ Deno v1 무결성 기록·v2 npm pin, 명시적 custom lock과 literal local 연
 
 [TUF 신뢰 루트 갱신·폐기](docs/tuf-trust-lifecycle.md)는 명시적 갱신, 보호된 rollback 상태와 오프라인 scan 재검증을 추가합니다. 실제 공개 npm·Fulcio·GitHub OIDC·Rekor 읽기 검증도 controlled 테스트·운영 배포와 구분해 기록했습니다.
 
+[신규 OIDC·Fulcio·Rekor round-trip](docs/keyless-live-round-trip.md)은 전용 CI 권한으로 합성 증명만 게시하고 바인딩을 독립 검증합니다. 실제 서비스 실행 결과는 구현·오프라인 테스트와 구분해 기록합니다.
+
 ### Analyzer CLI 프리뷰
 
 pnpm·Yarn Berry·Bun 텍스트 lock과 공유 npm workspace 그래프를 [형식 범위·프로토콜 우선순위](docs/lock-protocol-priorities.md) 안에서 지원합니다. 브라우저와 CLI는 같은 고정 YAML 파서를 사용하며 [출처·라이선스·무결성](analysis/vendor/NOTICE.md)을 기록합니다.
