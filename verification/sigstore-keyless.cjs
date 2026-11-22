@@ -35,16 +35,24 @@ function verifyBundle(raw,rules,trustedRoot,now) {
     const stamps=vm.timestampVerificationData?.rfc3161Timestamps||[];
     if(!Array.isArray(stamps) || stamps.length>2 || vm.timestampVerificationData!==undefined && (!object(vm.timestampVerificationData) || Object.keys(vm.timestampVerificationData).some(key=>key!=="rfc3161Timestamps"))) return fail("unsupported-sigstore-timestamps");
     if(stamps.length && (!Array.isArray(trustedRoot.timestampAuthorities) || !trustedRoot.timestampAuthorities.length || trustedRoot.timestampAuthorities.length>8 || trustedRoot.timestampAuthorities.some(ca=>!Array.isArray(ca?.certChain?.certificates) || !ca.certChain.certificates.length || ca.certChain.certificates.length>4))) return fail("sigstore-timestamp-authority-required");
-    const seen=new Set();
-    for(const entry of vm.tlogEntries) {
+    const normalized=structuredClone(raw),seen=new Set();
+    for(const entry of normalized.verificationMaterial.tlogEntries) {
       if(!object(entry) || !entry.inclusionProof?.checkpoint?.envelope || !Array.isArray(entry.inclusionProof.hashes) || entry.inclusionProof.hashes.length>64
         || (!entry.inclusionPromise?.signedEntryTimestamp && !stamps.length)
         || (entry.inclusionPromise && (typeof entry.integratedTime!=="string" || !/^[1-9][0-9]{0,12}$/.test(entry.integratedTime) || !Number.isSafeInteger(Number(entry.integratedTime)) || Number(entry.integratedTime)*1000>now))) return fail("sigstore-signed-time-and-inclusion-required");
+      const kind=entry.kindVersion?.kind+"/"+entry.kindVersion?.version;
+      if(!["dsse/0.0.1","intoto/0.0.2","hashedrekord/0.0.1","hashedrekord/0.0.2"].includes(kind)) return fail("unsupported-sigstore-log-entry");
       const note=entry.inclusionProof.checkpoint.envelope.split("\n");
-      if(note[1]!==entry.inclusionProof.treeSize || note[2]!==entry.inclusionProof.rootHash) return fail("sigstore-inclusion-metadata-mismatch");
+      if(kind==="hashedrekord/0.0.2") {
+        // Rekor v2's authoritative position is the top-level index. Redundant
+        // proof fields may be omitted/defaulted; use the signed checkpoint's
+        // root/size. Upstream still consumes the older inclusionProof fields.
+        if(entry.inclusionPromise!==undefined || !stamps.length || typeof entry.logIndex!=="string" || !/^(?:0|[1-9][0-9]{0,18})$/.test(entry.logIndex)) return fail("unsupported-sigstore-v2-material");
+        entry.inclusionProof.logIndex=entry.logIndex;entry.inclusionProof.treeSize=note[1];entry.inclusionProof.rootHash=note[2];
+      } else if(note[1]!==entry.inclusionProof.treeSize || note[2]!==entry.inclusionProof.rootHash) return fail("sigstore-inclusion-metadata-mismatch");
       const id=entry.logId?.keyId+":"+entry.canonicalizedBody;if(seen.has(id)) return fail("duplicate-sigstore-log-entry");seen.add(id);
     }
-    const bundle=lib.bundleFromJSON(raw),entity=lib.toSignedEntity(bundle);
+    const bundle=lib.bundleFromJSON(normalized),entity=lib.toSignedEntity(bundle);
     if(entity.key.$case!=="certificate") return fail("sigstore-certificate-required");
     const trust=lib.toTrustMaterial(lib.TrustedRoot.fromJSON(trustedRoot));
     const verifier=new lib.Verifier(trust,{tlogThreshold:1,ctlogThreshold:1,timestampThreshold:1});

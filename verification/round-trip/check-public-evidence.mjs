@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+// Fixed generated paths only; never echo credential-shaped matches or contents.
+import fs from 'node:fs/promises';import {constants} from 'node:fs';import path from 'node:path';
+const allowed=new Set(['receipt.json','failure.json','bundle.json','policy.json','trust-state.json','audit-result.json','records/.frontend-evidence.json','records/evidence/build.sigstore','records/evidence/synthetic.cdx.json','records/synthetic/package.json','records/synthetic/package-lock.json','records/synthetic/round-trip.txt']);
+export async function checkPublicEvidence(root){
+ try{const stat=await fs.lstat(root);if(!stat.isDirectory() || stat.isSymbolicLink())throw Error('unsafe root');}catch(error){if(error.code==='ENOENT')return {files:0};throw Error('Public evidence check rejected.');}
+ let total=0,count=0;
+ const walk=async dir=>{for(const entry of await fs.readdir(dir,{withFileTypes:true})){const file=path.join(dir,entry.name),relative=path.relative(root,file).split(path.sep).join('/');if(entry.isSymbolicLink())throw Error('unsafe evidence');if(entry.isDirectory()){if(!['records','records/evidence','records/synthetic'].includes(relative))throw Error('unexpected directory');await walk(file);continue;}if(!entry.isFile() || !allowed.has(relative) || ++count>12)throw Error('unsafe evidence');const handle=await fs.open(file,constants.O_RDONLY|constants.O_NOFOLLOW);try{const stat=await handle.stat();if(!stat.isFile() || stat.size>1500000 || (total+=stat.size)>10000000)throw Error('evidence budget');const bytes=await handle.readFile();if(bytes.length>1500000)throw Error('evidence budget');const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);if(/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/.test(text))throw Error('credential-shaped evidence');}finally{await handle.close();}}};
+ try{await walk(root);}catch{throw Error('Public evidence check rejected; no file contents are exported.');}return {files:count};
+}
+if(import.meta.url===new URL(process.argv[1]||'', 'file:').href){checkPublicEvidence(process.argv[2]).then(result=>process.stdout.write('Public evidence checked: '+result.files+' files.\n')).catch(()=>{process.stderr.write('Public evidence check rejected. Upload is blocked.\n');process.exitCode=2;});}

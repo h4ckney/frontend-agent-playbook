@@ -65,3 +65,10 @@ test('removing rejected keyless evidence cannot automatically resolve its baseli
  const records=seal(f).filter(r=>!r.path.endsWith('.sigstore')),config=records.find(r=>r.path==='.frontend-evidence.json'),parsed=JSON.parse(config.content);delete parsed.subjects[0].attestations;config.content=JSON.stringify(parsed);
  const after=(await c.createAuditBundleAsync({records,trustPolicy:f.policy,sigstoreTrustedRoot:f.root,generatedAt:f.now})).audit,diff=c.compareWithBaseline(after,baseline).diff;assert.ok(previous.every(x=>diff.unverified.includes(x.fingerprint)));assert.ok(!previous.some(x=>diff.resolved.includes(x.fingerprint)));
 });
+test('Rekor v2 authenticates the top-level position and signed checkpoint despite absent redundant fields',async()=>{
+ const f=await keylessFixture({rekorV2:true});for(const b of Object.values(f.bundles)){delete b.verificationMaterial.tlogEntries[0].inclusionProof.logIndex;delete b.verificationMaterial.tlogEntries[0].inclusionProof.treeSize;delete b.verificationMaterial.tlogEntries[0].inclusionProof.rootHash;}assert.equal(auth(await scan(f)).status,'verified');
+ for(const mode of ['index','checkpoint','timestamp','payload']){const bad=clone(f),e=entry(bad);if(mode==='index')e.logIndex='1';if(mode==='checkpoint')e.inclusionProof.checkpoint.envelope=e.inclusionProof.checkpoint.envelope.replace('\n1\n','\n2\n');if(mode==='timestamp')delete bad.bundles.build.verificationMaterial.timestampVerificationData;if(mode==='payload')bad.bundles.build.dsseEnvelope.payload=flip(bad.bundles.build.dsseEnvelope.payload);assert.notEqual(auth(await scan(bad)).status,'verified',mode);}
+});
+test('cryptographically signed unknown log versions are not silently parsed as the latest known format',async()=>{
+ const f=await keylessFixture({rekorV2:true,bodyVersion:'0.0.99'});const r=await scan(f);assert.ok(auth(r).attestations.every(x=>x.reason==='unsupported-sigstore-log-entry'));
+});

@@ -156,6 +156,8 @@ Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment 
 
 [TUF trust rotation and removal](docs/tuf-trust-lifecycle.md) adds explicit refresh, protected rollback state and offline scan revalidation. An actual public npm/Fulcio/GitHub OIDC/Rekor read-only probe is captured separately from controlled tests and deployment evidence.
 
+[New OIDC/Fulcio/Rekor round-trip probe](docs/keyless-live-round-trip.md) uses a dedicated, restricted CI workflow to publish only synthetic evidence and independently verify its bindings. Actual service results are recorded separately from implementation and offline tests.
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.

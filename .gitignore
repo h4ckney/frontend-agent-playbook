@@ -3,3 +3,5 @@
 .frontend-audit/
 
 verification/sigstore/node_modules/
+
+verification/round-trip/node_modules/
