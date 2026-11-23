@@ -4,6 +4,8 @@ Risk: Level 2 — 조직별 인증 권한과 rollback 상태의 수명을 바꾼
 
 독립 정책·state 파일만으로는 조직 선택, 정책 철회, 동시 갱신과 재시작 후 TUF 하한 유지가 연결되지 않았다. 이제 **운영자가 채택한 조직 정책 → 명시적 profile → 영속 domain 상태 → offline 검증**으로 연결한다. [구현 근거·회귀·실제 공개 읽기](evidence/organization-trust-2026-11-23.md)를 별도로 기록한다. 기존 [TUF 제한 profile](tuf-trust-lifecycle.md)과 [실제 신규 발급 round-trip](keyless-live-round-trip.md)을 대체하지 않는다.
 
+후속 [조직 승인·백업·복구·독립 witness](organization-approval-recovery.md)는 전체 주 DB rollback 탐지를 추가한다. 아래 기존 명령은 local-only 모드이며 이 보장은 제공하지 않는다. 보호된 운영은 새 문서의 governance 옵션과 외부 authority를 고정해야 한다.
+
 ## 선택과 계약
 
 [예제 정책](../examples/organization-trust/policy.json)은 실제 회사 정책이 아니다. `schemaVersion: "1"`, `organizationId`, 단조 증가하는 양의 `revision`, 최대 8개 `trustDomains`, 최대 16개 `profiles`를 받는다. 알 수 없는 필드·중복 ID·일부만 유효한 정책을 모두 거절한다. profile은 0개로 모든 선택을 철회할 수 있다. domain은 최소 1개다.

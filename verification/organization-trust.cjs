@@ -242,7 +242,7 @@ function protectedPath(input, initialize = false) {
   }
   return root;
 }
-function openStore(input, initialize = false) {
+function openStore(input, initialize = false, permit) {
   const root = protectedPath(input, initialize),
     file = path.join(root, "trust-store.sqlite");
   if (initialize) {
@@ -278,8 +278,9 @@ function openStore(input, initialize = false) {
         "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; CREATE TABLE marker(value TEXT NOT NULL); INSERT INTO marker VALUES('frontend-organization-trust-v1'); CREATE TABLE organizations(id TEXT PRIMARY KEY, revision INTEGER NOT NULL, digest TEXT NOT NULL, policy TEXT NOT NULL, generation INTEGER NOT NULL); CREATE TABLE domains(org TEXT NOT NULL, id TEXT NOT NULL, anchor TEXT NOT NULL, state TEXT, checkpoint TEXT NOT NULL, lease TEXT, PRIMARY KEY(org,id), FOREIGN KEY(org) REFERENCES organizations(id)); PRAGMA user_version=1;",
       );
     }
+    const storeVersion = db.prepare("PRAGMA user_version").get().user_version;
     if (
-      db.prepare("PRAGMA user_version").get().user_version !== 1 ||
+      ![1, 2].includes(storeVersion) ||
       db.prepare("SELECT value FROM marker").get()?.value !==
         "frontend-organization-trust-v1"
     )
@@ -287,6 +288,17 @@ function openStore(input, initialize = false) {
     db.exec(
       "PRAGMA busy_timeout=0; PRAGMA synchronous=FULL; PRAGMA trusted_schema=OFF;",
     );
+    const governed = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='governance_binding'",
+      )
+      .get();
+    if (
+      (governed || storeVersion === 2) &&
+      !require("./organization-governance.cjs").isPermit(permit)
+    )
+      reject("organization-governance-required");
+    if (storeVersion === 2 && !governed) reject("invalid-trust-store");
     return { db, root, close: () => db.close() };
   } catch (e) {
     db.close();
@@ -296,7 +308,9 @@ function openStore(input, initialize = false) {
 function transaction(store, fn) {
   store.db.exec("BEGIN IMMEDIATE");
   try {
+    const guard = store.governance?.before();
     const out = fn();
+    store.governance?.after(guard);
     store.db.exec("COMMIT");
     return out;
   } catch (e) {
@@ -323,11 +337,16 @@ function bump(store, org) {
     .prepare("UPDATE organizations SET generation=generation+1 WHERE id=?")
     .run(org);
 }
-function adopt(store, compiled, organizationId) {
+function adopt(store, compiled, organizationId, approval) {
   compiled = approved(compiled);
   if (organizationId !== compiled.policy.organizationId)
     reject("organization-selection-mismatch");
   return transaction(store, () => {
+    const receipt = store.governance?.authorizeAdopt(
+      compiled,
+      organizationId,
+      approval,
+    );
     const p = compiled.policy,
       old = store.db
         .prepare("SELECT * FROM organizations WHERE id=?")
@@ -401,6 +420,7 @@ function adopt(store, compiled, organizationId) {
             JSON.stringify(d.minimumFloor),
           );
     }
+    if (receipt) store.governance.record(receipt);
     return { status: "adopted", organizationId, revision: p.revision };
   });
 }
@@ -548,6 +568,7 @@ function snapshot(store, compiled, organizationId, profileId) {
       reject("organization-trust-checkpoint-rejected");
     const context = {
       organizationId,
+      ...(store.governance ? { governance: store.governance.context() } : {}),
       profileId,
       trustDomain: domain.id,
       policyRevision: org.revision,
@@ -565,6 +586,9 @@ function snapshot(store, compiled, organizationId, profileId) {
     const scopeDigest = sha256(
         canonical({
           organizationId,
+          ...(store.governance
+            ? { authorityDigest: store.governance.context().authorityDigest }
+            : {}),
           profile,
           domain: {
             id: domain.id,
@@ -577,6 +601,7 @@ function snapshot(store, compiled, organizationId, profileId) {
       token = Object.freeze({});
     tokens.set(token, {
       root: store.root,
+      governancePath: store.governance?.authorityPath,
       context,
       scopeDigest,
       trustPolicy: clone(profile.trustPolicy),
@@ -594,7 +619,12 @@ function read(token) {
     Date.now() >= stored.expires
   )
     reject("organization-trust-token-invalid");
-  const store = openStore(stored.root);
+  const store = stored.governancePath
+    ? require("./organization-governance.cjs").open(
+        stored.root,
+        stored.governancePath,
+      )
+    : openStore(stored.root);
   try {
     return transaction(store, () => {
       const org = store.db
@@ -630,6 +660,7 @@ function status(store, compiled, organizationId) {
     const org = orgRow(store, compiled, organizationId);
     return {
       organizationId,
+      ...(store.governance ? { governance: store.governance.context() } : {}),
       policyRevision: org.revision,
       storeGeneration: org.generation,
       domains: [...compiled.domains.values()].map((d) => {
@@ -678,4 +709,5 @@ module.exports = Object.freeze({
   status,
   mergeFloors,
   canonical,
+  protectedPath,
 });

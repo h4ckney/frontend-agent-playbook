@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1",
+  "storeId": "REPLACE_WITH_NEW_UUID",
+  "organizationId": "example-platform",
+  "witnessDirectory": "/independent-restore-domain/witness",
+  "threshold": 2,
+  "approvers": [
+    {"id": "policy-owner", "role": "owner", "publicKey": "REPLACE_WITH_REVIEWED_ED25519_SPKI_PEM"},
+    {"id": "security-reviewer", "role": "security", "publicKey": "REPLACE_WITH_DIFFERENT_REVIEWED_ED25519_SPKI_PEM"}
+  ]
+}

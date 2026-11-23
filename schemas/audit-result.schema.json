@@ -119,6 +119,33 @@
         "storeGeneration": {
           "type": "integer",
           "minimum": 1
+        },
+        "governance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "authorityDigest",
+            "witnessSequence",
+            "checkpointDigest"
+          ],
+          "properties": {
+            "mode": {
+              "const": "external-witness"
+            },
+            "authorityDigest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "witnessSequence": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "checkpointDigest": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     }

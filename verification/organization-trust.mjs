@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url),
   tuf = require("./sigstore-tuf.cjs"),
   { sha256 } = require("../analysis/execution-evidence.js");
 const usage =
-  "Usage: node verification/organization-trust.mjs init --store PATH\n  adopt|status --store PATH --organization ID --policy PATH\n  refresh --store PATH --organization ID --policy PATH --trust-domain ID [--repository PATH] [--initialize --bootstrap PATH]\n  recover --store PATH --organization ID --policy PATH --trust-domain ID\n";
+  "Usage: node verification/organization-trust.mjs init --store PATH\n  adopt|status --store PATH --organization ID --policy PATH\n  refresh --store PATH --organization ID --policy PATH --trust-domain ID [--repository PATH] [--initialize --bootstrap PATH]\n  recover --store PATH --organization ID --policy PATH --trust-domain ID\n  Protected mode: --governance AUTHORITY.json; adopt additionally requires --approval BUNDLE.json\n";
 async function main() {
   const [command, ...argv] = process.argv.slice(2);
   if (command === "--help") {
@@ -30,6 +30,8 @@ async function main() {
     ],
     recover: ["--store", "--organization", "--policy", "--trust-domain"],
   }[command];
+  if (allowed && command !== "init") allowed.push("--governance");
+  if (command === "adopt") allowed.push("--approval");
   if (!allowed) throw Error("invalid-command");
   const args = {};
   for (let i = 0; i < argv.length; i++) {
@@ -56,9 +58,24 @@ async function main() {
   }
   const compiled = await org.compilePolicy(org.readJSON(args["--policy"])),
     organization = args["--organization"];
-  const store = org.openStore(args["--store"]);
+  if (args["--approval"] && !args["--governance"])
+    throw Error("approval-requires-governance");
+  const store = args["--governance"]
+    ? require("./organization-governance.cjs").open(
+        args["--store"],
+        args["--governance"],
+      )
+    : org.openStore(args["--store"]);
   try {
-    if (command === "adopt") return org.adopt(store, compiled, organization);
+    if (command === "adopt")
+      return org.adopt(
+        store,
+        compiled,
+        organization,
+        args["--approval"]
+          ? org.readJSON(args["--approval"], 16_000_000)
+          : undefined,
+      );
     if (command === "status") return org.status(store, compiled, organization);
     if (command === "recover")
       return org.recover(store, compiled, organization, args["--trust-domain"]);

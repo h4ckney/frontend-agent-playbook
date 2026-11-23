@@ -160,6 +160,8 @@ Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment 
 
 [Organization trust policies and persistent TUF operations](docs/organization-trust.md) add explicit policy adoption, isolated profiles, transactional checkpoints and interrupted-refresh recovery. Scans remain offline; example policies do not constitute production approval.
 
+[Organization approval and backup/recovery rehearsal](docs/organization-approval-recovery.md) add owner/security signatures and a separate witness to detect rewinding the entire main trust DB. Recovery preserves the latest floor and requires a fresh TUF refresh. Whole-host rollback including the witness remains outside this local profile.
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
