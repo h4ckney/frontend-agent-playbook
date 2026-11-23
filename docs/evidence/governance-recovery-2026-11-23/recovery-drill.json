@@ -1,0 +1,47 @@
+{
+  "format": "controlled-organization-recovery-drill-v1",
+  "startedAt": "2026-11-23T12:42:39.174Z",
+  "finishedAt": "2026-11-23T12:42:39.289Z",
+  "node": "v24.22.3",
+  "scope": "Synthetic approver keys, controlled TUF signatures, temporary local POSIX databases. No production approval, real host power failure, remote witness, OIDC issuance, Rekor publication or deployment.",
+  "steps": [
+    {
+      "step": "two-role-enrollment-and-adoption",
+      "status": "passed"
+    },
+    {
+      "step": "quiescent-consistent-backup",
+      "status": "passed"
+    },
+    {
+      "step": "stale-backup-rejected",
+      "status": "passed"
+    },
+    {
+      "step": "entire-main-db-rewind-detected",
+      "status": "passed",
+      "witnessSequence": 6
+    },
+    {
+      "step": "approved-latest-witness-restore-and-old-path-fencing",
+      "status": "passed",
+      "sequence": 7
+    },
+    {
+      "step": "fresh-tuf-required-before-authorization",
+      "status": "passed",
+      "versions": {
+        "root": 1,
+        "timestamp": 3,
+        "snapshot": 3,
+        "targets": 3
+      }
+    },
+    {
+      "step": "approved-current-backup-restore-preserves-floor",
+      "status": "passed"
+    }
+  ],
+  "passed": 7,
+  "failed": 0
+}

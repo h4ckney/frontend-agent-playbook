@@ -13,7 +13,7 @@ const contract = require(path.join(repoRoot, "analysis", "audit-contract.js"));
 
 const commands = new Set(["scan", "baseline"]);
 const valueOptions = new Set([
-  "organization-policy", "organization", "trust-profile", "trust-store", "root", "trust-policy", "sigstore-trusted-root", "sigstore-tuf-state", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
+  "organization-governance", "organization-policy", "organization", "trust-profile", "trust-store", "root", "trust-policy", "sigstore-trusted-root", "sigstore-tuf-state", "profile", "baseline", "format", "output", "seo-scope", "from", "reason"
 ]);
 const booleanOptions = new Set(["quiet", "allow-partial-baseline", "help"]);
 const formats = new Set(["json", "markdown", "summary"]);
@@ -67,13 +67,18 @@ async function scanCommand(options) {
   if (!(await fs.stat(root)).isDirectory()) throw new Error("scan root must be a directory");
   const organizationValues=[options.organizationPolicy,options.organization,options.trustProfile,options.trustStore];
   let organizationVerification,organizationPolicyPath;
-  if(organizationValues.some(v=>v!==undefined)) {
+  if(organizationValues.some(v=>v!==undefined)||options.organizationGovernance!==undefined) {
     if(!organizationValues.every(Boolean)||options.trustPolicy||options.sigstoreTrustedRoot||options.sigstoreTufState)throw Error("select all organization options and no standalone trust source");
     const organizations=require("../verification/organization-trust.cjs");
     organizationPolicyPath=await fs.realpath(path.resolve(options.organizationPolicy));
     const compiled=await organizations.compilePolicy(organizations.readJSON(organizationPolicyPath));
-    const store=organizations.openStore(options.trustStore);
-    try{organizationVerification=organizations.snapshot(store,compiled,options.organization,options.trustProfile);}finally{store.close();}
+    if(options.organizationGovernance){const governancePath=await fs.realpath(path.resolve(options.organizationGovernance));if(governancePath===root||governancePath.startsWith(root+path.sep))throw Error("organization governance must be outside scan root");}
+    const store=options.organizationGovernance?require("../verification/organization-governance.cjs").open(options.trustStore,options.organizationGovernance):organizations.openStore(options.trustStore);
+    try{
+      const witnessRoot=store.governance?.witnessRoot;
+      if(witnessRoot&&(witnessRoot===root||witnessRoot.startsWith(root+path.sep)))throw Error("organization witness must be outside scan root");
+      organizationVerification=organizations.snapshot(store,compiled,options.organization,options.trustProfile);
+    }finally{store.close();}
     const storePath=await fs.realpath(options.trustStore);
     if(storePath===root||storePath.startsWith(root+path.sep))throw Error("organization trust store must be outside scan root");
   }
@@ -431,6 +436,7 @@ function helpText() {
     "  frontend-agent-audit scan [--root .] [--profile file] [--baseline file]",
     "    [--format json|markdown|summary] [--output file] [--seo-scope scope]",
     "  scan --organization-policy PATH --organization ID --trust-profile ID --trust-store PATH",
+    "  Protected organization mode: add --organization-governance AUTHORITY.json",
     "  frontend-agent-audit baseline --from result.json --output baseline.json",
     "    [--allow-partial-baseline --reason text]",
     "  scan --sigstore-tuf-state PATH: reverify explicitly selected TUF trust state offline",
