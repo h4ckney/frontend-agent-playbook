@@ -6,6 +6,7 @@ const fs = require("node:fs"),
   core = require("./organization-trust.cjs"),
   { sha256 } = require("../analysis/execution-evidence.js"),
   { DatabaseSync } = require("node:sqlite");
+const remote = require("./remote-witness.cjs");
 const permits = new WeakSet(),
   MAX = 16_000_000,
   canonical = core.canonical,
@@ -48,6 +49,7 @@ function authority(file) {
       "witnessDirectory",
       "threshold",
       "approvers",
+      "remoteWitness",
     ]) ||
     a.schemaVersion !== "1" ||
     !uuid(a.storeId) ||
@@ -87,6 +89,7 @@ function authority(file) {
     roles.add(r.role);
   }
   if (roles.size !== 2) fail("governance-roles-required");
+  if (a.remoteWitness !== undefined) remote.validateConfig(a.remoteWitness);
   return { a, location, digest: hash(a) };
 }
 function permit() {
@@ -97,14 +100,40 @@ function permit() {
 const isPermit = (p) => permits.has(p);
 function transaction(store, fn) {
   store.db.exec("BEGIN IMMEDIATE");
+  const rollback = (error) => {
+    if (store.db.isTransaction) store.db.exec("ROLLBACK");
+    throw error;
+  };
+  const commit = (value) => {
+    try {
+      store.db.exec("COMMIT");
+      return value;
+    } catch (error) {
+      return rollback(error);
+    }
+  };
   try {
-    const v = fn();
-    store.db.exec("COMMIT");
-    return v;
-  } catch (e) {
-    store.db.exec("ROLLBACK");
-    throw e;
+    const result = fn();
+    if (result instanceof Promise) return result.then(commit, rollback);
+    return commit(result);
+  } catch (error) {
+    return rollback(error);
   }
+}
+function withStore(store, fn) {
+  let result;
+  try {
+    result = fn();
+  } catch (error) {
+    store.close();
+    throw error;
+  }
+  if (result instanceof Promise) return result.finally(() => store.close());
+  store.close();
+  return result;
+}
+function then(value, next) {
+  return value instanceof Promise ? value.then(next) : next(value);
 }
 function hasBinding(store) {
   return !!store.db
@@ -195,6 +224,8 @@ function attach(store, c, create = false) {
   );
   return root;
 }
+const headSchema =
+  "CREATE TABLE IF NOT EXISTS witness.head(id INTEGER PRIMARY KEY CHECK(id=1),storeId TEXT,authorityDigest TEXT,sequence INTEGER,activeRoot TEXT,stateDigest TEXT,previousCheckpoint TEXT,checkpointDigest TEXT,logical TEXT);";
 function head(store, c, rootCheck = true) {
   const rows = store.db.prepare("SELECT * FROM witness.head").all();
   if (rows.length !== 1) fail("invalid-witness-head");
@@ -234,6 +265,11 @@ function writeHead(store, c, previous, logical) {
   };
   if (!Number.isSafeInteger(h.sequence)) fail("witness-sequence-overflow");
   h.checkpointDigest = checkpoint(h);
+  h.logical = JSON.stringify(logical);
+  saveHead(store, h);
+  return h;
+}
+function saveHead(store, h) {
   store.db
     .prepare("INSERT OR REPLACE INTO witness.head VALUES(1,?,?,?,?,?,?,?,?)")
     .run(
@@ -244,9 +280,21 @@ function writeHead(store, c, previous, logical) {
       h.stateDigest,
       h.previousCheckpoint,
       h.checkpointDigest,
-      JSON.stringify(logical),
+      h.logical,
     );
+}
+async function remoteHead(c) {
+  const h = await remote.call(c, privateFile);
+  if (!h) fail("remote-witness-checkpoint-missing");
   return h;
+}
+function compareRemote(local, independent) {
+  if (local.checkpointDigest === independent.checkpointDigest) return;
+  if (local.sequence === independent.sequence)
+    fail("remote-witness-sequence-conflict");
+  if (local.sequence < independent.sequence)
+    fail("remote-witness-local-behind");
+  fail("remote-witness-history-regressed");
 }
 function check(store, c) {
   binding(store, c);
@@ -361,7 +409,7 @@ function validateRequest(c, b, action) {
       (r.backupDigest !== null && !digest(r.backupDigest)))
   )
     fail("approval-review-mismatch");
-  if (action === "restore") {
+  if (action === "restore" && !c.a.remoteWitness) {
     const h = witness(c);
     if (
       h.checkpointDigest !== r.checkpointDigest ||
@@ -418,6 +466,31 @@ function guard(store, c) {
   let current;
   return {
     authorityPath: c.location,
+    remotePaths: c.a.remoteWitness
+      ? [
+          c.a.remoteWitness.readTokenFile,
+          c.a.remoteWitness.writeTokenFile,
+          c.a.remoteWitness.caFile,
+        ].filter(Boolean)
+      : [],
+    ...(c.a.remoteWitness
+      ? {
+          run(fn) {
+            return transaction(store, async () => {
+              current = check(store, c);
+              compareRemote(current, await remoteHead(c));
+              const result = fn();
+              const logical = dump(store);
+              if (hash(logical) !== current.stateDigest) {
+                current = writeHead(store, c, current, logical);
+                await remote.call(c, privateFile, current);
+              }
+              return result;
+            });
+          },
+        }
+      : {}),
+
     witnessRoot: core.protectedPath(c.a.witnessDirectory),
     before() {
       current = check(store, c);
@@ -430,7 +503,7 @@ function guard(store, c) {
     },
     context() {
       return {
-        mode: "external-witness",
+        mode: c.a.remoteWitness ? "remote-witness" : "external-witness",
         authorityDigest: c.digest,
         witnessSequence: current.sequence,
         checkpointDigest: current.checkpointDigest,
@@ -468,7 +541,11 @@ function open(root, authorityPath) {
   }
 }
 function initBinding(store, c) {
-  store.db.exec("PRAGMA main.user_version=2");
+  store.db.exec(
+    c.a.remoteWitness
+      ? "PRAGMA main.user_version=3"
+      : "PRAGMA main.user_version=2",
+  );
   store.db.exec(
     "CREATE TABLE main.governance_binding(storeId TEXT NOT NULL,authorityDigest TEXT NOT NULL); CREATE TABLE main.governance_receipts(requestId TEXT PRIMARY KEY,bundle TEXT NOT NULL);",
   );
@@ -479,7 +556,7 @@ function initBinding(store, c) {
 function enroll(root, authorityPath, b) {
   const c = authority(authorityPath),
     store = core.openStore(root);
-  try {
+  return withStore(store, () => {
     verifyApproval(c, b, "enroll");
     attach(store, c, true);
     return transaction(store, () => {
@@ -489,21 +566,20 @@ function enroll(root, authorityPath, b) {
       const r = verifyApproval(c, b, "enroll");
       if (r.stateDigest !== hash(logical))
         fail("approval-enrollment-state-changed");
-      store.db.exec(
-        "CREATE TABLE witness.head(id INTEGER PRIMARY KEY CHECK(id=1),storeId TEXT,authorityDigest TEXT,sequence INTEGER,activeRoot TEXT,stateDigest TEXT,previousCheckpoint TEXT,checkpointDigest TEXT,logical TEXT);",
-      );
+      store.db.exec(headSchema);
       initBinding(store, c);
       record(store, b);
       const h = writeHead(store, c, null, dump(store));
-      return {
+      const result = {
         status: "enrolled",
         checkpointDigest: h.checkpointDigest,
         sequence: h.sequence,
       };
+      return c.a.remoteWitness
+        ? remote.call(c, privateFile, h).then(() => result)
+        : result;
     });
-  } finally {
-    store.close();
-  }
+  });
 }
 function witness(c) {
   const root = core.protectedPath(c.a.witnessDirectory),
@@ -556,8 +632,9 @@ function planEnroll(root, authorityPath) {
 function planAdopt(root, authorityPath, compiled) {
   const c = authority(authorityPath),
     s = open(root, authorityPath);
-  try {
-    return transaction(s, () => {
+  const run = s.governance.run || ((fn) => transaction(s, fn));
+  return withStore(s, () =>
+    run(() => {
       check(s, c);
       if (compiled.policy.organizationId !== c.a.organizationId)
         fail("governance-organization-mismatch");
@@ -577,10 +654,8 @@ function planAdopt(root, authorityPath, compiled) {
           previousPolicy: old ? JSON.parse(old.policy) : null,
         },
       );
-    });
-  } finally {
-    s.close();
-  }
+    }),
+  );
 }
 function signRequest(authorityPath, b, approverId, keyFile) {
   const c = authority(authorityPath);
@@ -667,8 +742,9 @@ function writeJSON(file, value) {
 function backup(root, authorityPath, file) {
   const c = authority(authorityPath),
     s = open(root, authorityPath);
-  try {
-    return transaction(s, () => {
+  const run = s.governance.run || ((fn) => transaction(s, fn));
+  return withStore(s, () =>
+    run(() => {
       const h = check(s, c),
         logical = dump(s);
       quiescent(logical);
@@ -695,10 +771,8 @@ function backup(root, authorityPath, file) {
         checkpointDigest: h.checkpointDigest,
         sequence: h.sequence,
       };
-    });
-  } finally {
-    s.close();
-  }
+    }),
+  );
 }
 function backupSource(c, h, file) {
   if (!file) return { logical: JSON.parse(h.logical), backupDigest: null };
@@ -742,112 +816,191 @@ function restoreReview(h) {
     requiresRefresh: true,
   };
 }
-function planRestore(authorityPath, target, file) {
-  const c = authority(authorityPath),
-    h = witness(c),
-    source = backupSource(c, h, file),
-    targetRoot = targetPath(target);
-  if (
-    fs.existsSync(targetRoot) ||
-    relation(targetRoot, h.activeRoot) ||
-    relation(targetRoot, core.protectedPath(c.a.witnessDirectory))
-  )
-    fail("restore-requires-empty-independent-target");
-  return request(
-    c,
-    "restore",
-    {
-      checkpointDigest: h.checkpointDigest,
-      targetRoot,
-      backupDigest: source.backupDigest,
-    },
-    restoreReview(h),
-  );
+function authoritativeHead(c) {
+  return c.a.remoteWitness ? remoteHead(c) : witness(c);
 }
-function restore(authorityPath, target, b, file) {
-  const c = authority(authorityPath),
-    r = verifyApproval(c, b, "restore"),
-    targetRoot = targetPath(target);
-  if (targetRoot !== r.targetRoot || fs.existsSync(targetRoot))
-    fail("restore-target-mismatch");
-  const observed = witness(c);
-  if (
-    relation(targetRoot, observed.activeRoot) ||
-    relation(targetRoot, core.protectedPath(c.a.witnessDirectory))
-  )
-    fail("restore-requires-empty-independent-target");
-  const s = core.openStore(targetRoot, true);
+function planRestore(authorityPath, target, file) {
+  const c = authority(authorityPath);
+  return then(authoritativeHead(c), (h) => {
+    const source = backupSource(c, h, file);
+    const targetRoot = targetPath(target);
+    if (
+      exists(targetRoot) ||
+      relation(targetRoot, h.activeRoot) ||
+      relation(targetRoot, witnessPath(c))
+    )
+      fail("restore-requires-empty-independent-target");
+    return request(
+      c,
+      "restore",
+      {
+        checkpointDigest: h.checkpointDigest,
+        targetRoot,
+        backupDigest: source.backupDigest,
+      },
+      restoreReview(h),
+    );
+  });
+}
+function exists(file) {
   try {
-    attach(s, c);
-    return transaction(s, () => {
-      const h = head(s, c, false),
-        source = backupSource(c, h, file);
-      if (
-        h.checkpointDigest !== r.checkpointDigest ||
-        source.backupDigest !== r.backupDigest
-      )
-        fail("restore-approval-state-changed");
-      const logical = clone(source.logical);
-      assertDomain(c.a, logical);
-      for (const row of logical.organizations)
-        s.db
-          .prepare("INSERT INTO main.organizations VALUES(?,?,?,?,?)")
-          .run(
-            row.id,
-            row.revision,
-            row.digest,
-            row.policy,
-            row.generation + 1,
-          );
-      for (const row of logical.domains) {
-        const state = row.state ? JSON.parse(row.state) : null;
-        if (state)
-          state.lastAttempt = {
-            status: "rejected",
-            reason: "organization-restore-needs-refresh",
-            checkedAt: new Date().toISOString(),
-          };
-        s.db
-          .prepare("INSERT INTO main.domains VALUES(?,?,?,?,?,?)")
-          .run(
-            row.org,
-            row.id,
-            row.anchor,
-            state ? JSON.stringify(state) : null,
-            row.checkpoint,
-            null,
-          );
-      }
-      initBinding(s, c);
-      for (const row of logical.receipts)
-        s.db
-          .prepare("INSERT INTO main.governance_receipts VALUES(?,?)")
-          .run(row.requestId, row.bundle);
-      record(s, b);
-      const next = writeHead(s, c, h, dump(s));
-      return {
-        status: "restored-needs-refresh",
-        checkpointDigest: next.checkpointDigest,
-        sequence: next.sequence,
-      };
-    });
-  } finally {
-    s.close();
+    fs.lstatSync(file);
+    return true;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
   }
 }
+function witnessPath(c) {
+  return exists(c.a.witnessDirectory)
+    ? core.protectedPath(c.a.witnessDirectory)
+    : targetPath(c.a.witnessDirectory);
+}
+function installLogical(s, c, logical, recovering = false) {
+  assertDomain(c.a, logical);
+  for (const row of logical.organizations)
+    s.db
+      .prepare("INSERT INTO main.organizations VALUES(?,?,?,?,?)")
+      .run(
+        row.id,
+        row.revision,
+        row.digest,
+        row.policy,
+        row.generation + (recovering ? 1 : 0),
+      );
+  for (const row of logical.domains) {
+    const state = row.state ? JSON.parse(row.state) : null;
+    if (state && recovering)
+      state.lastAttempt = {
+        status: "rejected",
+        reason: "organization-restore-needs-refresh",
+        checkedAt: new Date().toISOString(),
+      };
+    s.db
+      .prepare("INSERT INTO main.domains VALUES(?,?,?,?,?,?)")
+      .run(
+        row.org,
+        row.id,
+        row.anchor,
+        recovering && state ? JSON.stringify(state) : row.state,
+        row.checkpoint,
+        recovering ? null : row.lease,
+      );
+  }
+  initBinding(s, c);
+  for (const row of logical.receipts)
+    s.db
+      .prepare("INSERT INTO main.governance_receipts VALUES(?,?)")
+      .run(row.requestId, row.bundle);
+}
+function restore(authorityPath, target, b, file) {
+  const c = authority(authorityPath);
+  const r = verifyApproval(c, b, "restore");
+  const targetRoot = targetPath(target);
+  if (targetRoot !== r.targetRoot || exists(targetRoot))
+    fail("restore-target-mismatch");
+  return then(authoritativeHead(c), (observed) => {
+    if (
+      relation(targetRoot, observed.activeRoot) ||
+      relation(targetRoot, witnessPath(c))
+    )
+      fail("restore-requires-empty-independent-target");
+    if (
+      observed.checkpointDigest !== r.checkpointDigest ||
+      canonical(b.review) !== canonical(restoreReview(observed))
+    )
+      fail("restore-approval-state-changed");
+    const source = backupSource(c, observed, file);
+    if (source.backupDigest !== r.backupDigest)
+      fail("restore-approval-state-changed");
+    const s = core.openStore(targetRoot, true);
+    return withStore(s, () => {
+      const witnessFile = path.join(witnessPath(c), "witness.sqlite");
+      attach(s, c, !!c.a.remoteWitness && !exists(witnessFile));
+      return transaction(s, () => {
+        // Local mode must reread under lock. Remote mode binds the exact observed parent through CAS.
+        const h = c.a.remoteWitness ? observed : head(s, c, false);
+        if (c.a.remoteWitness) verifyApproval(c, b, "restore");
+        if (h.checkpointDigest !== r.checkpointDigest)
+          fail("restore-approval-state-changed");
+        s.db.exec(headSchema);
+        installLogical(s, c, source.logical, true);
+        record(s, b);
+        const next = writeHead(s, c, h, dump(s));
+        const result = {
+          status: "restored-needs-refresh",
+          checkpointDigest: next.checkpointDigest,
+          sequence: next.sequence,
+        };
+        return c.a.remoteWitness
+          ? remote.call(c, privateFile, next).then(() => result)
+          : result;
+      });
+    });
+  });
+}
+function reconcile(root, authorityPath) {
+  const c = authority(authorityPath);
+  if (!c.a.remoteWitness) fail("remote-witness-required");
+  const s = open(root, authorityPath);
+  return withStore(s, () =>
+    transaction(s, async () => {
+      const local = check(s, c);
+      const independent = await remoteHead(c);
+      if (local.checkpointDigest === independent.checkpointDigest)
+        return { status: "already-synchronized", sequence: local.sequence };
+      // This is the exact remote commit of an interrupted local write. Wider rollback requires approved restore.
+      if (
+        independent.sequence !== local.sequence + 1 ||
+        independent.previousCheckpoint !== local.checkpointDigest ||
+        independent.activeRoot !== s.root
+      ) {
+        if (independent.sequence <= local.sequence)
+          compareRemote(local, independent);
+        fail("remote-witness-recovery-approval-required");
+      }
+      const before = JSON.parse(local.logical),
+        next = JSON.parse(independent.logical);
+      remote.preserveHistory(before, next);
+      s.db.exec(
+        "DELETE FROM main.domains; DELETE FROM main.organizations; DROP TABLE main.governance_receipts; DROP TABLE main.governance_binding;",
+      );
+      installLogical(s, c, next);
+      saveHead(s, independent);
+      if (hash(dump(s)) !== independent.stateDigest)
+        fail("remote-witness-reconcile-state-mismatch");
+      // Disallow a concurrent remote cutover before returning success.
+      compareRemote(independent, await remoteHead(c));
+      return {
+        status: "reconciled",
+        sequence: independent.sequence,
+        checkpointDigest: independent.checkpointDigest,
+      };
+    }),
+  );
+}
 function inspect(authorityPath) {
-  const c = authority(authorityPath),
-    h = witness(c);
-  return {
+  const c = authority(authorityPath);
+  return then(authoritativeHead(c), (h) => ({
     storeId: h.storeId,
     organizationId: c.a.organizationId,
     sequence: h.sequence,
     checkpointDigest: h.checkpointDigest,
     stateDigest: h.stateDigest,
+  }));
+}
+function authorityInfo(authorityPath) {
+  const c = authority(authorityPath);
+  return {
+    storeId: c.a.storeId,
+    organizationId: c.a.organizationId,
+    authorityDigest: c.digest,
   };
 }
 module.exports = Object.freeze({
   isPermit,
+  authorityInfo,
+  reconcile,
   open,
   enroll,
   planEnroll,

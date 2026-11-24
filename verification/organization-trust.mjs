@@ -68,7 +68,7 @@ async function main() {
     : org.openStore(args["--store"]);
   try {
     if (command === "adopt")
-      return org.adopt(
+      return await org.adopt(
         store,
         compiled,
         organization,
@@ -76,9 +76,15 @@ async function main() {
           ? org.readJSON(args["--approval"], 16_000_000)
           : undefined,
       );
-    if (command === "status") return org.status(store, compiled, organization);
+    if (command === "status")
+      return await org.status(store, compiled, organization);
     if (command === "recover")
-      return org.recover(store, compiled, organization, args["--trust-domain"]);
+      return await org.recover(
+        store,
+        compiled,
+        organization,
+        args["--trust-domain"],
+      );
     const domainId = args["--trust-domain"],
       domain = compiled.domains.get(domainId);
     if (!domain) throw Error("unknown-trust-domain");
@@ -105,7 +111,7 @@ async function main() {
       if (sha256(bootstrap) !== domain.bootstrapRootDigest)
         throw Error("bootstrap-pin-mismatch");
     }
-    const pending = org.beginRefresh(
+    const pending = await org.beginRefresh(
       store,
       compiled,
       organization,
@@ -173,7 +179,7 @@ async function main() {
         },
       };
     }
-    const result = org.finishRefresh(
+    const result = await org.finishRefresh(
       store,
       compiled,
       organization,

@@ -280,7 +280,7 @@ function openStore(input, initialize = false, permit) {
     }
     const storeVersion = db.prepare("PRAGMA user_version").get().user_version;
     if (
-      ![1, 2].includes(storeVersion) ||
+      ![1, 2, 3].includes(storeVersion) ||
       db.prepare("SELECT value FROM marker").get()?.value !==
         "frontend-organization-trust-v1"
     )
@@ -294,11 +294,11 @@ function openStore(input, initialize = false, permit) {
       )
       .get();
     if (
-      (governed || storeVersion === 2) &&
+      (governed || storeVersion >= 2) &&
       !require("./organization-governance.cjs").isPermit(permit)
     )
       reject("organization-governance-required");
-    if (storeVersion === 2 && !governed) reject("invalid-trust-store");
+    if (storeVersion >= 2 && !governed) reject("invalid-trust-store");
     return { db, root, close: () => db.close() };
   } catch (e) {
     db.close();
@@ -306,6 +306,7 @@ function openStore(input, initialize = false, permit) {
   }
 }
 function transaction(store, fn) {
+  if (store.governance?.run) return store.governance.run(fn);
   store.db.exec("BEGIN IMMEDIATE");
   try {
     const guard = store.governance?.before();
@@ -625,8 +626,13 @@ function read(token) {
         stored.governancePath,
       )
     : openStore(stored.root);
-  try {
+  function readState() {
     return transaction(store, () => {
+      if (
+        Date.now() < Date.parse(stored.context.checkedAt) ||
+        Date.now() >= stored.expires
+      )
+        reject("organization-trust-token-invalid");
       const org = store.db
           .prepare(
             "SELECT generation,digest,revision FROM organizations WHERE id=?",
@@ -650,6 +656,13 @@ function read(token) {
         sigstoreTufState: stored.sigstoreTufState,
       });
     });
+  }
+  if (store.governance?.run)
+    return Promise.resolve()
+      .then(readState)
+      .finally(() => store.close());
+  try {
+    return readState();
   } finally {
     store.close();
   }

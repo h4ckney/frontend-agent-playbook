@@ -60,6 +60,9 @@ jobs:
           node --check verification/round-trip/check-public-evidence.mjs
           node --check verification/sigstore-tuf.cjs
           node --check scripts/drill-organization-recovery.mjs
+          node --check verification/remote-witness.cjs
+          node --check verification/remote-witness-server.mjs
+          node --check scripts/drill-remote-witness.mjs
           node --check verification/organization-governance.cjs
           node --check verification/organization-governance.mjs
           node --check verification/organization-trust.cjs

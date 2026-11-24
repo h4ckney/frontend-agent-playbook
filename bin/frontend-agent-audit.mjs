@@ -73,14 +73,18 @@ async function scanCommand(options) {
     organizationPolicyPath=await fs.realpath(path.resolve(options.organizationPolicy));
     const compiled=await organizations.compilePolicy(organizations.readJSON(organizationPolicyPath));
     if(options.organizationGovernance){const governancePath=await fs.realpath(path.resolve(options.organizationGovernance));if(governancePath===root||governancePath.startsWith(root+path.sep))throw Error("organization governance must be outside scan root");}
+    const storePath=await fs.realpath(options.trustStore);
+    if(storePath===root||storePath.startsWith(root+path.sep))throw Error("organization trust store must be outside scan root");
     const store=options.organizationGovernance?require("../verification/organization-governance.cjs").open(options.trustStore,options.organizationGovernance):organizations.openStore(options.trustStore);
     try{
       const witnessRoot=store.governance?.witnessRoot;
+      for (const remotePath of store.governance?.remotePaths ?? []) {
+        const actual=await fs.realpath(remotePath).catch(error=>{if(error.code==="ENOENT")return path.resolve(remotePath);throw error;});
+        if(actual===root||actual.startsWith(root+path.sep))throw Error("organization witness credentials and CA must be outside scan root");
+      }
       if(witnessRoot&&(witnessRoot===root||witnessRoot.startsWith(root+path.sep)))throw Error("organization witness must be outside scan root");
-      organizationVerification=organizations.snapshot(store,compiled,options.organization,options.trustProfile);
+      organizationVerification=await organizations.snapshot(store,compiled,options.organization,options.trustProfile);
     }finally{store.close();}
-    const storePath=await fs.realpath(options.trustStore);
-    if(storePath===root||storePath.startsWith(root+path.sep))throw Error("organization trust store must be outside scan root");
   }
   if(options.sigstoreTrustedRoot && options.sigstoreTufState) throw Error("select one Sigstore trust source");
   const tufPath=options.sigstoreTufState ? await fs.realpath(path.resolve(root,options.sigstoreTufState)) : null;

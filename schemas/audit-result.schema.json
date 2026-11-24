@@ -131,7 +131,7 @@
           ],
           "properties": {
             "mode": {
-              "const": "external-witness"
+              "enum": ["external-witness", "remote-witness"]
             },
             "authorityDigest": {
               "type": "string",

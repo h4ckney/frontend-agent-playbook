@@ -14,6 +14,8 @@ const usage = `Usage: node verification/organization-governance.mjs COMMAND --au
   backup --store PATH --output BACKUP.json
   restore --target NEW_PATH --approval PATH [--backup PATH]
   witness
+  authority-info
+  reconcile --store PATH
 Omitting --backup during restore explicitly selects the current independent witness snapshot.
 `;
 async function main() {
@@ -32,6 +34,8 @@ async function main() {
     backup: ["store", "output"],
     restore: ["target", "approval", "backup"],
     witness: [],
+    "authority-info": [],
+    reconcile: ["store"],
   };
   if (!Object.hasOwn(choices, command))
     throw Error("invalid-governance-command");
@@ -60,13 +64,13 @@ async function main() {
   if (command === "plan-enroll")
     result = g.planEnroll(args.store, args.authority);
   if (command === "plan-adopt")
-    result = g.planAdopt(
+    result = await g.planAdopt(
       args.store,
       args.authority,
       await core.compilePolicy(read(args.policy)),
     );
   if (command === "plan-restore")
-    result = g.planRestore(args.authority, args.target, args.backup);
+    result = await g.planRestore(args.authority, args.target, args.backup);
   if (command === "sign")
     result = g.signRequest(
       args.authority,
@@ -93,6 +97,8 @@ async function main() {
       read(args.approval),
       args.backup,
     );
+  if (command === "authority-info") return g.authorityInfo(args.authority);
+  if (command === "reconcile") return g.reconcile(args.store, args.authority);
   return g.inspect(args.authority);
 }
 main()
