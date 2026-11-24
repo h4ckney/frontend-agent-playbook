@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const protocol = require("./remote-witness.cjs");
 const core = require("./organization-trust.cjs");
+const { verifyWitnessRotation } = require("./organization-governance.cjs");
 
 // An instance serves one preconfigured store and never resets its append history.
 export function createWitness({
@@ -68,20 +69,47 @@ export function createWitness({
     const insert = db.prepare("INSERT INTO history VALUES(?,?)");
     const current = () => JSON.parse(latest.get()?.body ?? "null");
 
-    function append(next) {
-      const state = protocol.validateHead(next, scope);
+    function append(next, requestedScope, rotation) {
+      const targetScope = rotation
+        ? { ...requestedScope, authorityDigest: next.authorityDigest }
+        : requestedScope;
+      const state = protocol.validateHead(next, targetScope);
       db.exec("BEGIN IMMEDIATE");
       try {
         const old = current();
-        if (old?.checkpointDigest !== next.checkpointDigest) {
-          if (
-            next.sequence !== (old?.sequence ?? 0) + 1 ||
-            next.previousCheckpoint !== (old?.checkpointDigest ?? null)
-          )
+        const active = old?.authorityDigest ?? scope.authorityDigest;
+        if (rotation && old?.checkpointDigest === next.checkpointDigest) {
+          // A lost response may be retried with the old authority only for this exact transition.
+          const applied = state.receipts.some((row) => {
+            const b = JSON.parse(row.bundle);
+            return (
+              b.request.action === "rotate" &&
+              b.request.authorityDigest === requestedScope.authorityDigest &&
+              b.request.destinationAuthorityDigest === active &&
+              b.request.checkpointDigest === next.previousCheckpoint
+            );
+          });
+          if (!applied) throw Error("witness-conflict");
+        } else {
+          if (requestedScope.authorityDigest !== active)
             throw Error("witness-conflict");
-          if (old)
-            protocol.preserveHistory(protocol.validateHead(old, scope), state);
-          insert.run(next.sequence, JSON.stringify(next));
+          if (old?.checkpointDigest !== next.checkpointDigest) {
+            if (
+              next.sequence !== (old?.sequence ?? 0) + 1 ||
+              next.previousCheckpoint !== (old?.checkpointDigest ?? null)
+            )
+              throw Error("witness-conflict");
+            if (rotation) {
+              if (!old || targetScope.authorityDigest === active)
+                throw Error("witness-conflict");
+              verifyWitnessRotation(old, next, requestedScope, targetScope);
+            } else if (old)
+              protocol.preserveHistory(
+                protocol.validateHead(old, requestedScope),
+                state,
+              );
+            insert.run(next.sequence, JSON.stringify(next));
+          }
         }
         db.exec("COMMIT");
         return next;
@@ -135,6 +163,7 @@ export function createWitness({
           );
           const write = Object.hasOwn(body, "next");
           const probe = Object.hasOwn(body, "writeProbe");
+          const rotation = Object.hasOwn(body, "rotation");
           if (
             !protocol.exact(body, [
               "storeId",
@@ -142,9 +171,11 @@ export function createWitness({
               "nonce",
               ...(write ? ["next"] : []),
               ...(probe ? ["writeProbe"] : []),
+              ...(rotation ? ["rotation"] : []),
             ]) ||
             body.storeId !== scope.storeId ||
-            body.authorityDigest !== scope.authorityDigest ||
+            !protocol.digest(body.authorityDigest) ||
+            (rotation && (!write || body.rotation !== true)) ||
             typeof body.nonce !== "string" ||
             !/^[a-f0-9]{64}$/.test(body.nonce) ||
             (probe && (write || body.writeProbe !== true)) ||
@@ -153,9 +184,23 @@ export function createWitness({
             res.writeHead(403).end();
             return;
           }
-          const head = write ? append(body.next) : current();
+          const requestedScope = {
+            storeId: scope.storeId,
+            authorityDigest: body.authorityDigest,
+          };
+          const head = write
+            ? append(body.next, requestedScope, rotation)
+            : current();
+          if (
+            !write &&
+            requestedScope.authorityDigest !==
+              (head?.authorityDigest ?? scope.authorityDigest)
+          ) {
+            res.writeHead(403).end();
+            return;
+          }
           const receipt = {
-            ...scope,
+            ...requestedScope,
             nonce: body.nonce,
             head,
             ...(probe ? { writeAuthorized: true } : {}),

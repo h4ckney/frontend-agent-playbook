@@ -280,7 +280,7 @@ function openStore(input, initialize = false, permit) {
     }
     const storeVersion = db.prepare("PRAGMA user_version").get().user_version;
     if (
-      ![1, 2, 3, 4].includes(storeVersion) ||
+      ![1, 2, 3, 4, 5].includes(storeVersion) ||
       db.prepare("SELECT value FROM marker").get()?.value !==
         "frontend-organization-trust-v1"
     )

@@ -219,7 +219,12 @@ function post(url, token, ca, payload) {
   });
 }
 
-async function call(c, privateFile, next, { writeProbe = false } = {}) {
+async function call(
+  c,
+  privateFile,
+  next,
+  { writeProbe = false, rotation = false } = {},
+) {
   const config = c.a.remoteWitness;
   const file =
     next || writeProbe ? config.writeTokenFile : config.readTokenFile;
@@ -238,6 +243,7 @@ async function call(c, privateFile, next, { writeProbe = false } = {}) {
       nonce,
       ...(next ? { next } : {}),
       ...(writeProbe ? { writeProbe: true } : {}),
+      ...(rotation ? { rotation: true } : {}),
     });
   } catch (error) {
     if (/^remote-witness-(?:conflict|response-too-large)$/.test(error.message))
@@ -269,7 +275,10 @@ async function call(c, privateFile, next, { writeProbe = false } = {}) {
     fail("remote-witness-response-invalid");
   const { head } = reply.receipt;
   if (head === null && !next) return null;
-  validateHead(head, scope);
+  validateHead(
+    head,
+    rotation ? { ...scope, authorityDigest: next.authorityDigest } : scope,
+  );
   if (next && head.checkpointDigest !== next.checkpointDigest)
     fail("remote-witness-conflict");
   return head;

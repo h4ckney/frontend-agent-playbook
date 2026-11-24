@@ -64,6 +64,7 @@ jobs:
           node --check verification/remote-witness-server.mjs
           node --check scripts/drill-remote-witness.mjs
           node --check scripts/drill-remote-witness-migration.mjs
+          node --check scripts/drill-approval-key-rotation.mjs
           node --check verification/organization-governance.cjs
           node --check verification/organization-governance.mjs
           node --check verification/organization-trust.cjs

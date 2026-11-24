@@ -22,7 +22,7 @@ Risk: Level 2 — 조직 신뢰 상태를 별도 서버의 최신 체크포인�
 
 ## 서비스 설정
 
-별도 복원 단위에 있는 호스트에서 [witness 서비스](../verification/remote-witness-server.mjs)를 실행한다. 자체 TLS 인증서와 Ed25519 서명 키, 충분한 엔트로피의 서로 다른 읽기·쓰기 토큰을 사용한다. 서비스는 한 조직 store에 전용이다. SQLite 파일을 이어서 사용하도록 서비스 재시작에서는 초기화 옵션을 뺀다.
+별도 복원 단위에 있는 호스트에서 [witness 서비스](../verification/remote-witness-server.mjs)를 실행한다. 자체 TLS 인증서와 Ed25519 서명 키, 충분한 엔트로피의 서로 다른 읽기·쓰기 토큰을 사용한다. 서비스는 한 조직 store에 전용이다. 승인 키 교체에는 [owner·security 키 교체 절차](approval-key-rotation.md)를 사용한다. SQLite 파일을 이어서 사용하도록 서비스 재시작에서는 초기화 옵션을 뺀다.
 
 1. 운영 authority에 아래 필드를 추가한다. 공개키와 사설 CA를 쓰는 경우 해당 CA 파일은 승인된 배포 경로로 고정한다. 공용 신뢰 CA를 쓰면 `caFile`을 생략할 수 있다. 스캐너에는 읽기 토큰만 배치한다. 쓰기 토큰 파일 경로는 같은 authority에 남아 있어도 스캐너 호스트에 실제 파일은 없어도 된다. 파일은 private 디렉터리에 0600으로 두고 scan root 밖에 둔다.
 
