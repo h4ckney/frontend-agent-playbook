@@ -26,6 +26,21 @@ function fail(code) {
   throw Error(code);
 }
 
+function ed25519PublicKey(value) {
+  if (
+    typeof value !== "string" ||
+    value.length > 2000 ||
+    !/^-----BEGIN PUBLIC KEY-----\r?\n(?:[A-Za-z0-9+/=]+\r?\n)+-----END PUBLIC KEY-----$/.test(
+      value.trim(),
+    )
+  )
+    return false;
+  try {
+    return crypto.createPublicKey(value).asymmetricKeyType === "ed25519";
+  } catch {
+    return false;
+  }
+}
 function validateConfig(config) {
   if (
     !config ||
@@ -43,8 +58,7 @@ function validateConfig(config) {
     ) ||
     typeof config.url !== "string" ||
     config.url.length > 2048 ||
-    typeof config.publicKey !== "string" ||
-    config.publicKey.length > 2000 ||
+    !ed25519PublicKey(config.publicKey) ||
     typeof config.readTokenFile !== "string" ||
     !path.isAbsolute(config.readTokenFile) ||
     ["writeTokenFile", "caFile"].some(
@@ -61,8 +75,7 @@ function validateConfig(config) {
     url.password ||
     url.search ||
     url.hash ||
-    url.pathname !== "/v1/checkpoint" ||
-    crypto.createPublicKey(config.publicKey).asymmetricKeyType !== "ed25519"
+    url.pathname !== "/v1/checkpoint"
   )
     fail("invalid-remote-witness-config");
 }
@@ -290,6 +303,7 @@ module.exports = {
   digest,
   uuid,
   credential,
+  ed25519PublicKey,
   validateConfig,
   validateHead,
   preserveHistory,

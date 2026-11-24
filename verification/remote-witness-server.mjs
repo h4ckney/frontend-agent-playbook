@@ -83,7 +83,7 @@ export function createWitness({
           const applied = state.receipts.some((row) => {
             const b = JSON.parse(row.bundle);
             return (
-              b.request.action === "rotate" &&
+              ["rotate", "recover-quorum"].includes(b.request.action) &&
               b.request.authorityDigest === requestedScope.authorityDigest &&
               b.request.destinationAuthorityDigest === active &&
               b.request.checkpointDigest === next.previousCheckpoint

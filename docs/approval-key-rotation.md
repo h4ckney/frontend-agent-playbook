@@ -8,7 +8,7 @@ Risk Level 2. 조직 승인 키의 권한을 교체하고, 폐기된 키가 다�
 
 새 authority 파일에서 `approverEpoch`를 정확히 1 높이고 `approvers`를 수정한다. 이전 파일에 epoch가 없으면 0으로 본다. 조직, store, threshold, witness endpoint와 전송 키 설정은 동일하게 유지한다. 유지하는 키의 ID와 역할도 그대로 둔다. 폐기된 Ed25519 공개키 지문은 이후에 ID를 바꾸어 등록해도 거절된다.
 
-현재 owner·security 정족수와 다음 owner·security 정족수가 같은 요청을 각각 서명한다. 새로 추가되는 모든 키는 다음 정족수가 이미 충족된 경우에도 소유를 증명한다. 두 종류의 서명은 서로 교환할 수 없다. 폐기 대상 키의 서명 없이도 **남은 기존 키로 현재 정족수를 충족하면** 폐기할 수 있다. 기존 owner 또는 security 정족수를 구성할 수 없다면 이 절차로 임의의 새 정족수를 세울 수 없다. 그런 경우에는 조직이 별도로 승인한 비상 복구 경로가 필요하다.
+현재 owner·security 정족수와 다음 owner·security 정족수가 같은 요청을 각각 서명한다. 새로 추가되는 모든 키는 다음 정족수가 이미 충족된 경우에도 소유를 증명한다. 두 종류의 서명은 서로 교환할 수 없다. 폐기 대상 키의 서명 없이도 **남은 기존 키로 현재 정족수를 충족하면** 폐기할 수 있다. 기존 owner 또는 security 정족수를 구성할 수 없다면 이 절차로 임의의 새 정족수를 세울 수 없다. 그런 경우에는 [사전에 등록한 복구 정족수로 비상 복구](emergency-quorum-recovery.md)를 진행한다.
 
 ```sh
 node verification/organization-governance.mjs plan-rotation \

@@ -61,6 +61,7 @@ function parseAuthority(a) {
       "approvers",
       "remoteWitness",
       "approverEpoch",
+      "recovery",
     ]) ||
     a.schemaVersion !== "1" ||
     (a.approverEpoch !== undefined &&
@@ -77,10 +78,34 @@ function parseAuthority(a) {
     a.approvers.length > 8
   )
     fail("invalid-governance-authority");
+  const regular = validateRoster(a.approvers, a.threshold);
+  if (a.recovery !== undefined) {
+    if (!exact(a.recovery, ["threshold", "approvers"]))
+      fail("invalid-recovery-authority");
+    const recovery = validateRoster(a.recovery.approvers, a.recovery.threshold);
+    if (
+      [...recovery.keys].some((key) => regular.keys.has(key)) ||
+      [...recovery.ids].some((id) => regular.ids.has(id))
+    )
+      fail("recovery-authority-must-be-independent");
+  }
+  if (a.remoteWitness !== undefined) remote.validateConfig(a.remoteWitness);
+  return { a, digest: hash(a) };
+}
+function validateRoster(approvers, threshold) {
+  if (
+    !Number.isSafeInteger(threshold) ||
+    threshold < 2 ||
+    threshold > 8 ||
+    !Array.isArray(approvers) ||
+    approvers.length < threshold ||
+    approvers.length > 8
+  )
+    fail("invalid-governance-authority");
   const ids = new Set(),
     keys = new Set(),
     roles = new Set();
-  for (const r of a.approvers) {
+  for (const r of approvers) {
     if (
       !exact(r, ["id", "role", "publicKey"]) ||
       !slug(r.id) ||
@@ -90,8 +115,7 @@ function parseAuthority(a) {
       r.publicKey.length > 2000
     )
       fail("invalid-governance-approver");
-    const k = crypto.createPublicKey(r.publicKey);
-    if (k.asymmetricKeyType !== "ed25519") fail("invalid-governance-key");
+    if (!remote.ed25519PublicKey(r.publicKey)) fail("invalid-governance-key");
     const fingerprint = keyFingerprint(r.publicKey);
     if (keys.has(fingerprint)) fail("duplicate-governance-key");
     ids.add(r.id);
@@ -99,8 +123,7 @@ function parseAuthority(a) {
     roles.add(r.role);
   }
   if (roles.size !== 2) fail("governance-roles-required");
-  if (a.remoteWitness !== undefined) remote.validateConfig(a.remoteWitness);
-  return { a, digest: hash(a) };
+  return { ids, keys };
 }
 function permit() {
   const p = Object.freeze({});
@@ -384,6 +407,11 @@ function validateRequest(c, b, action, now = Date.now()) {
     restore: ["checkpointDigest", "targetRoot", "backupDigest"],
     migrate: ["checkpointDigest", "targetRoot", "destinationAuthorityDigest"],
     rotate: ["checkpointDigest", "targetRoot", "destinationAuthorityDigest"],
+    "recover-quorum": [
+      "checkpointDigest",
+      "targetRoot",
+      "destinationAuthorityDigest",
+    ],
   }[action];
   if (
     !specific ||
@@ -440,7 +468,7 @@ function validateRequest(c, b, action, now = Date.now()) {
   )
     fail("approval-migration-scope-invalid");
   if (
-    action === "rotate" &&
+    isRotation(action) &&
     (!digest(r.checkpointDigest) ||
       !digest(r.destinationAuthorityDigest) ||
       typeof r.targetRoot !== "string" ||
@@ -600,8 +628,9 @@ function initBinding(store, c) {
     .run(c.a.storeId, c.digest);
 }
 function enroll(root, authorityPath, b) {
-  const c = authority(authorityPath),
-    store = core.openStore(root);
+  const c = authority(authorityPath);
+  if (c.a.recovery) fail("register-recovery-by-approved-rotation");
+  const store = core.openStore(root);
   return withStore(store, () => {
     verifyApproval(c, b, "enroll");
     attach(store, c, true);
@@ -662,8 +691,9 @@ function request(c, action, specific, review) {
   };
 }
 function planEnroll(root, authorityPath) {
-  const c = authority(authorityPath),
-    s = core.openStore(root);
+  const c = authority(authorityPath);
+  if (c.a.recovery) fail("register-recovery-by-approved-rotation");
+  const s = core.openStore(root);
   try {
     return transaction(s, () => {
       const state = dump(s);
@@ -705,23 +735,41 @@ function planAdopt(root, authorityPath, compiled) {
 }
 function signRequest(authorityPath, b, approverId, keyFile, side) {
   const c = authority(authorityPath);
-  if (b.request?.action === "rotate") {
+  if (isRotation(b.request?.action)) {
     const { source, destination } = verifyRotationBundle(b, false);
-    if (side !== "current" && side !== "next")
-      fail("rotation-signing-side-required");
-    const selected = side === "current" ? source : destination;
+    const emergency = b.request.action === "recover-quorum";
+    const allowed = [
+      emergency ? "recovery" : "current",
+      "next",
+      ...(!emergency && b.review.recoveryAdded?.length
+        ? ["recovery-setup"]
+        : []),
+    ];
+    if (!allowed.includes(side)) fail("rotation-signing-side-required");
+    const selected =
+      side === "next" || side === "recovery-setup" ? destination : source;
     if (selected.digest !== c.digest)
       fail("rotation-signing-authority-mismatch");
+    const recoverySide = side === "recovery" || side === "recovery-setup";
+    const bytes =
+      side === "next"
+        ? acceptanceMessage(b.request)
+        : side === "recovery-setup"
+          ? recoverySetupMessage(b.request)
+          : rotationApprovalMessage(b.request);
     const signature = signApproval(
-      c,
+      recoverySide ? recoveryAuthority(c) : c,
       approverId,
       keyFile,
-      side === "current" ? message(b.request) : acceptanceMessage(b.request),
+      bytes,
     );
     return {
       ...clone(b),
-      signatures: side === "current" ? [signature] : [],
+      signatures: side === "current" || side === "recovery" ? [signature] : [],
       acceptances: side === "next" ? [signature] : [],
+      ...(b.recoveryProofs
+        ? { recoveryProofs: side === "recovery-setup" ? [signature] : [] }
+        : {}),
     };
   }
   if (side !== undefined) fail("rotation-signing-side-invalid");
@@ -764,9 +812,9 @@ function signApproval(c, approverId, keyFile, bytes) {
 }
 function combine(authorityPath, bundles) {
   const c = authority(authorityPath);
-  if (!bundles.length || bundles.length > 16) fail("invalid-approval-batch");
+  if (!bundles.length || bundles.length > 24) fail("invalid-approval-batch");
   const b = clone(bundles[0]),
-    rotating = b.request?.action === "rotate";
+    rotating = isRotation(b.request?.action);
   if (!rotating && bundles.length > 8) fail("invalid-approval-batch");
   for (const other of bundles.slice(1)) {
     if (
@@ -775,7 +823,11 @@ function combine(authorityPath, bundles) {
     )
       fail("approval-request-mismatch");
     b.signatures.push(...other.signatures);
-    if (rotating) b.acceptances.push(...other.acceptances);
+    if (rotating) {
+      b.acceptances.push(...other.acceptances);
+      if (b.recoveryProofs)
+        b.recoveryProofs.push(...(other.recoveryProofs ?? []));
+    }
   }
   if (rotating) {
     const { source } = verifyRotationBundle(b);
@@ -1274,18 +1326,24 @@ function acceptanceMessage(request) {
     "frontend-organization-rotation-acceptance-v1\n" + canonical(request),
   );
 }
-function approverChanges(source, destination) {
-  const { approvers: prior, approverEpoch: epoch, ...fixed } = source.a;
-  const {
-    approvers: next,
-    approverEpoch: nextEpoch,
-    ...nextFixed
-  } = destination.a;
-  if (
-    nextEpoch !== (epoch ?? 0) + 1 ||
-    canonical(fixed) !== canonical(nextFixed)
-  )
-    fail("rotation-authority-fields-changed");
+function isRotation(action) {
+  return action === "rotate" || action === "recover-quorum";
+}
+function recoveryAuthority(c) {
+  if (!c.a.recovery) fail("recovery-quorum-not-registered");
+  return { a: c.a.recovery };
+}
+function rotationApprovalMessage(r) {
+  return r.action === "recover-quorum"
+    ? Buffer.from("frontend-organization-emergency-quorum-v1\n" + canonical(r))
+    : message(r);
+}
+function recoverySetupMessage(r) {
+  return Buffer.from(
+    "frontend-organization-recovery-registration-v1\n" + canonical(r),
+  );
+}
+function rosterChanges(prior, next) {
   const describe = (rows) =>
     rows.map(({ id, role, publicKey }) => ({
       id,
@@ -1294,48 +1352,122 @@ function approverChanges(source, destination) {
     }));
   const before = describe(prior),
     after = describe(next);
-  const added = after.filter(
-    (k) => !before.some((p) => p.fingerprint === k.fingerprint),
-  );
-  const revoked = before.filter(
-    (k) => !after.some((n) => n.fingerprint === k.fingerprint),
-  );
   for (const key of after) {
-    const prev = before.find((k) => k.fingerprint === key.fingerprint);
-    if (prev && (prev.id !== key.id || prev.role !== key.role))
+    const old = before.find((p) => p.fingerprint === key.fingerprint);
+    if (old && (old.id !== key.id || old.role !== key.role))
       fail("rotation-retained-key-role-or-id-changed");
   }
-  if (!added.length && !revoked.length) fail("rotation-has-no-key-change");
-  return { added, revoked };
+  return {
+    added: after.filter(
+      (k) => !before.some((p) => p.fingerprint === k.fingerprint),
+    ),
+    revoked: before.filter(
+      (k) => !after.some((n) => n.fingerprint === k.fingerprint),
+    ),
+  };
 }
-function rotationReview(h, source, destination) {
+function approverChanges(source, destination, emergency = false) {
+  const {
+    approvers: prior,
+    approverEpoch: epoch,
+    recovery: oldRecovery,
+    ...fixed
+  } = source.a;
+  const {
+    approvers: next,
+    approverEpoch: nextEpoch,
+    recovery: newRecovery,
+    ...nextFixed
+  } = destination.a;
+  if (
+    nextEpoch !== (epoch ?? 0) + 1 ||
+    canonical(fixed) !== canonical(nextFixed)
+  )
+    fail("rotation-authority-fields-changed");
+  const changes = rosterChanges(prior, next);
+  const recoveryChanged = canonical(oldRecovery) !== canonical(newRecovery);
+  if (emergency) {
+    recoveryAuthority(source);
+    if (recoveryChanged) fail("emergency-recovery-authority-change-rejected");
+    if (!changes.added.length || !changes.revoked.length)
+      fail("emergency-recovery-replacement-required");
+  }
+  if (!changes.added.length && !changes.revoked.length && !recoveryChanged)
+    fail("rotation-has-no-key-change");
+  // A key cannot move between the independent roles during a transition.
+  const oldActive = new Set(prior.map((k) => keyFingerprint(k.publicKey)));
+  const oldCustody = new Set(
+    (oldRecovery?.approvers ?? []).map((k) => keyFingerprint(k.publicKey)),
+  );
+  if (
+    (newRecovery?.approvers ?? []).some((k) =>
+      oldActive.has(keyFingerprint(k.publicKey)),
+    ) ||
+    next.some((k) => oldCustody.has(keyFingerprint(k.publicKey)))
+  )
+    fail("recovery-authority-must-be-independent");
+  if (!recoveryChanged) return changes;
+  const custodians = rosterChanges(
+    oldRecovery?.approvers ?? [],
+    newRecovery?.approvers ?? [],
+  );
+  return {
+    ...changes,
+    recoveryAdded: custodians.added,
+    recoveryRevoked: custodians.revoked,
+  };
+}
+function rotationReview(h, source, destination, reason) {
   return {
     sourceAuthority: source.a,
     destinationAuthority: destination.a,
     sourceSequence: h.sequence,
     sourceStateDigest: h.stateDigest,
-    ...approverChanges(source, destination),
+    ...approverChanges(source, destination, reason !== undefined),
+    ...(reason !== undefined ? { reason } : {}),
   };
 }
 function verifyRotationBundle(bundle, threshold = true, at) {
-  if (!exact(bundle, ["request", "review", "signatures", "acceptances"]))
+  if (
+    !exact(bundle, [
+      "request",
+      "review",
+      "signatures",
+      "acceptances",
+      "recoveryProofs",
+    ])
+  )
     fail("invalid-rotation-approval");
   const { request: r, review, signatures, acceptances } = bundle;
+  if (!isRotation(r?.action)) fail("invalid-rotation-approval");
+  const emergency = r.action === "recover-quorum";
+  if (emergency !== Object.hasOwn(review ?? {}, "reason"))
+    fail("emergency-recovery-reason-invalid");
   const source = parseAuthority(review?.sourceAuthority),
     destination = parseAuthority(review?.destinationAuthority);
-  const changes = approverChanges(source, destination);
+  const changes = approverChanges(source, destination, emergency);
   if (
-    r?.destinationAuthorityDigest !== destination.digest ||
-    canonical(changes.added) !== canonical(review.added) ||
-    canonical(changes.revoked) !== canonical(review.revoked)
+    emergency &&
+    (typeof review.reason !== "string" ||
+      review.reason.trim() !== review.reason ||
+      review.reason.length < 8 ||
+      review.reason.length > 240 ||
+      /[\x00-\x1f\x7f]/.test(review.reason))
+  )
+    fail("emergency-recovery-reason-invalid");
+  if (
+    r.destinationAuthorityDigest !== destination.digest ||
+    ["added", "revoked", "recoveryAdded", "recoveryRevoked"].some(
+      (key) => canonical(changes[key]) !== canonical(review[key]),
+    )
   )
     fail("rotation-review-mismatch");
-  verifyApproval(
-    source,
-    { request: r, review, signatures },
-    "rotate",
+  validateRequest(source, { request: r, review, signatures }, r.action, at);
+  verifySignatures(
+    emergency ? recoveryAuthority(source) : source,
+    signatures,
+    rotationApprovalMessage(r),
     threshold,
-    at,
   );
   const accepted = verifySignatures(
     destination,
@@ -1343,60 +1475,95 @@ function verifyRotationBundle(bundle, threshold = true, at) {
     acceptanceMessage(r),
     threshold,
   );
-  if (threshold && changes.added.some((key) => !accepted.has(key.id)))
+  if (threshold && changes.added.some((k) => !accepted.has(k.id)))
     fail("rotation-new-key-proof-required");
+  if (changes.recoveryAdded?.length) {
+    const proofs = verifySignatures(
+      recoveryAuthority(destination),
+      bundle.recoveryProofs,
+      recoverySetupMessage(r),
+      false,
+    );
+    if (threshold && changes.recoveryAdded.some((k) => !proofs.has(k.id)))
+      fail("recovery-new-key-proof-required");
+  } else if (bundle.recoveryProofs !== undefined)
+    fail("unexpected-recovery-key-proof");
   return { source, destination };
 }
-function rotationAuthorities(sourcePath, destinationPath) {
+function rotationAuthorities(sourcePath, destinationPath, emergency = false) {
   const source = authority(sourcePath),
     destination = authority(destinationPath);
-  approverChanges(source, destination);
+  approverChanges(source, destination, emergency);
   return { source, destination };
 }
 function retiredKeys(logical) {
   const retired = new Set();
   for (const { bundle } of logical.receipts) {
     const b = JSON.parse(bundle);
-    if (b.request.action === "rotate")
-      for (const key of b.review.revoked) retired.add(key.fingerprint);
+    if (isRotation(b.request.action))
+      for (const key of [
+        ...b.review.revoked,
+        ...(b.review.recoveryRevoked ?? []),
+      ])
+        retired.add(key.fingerprint);
   }
   return retired;
 }
 function assertUnrevoked(logical, destination) {
   const retired = retiredKeys(logical);
   if (
-    destination.a.approvers.some((k) =>
-      retired.has(keyFingerprint(k.publicKey)),
-    )
+    [
+      ...destination.a.approvers,
+      ...(destination.a.recovery?.approvers ?? []),
+    ].some((k) => retired.has(keyFingerprint(k.publicKey)))
   )
     fail("rotation-revoked-key-reuse");
 }
-function planRotation(root, sourcePath, destinationPath) {
+function planRotation(root, sourcePath, destinationPath, reason) {
+  const emergency = reason !== undefined;
   const { source, destination } = rotationAuthorities(
     sourcePath,
     destinationPath,
+    emergency,
   );
+  const plan = (store, h, logical) => {
+    quiescent(logical);
+    assertUnrevoked(logical, destination);
+    const review = rotationReview(h, source, destination, reason);
+    const proposed = {
+      ...request(
+        source,
+        emergency ? "recover-quorum" : "rotate",
+        {
+          checkpointDigest: h.checkpointDigest,
+          targetRoot: store.root,
+          destinationAuthorityDigest: destination.digest,
+        },
+        review,
+      ),
+      acceptances: [],
+      ...(review.recoveryAdded?.length ? { recoveryProofs: [] } : {}),
+    };
+    verifyRotationBundle(proposed, false);
+    return proposed;
+  };
+  if (emergency) {
+    const store = core.openStore(root, false, permit());
+    return withStore(store, () => {
+      attach(store, source);
+      return transaction(store, async () => {
+        const old = recoverySource(store, source);
+        if (source.a.remoteWitness)
+          compareRemote(old, await remoteHead(source));
+        return plan(store, old, JSON.parse(old.logical));
+      });
+    });
+  }
   const store = open(root, sourcePath);
   return withStore(store, () =>
-    (store.governance.run || ((fn) => transaction(store, fn)))(() => {
-      const h = check(store, source),
-        logical = dump(store);
-      quiescent(logical);
-      assertUnrevoked(logical, destination);
-      return {
-        ...request(
-          source,
-          "rotate",
-          {
-            checkpointDigest: h.checkpointDigest,
-            targetRoot: store.root,
-            destinationAuthorityDigest: destination.digest,
-          },
-          rotationReview(h, source, destination),
-        ),
-        acceptances: [],
-      };
-    }),
+    (store.governance.run || ((fn) => transaction(store, fn)))(() =>
+      plan(store, check(store, source), dump(store)),
+    ),
   );
 }
 function rotationLogical(h, logical, bundle, at) {
@@ -1408,7 +1575,7 @@ function rotationLogical(h, logical, bundle, at) {
     r.targetRoot !== h.activeRoot ||
     r.checkpointDigest !== h.checkpointDigest ||
     canonical(bundle.review) !==
-      canonical(rotationReview(h, source, destination))
+      canonical(rotationReview(h, source, destination, bundle.review.reason))
   )
     fail("rotation-source-or-approval-changed");
   quiescent(logical);
@@ -1485,12 +1652,19 @@ function applyRotation(store, destination, { head, logical }) {
     checkpointDigest: head.checkpointDigest,
   };
 }
-function completedRotation(store, source, destination, local, bundle) {
+function completedRotation(
+  store,
+  source,
+  destination,
+  local,
+  bundle,
+  action = "rotate",
+) {
   const match = dump(store)
     .receipts.map((row) => JSON.parse(row.bundle))
     .find(
       (b) =>
-        b.request.action === "rotate" &&
+        b.request.action === action &&
         b.request.authorityDigest === source.digest &&
         b.request.destinationAuthorityDigest === destination.digest,
     );
@@ -1503,6 +1677,8 @@ function completedRotation(store, source, destination, local, bundle) {
   };
 }
 async function rotate(root, sourcePath, destinationPath, bundle) {
+  if (bundle && bundle.request?.action !== "rotate")
+    fail("rotation-action-mismatch");
   if (bundle !== undefined) bundle = clone(bundle);
   const { source, destination } = rotationAuthorities(
     sourcePath,
@@ -1569,6 +1745,8 @@ async function rotate(root, sourcePath, destinationPath, bundle) {
       if (!row || store.db.prepare("SELECT id FROM witness.head").get())
         fail("rotation-fence-invalid");
       const intent = JSON.parse(row.intent);
+      if (intent.bundle.request.action !== "rotate")
+        fail("rotation-action-mismatch");
       if (bundle && canonical(bundle) !== canonical(intent.bundle))
         fail("rotation-retry-approval-mismatch");
       const next = rotationCandidate(store, source, destination, intent);
@@ -1578,6 +1756,121 @@ async function rotate(root, sourcePath, destinationPath, bundle) {
       const result = applyRotation(store, destination, next);
       store.db.exec("DROP TABLE main.governance_rotation");
       return result;
+    });
+  });
+}
+function recoverySource(store, source) {
+  const version = storeVersion(store);
+  if (version === (source.a.remoteWitness ? 3 : 2)) return check(store, source);
+  // An uncommitted regular rotation may have fenced the old local store before quorum was lost.
+  if (version !== 5 || !source.a.remoteWitness)
+    fail("recovery-store-version-mismatch");
+  const row = store.db
+    .prepare("SELECT intent FROM main.governance_rotation WHERE id=1")
+    .get();
+  if (!row || store.db.prepare("SELECT id FROM witness.head").get())
+    fail("rotation-fence-invalid");
+  const intent = JSON.parse(row.intent);
+  if (intent.bundle.request.action !== "rotate")
+    fail("rotation-action-mismatch");
+  const destination = parseAuthority(intent.bundle.review.destinationAuthority);
+  const next = rotationCandidate(store, source, destination, intent);
+  if (next.head.checkpointDigest !== intent.expectedDigest)
+    fail("rotation-candidate-changed");
+  const logical = { ...dump(store), schemaVersion: 3 };
+  return { ...intent.sourceHead, logical: JSON.stringify(logical) };
+}
+function finishQuorumRecovery(store, destination, next) {
+  const discardPending = storeVersion(store) === 5;
+  const result = applyRotation(store, destination, next);
+  // CAS rejects this takeover if the earlier regular rotation was published first.
+  if (discardPending) store.db.exec("DROP TABLE main.governance_rotation");
+  return { ...result, status: "quorum-recovered" };
+}
+async function recoverQuorum(root, sourcePath, destinationPath, bundle) {
+  if (bundle && bundle.request?.action !== "recover-quorum")
+    fail("recovery-action-mismatch");
+  if (bundle) bundle = clone(bundle);
+  const { source, destination } = rotationAuthorities(
+    sourcePath,
+    destinationPath,
+    true,
+  );
+  const store = core.openStore(root, false, permit());
+  return withStore(store, async () => {
+    if (
+      relation(
+        core.protectedPath(destination.a.witnessDirectory),
+        path.dirname(destination.location),
+      )
+    )
+      fail("witness-must-be-independent");
+    attach(store, source);
+    return transaction(store, async () => {
+      const binding = store.db
+        .prepare("SELECT authorityDigest FROM main.governance_binding")
+        .get();
+      if (binding?.authorityDigest === destination.digest) {
+        const h = check(store, destination);
+        if (destination.a.remoteWitness)
+          compareRemote(h, await remoteHead(destination));
+        return {
+          ...completedRotation(
+            store,
+            source,
+            destination,
+            h,
+            bundle,
+            "recover-quorum",
+          ),
+          status: "already-recovered",
+        };
+      }
+      const old = recoverySource(store, source);
+      if (!bundle) {
+        if (!source.a.remoteWitness) fail("recovery-approved-request-required");
+        // Only an exact, signed and independently committed successor can be finalized without a fresh approval.
+        const published = await remoteHead(destination);
+        const before = JSON.parse(old.logical),
+          after = JSON.parse(published.logical);
+        const extra = after.receipts.filter(
+          (row) =>
+            !before.receipts.some((prior) => prior.requestId === row.requestId),
+        );
+        if (
+          extra.length !== 1 ||
+          published.sequence !== old.sequence + 1 ||
+          published.previousCheckpoint !== old.checkpointDigest
+        )
+          fail("recovery-remote-successor-mismatch");
+        const archived = JSON.parse(extra[0].bundle);
+        if (archived.request.action !== "recover-quorum")
+          fail("recovery-action-mismatch");
+        const next = rotationLogical(
+          old,
+          before,
+          archived,
+          Date.parse(archived.request.issuedAt),
+        );
+        const expected = makeHead(store, destination, old, next);
+        compareRemote(expected, published);
+        return finishQuorumRecovery(store, destination, {
+          head: expected,
+          logical: next,
+        });
+      }
+      if (bundle.request.destinationAuthorityDigest !== destination.digest)
+        fail("recovery-destination-mismatch");
+      const next = rotationLogical(old, JSON.parse(old.logical), bundle);
+      const h = makeHead(store, destination, old, next);
+      // Remote-first: if publication fails before commit, both old local files stay intact.
+      // If it commits without a response, the old authority is fenced by the witness and resume reads the exact successor.
+      if (source.a.remoteWitness)
+        await remote.call(source, privateFile, h, { rotation: true });
+      return finishQuorumRecovery(store, destination, {
+        head: h,
+        logical: next,
+      });
     });
   });
 }
@@ -1608,6 +1901,7 @@ module.exports = Object.freeze({
   planEnroll,
   planMigration,
   planRotation,
+  recoverQuorum,
   rotate,
   verifyWitnessRotation,
   migrate,
