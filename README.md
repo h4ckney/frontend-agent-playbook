@@ -162,7 +162,7 @@ Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment 
 
 [Organization approval and backup/recovery rehearsal](docs/organization-approval-recovery.md) add owner/security signatures and a separate witness to detect rewinding the entire main trust DB. Recovery preserves the latest floor and requires a fresh TUF refresh. Whole-host rollback including the witness remains outside this local profile.
 
-[Remote witness and host rollback recovery](docs/remote-witness-recovery.md) add signed HTTPS checkpoints, interrupted commit reconciliation, and a rehearsal that rewinds both local databases.
+[Remote witness and host rollback recovery](docs/remote-witness-recovery.md) add signed HTTPS checkpoints, interrupted commit reconciliation, and a rehearsal that rewinds both local databases. An [approved v2 migration](docs/remote-witness-v2-migration.md) preserves the adopted policy, approval history, and TUF floors.
 
 ### Analyzer CLI Preview
 

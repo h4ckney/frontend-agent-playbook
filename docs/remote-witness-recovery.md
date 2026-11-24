@@ -55,7 +55,7 @@ Risk: Level 2 — 조직 신뢰 상태를 별도 서버의 최신 체크포인�
    }
    ```
 
-3. 데이터 경로를 최초 준비할 때만 `node verification/remote-witness-server.mjs SERVICE.json --initialize`를 실행한다. 운영에서는 listener의 접근을 관리하고, witness 디스크와 권한을 분석 호스트의 백업 및 복원 정책에서 분리한다. remote authority로 [기존 이중 승인 순서](organization-approval-recovery.md#승인-요청서명적용)에 따라 등록·정책 채택을 수행한다. 현재 버전은 신규 등록이나 등록 전 저장소에 적용된다. 이미 등록한 v2 로컬 store의 authority 변경과 이력 승계는 별도 마이그레이션이 필요하다.
+3. 데이터 경로를 최초 준비할 때만 `node verification/remote-witness-server.mjs SERVICE.json --initialize`를 실행한다. 운영에서는 listener의 접근을 관리하고, witness 디스크와 권한을 분석 호스트의 백업 및 복원 정책에서 분리한다. remote authority로 [기존 이중 승인 순서](organization-approval-recovery.md#승인-요청서명적용)에 따라 등록·정책 채택을 수행한다. 이미 v2로 등록한 조직은 [v2 승인 이관](remote-witness-v2-migration.md)으로 같은 저장소의 정책·승인·TUF 하한을 이어받는다.
 
 이 서비스는 인증된 각 요청에서 24MB까지 수신하며 신뢰 상태 전체를 저장한다. 운영자가 변경 권한을 가진 원격 서버 자체, 디스크를 포함한 동시 rollback, 쓰기 토큰 또는 원격 서명 키 유출은 별도 신뢰 경계다. 정책·승인 기록 및 경로가 포함되므로 조직 전용 접근과 백업을 적용한다. 애플리케이션 API에서 과거 항목 삭제나 리셋을 제공하지 않는다. 용량 감시와 서버 보호는 운영 범위에 포함한다.
 

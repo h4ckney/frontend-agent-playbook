@@ -134,24 +134,32 @@ export function createWitness({
             ),
           );
           const write = Object.hasOwn(body, "next");
+          const probe = Object.hasOwn(body, "writeProbe");
           if (
             !protocol.exact(body, [
               "storeId",
               "authorityDigest",
               "nonce",
               ...(write ? ["next"] : []),
+              ...(probe ? ["writeProbe"] : []),
             ]) ||
             body.storeId !== scope.storeId ||
             body.authorityDigest !== scope.authorityDigest ||
             typeof body.nonce !== "string" ||
             !/^[a-f0-9]{64}$/.test(body.nonce) ||
-            (write && !canWrite)
+            (probe && (write || body.writeProbe !== true)) ||
+            ((write || probe) && !canWrite)
           ) {
             res.writeHead(403).end();
             return;
           }
           const head = write ? append(body.next) : current();
-          const receipt = { ...scope, nonce: body.nonce, head };
+          const receipt = {
+            ...scope,
+            nonce: body.nonce,
+            head,
+            ...(probe ? { writeAuthorized: true } : {}),
+          };
           const signature = crypto
             .sign(null, protocol.signingBytes(receipt), signingKey)
             .toString("base64");

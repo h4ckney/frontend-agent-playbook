@@ -219,9 +219,10 @@ function post(url, token, ca, payload) {
   });
 }
 
-async function call(c, privateFile, next) {
+async function call(c, privateFile, next, { writeProbe = false } = {}) {
   const config = c.a.remoteWitness;
-  const file = next ? config.writeTokenFile : config.readTokenFile;
+  const file =
+    next || writeProbe ? config.writeTokenFile : config.readTokenFile;
   if (!file) fail("remote-witness-write-credential-required");
   const token = readPrivate(file, 256, privateFile).toString("utf8").trim();
   if (!credential(token)) fail("invalid-remote-witness-credential");
@@ -236,6 +237,7 @@ async function call(c, privateFile, next) {
       ...scope,
       nonce,
       ...(next ? { next } : {}),
+      ...(writeProbe ? { writeProbe: true } : {}),
     });
   } catch (error) {
     if (/^remote-witness-(?:conflict|response-too-large)$/.test(error.message))
@@ -244,7 +246,14 @@ async function call(c, privateFile, next) {
   }
   if (
     !exact(reply, ["receipt", "signature"]) ||
-    !exact(reply.receipt, ["storeId", "authorityDigest", "nonce", "head"]) ||
+    !exact(reply.receipt, [
+      "storeId",
+      "authorityDigest",
+      "nonce",
+      "head",
+      ...(writeProbe ? ["writeAuthorized"] : []),
+    ]) ||
+    (writeProbe && reply.receipt.writeAuthorized !== true) ||
     reply.receipt.storeId !== scope.storeId ||
     reply.receipt.authorityDigest !== scope.authorityDigest ||
     reply.receipt.nonce !== nonce ||
