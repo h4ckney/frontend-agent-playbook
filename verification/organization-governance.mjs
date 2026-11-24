@@ -10,11 +10,14 @@ const usage = `Usage: node verification/organization-governance.mjs COMMAND --au
   plan-migrate --store PATH --destination-authority PATH --output REQUEST.json
   migrate --store PATH --destination-authority PATH --approval PATH
   resume-migration --store PATH --destination-authority PATH
+  plan-quorum-recovery --store PATH --destination-authority PATH --reason TEXT --output REQUEST.json
+  recover-quorum --store PATH --destination-authority PATH --approval PATH
+  resume-quorum-recovery --store PATH --destination-authority PATH
   plan-rotation --store PATH --destination-authority PATH --output REQUEST.json
   rotate --store PATH --destination-authority PATH --approval PATH
   resume-rotation --store PATH --destination-authority PATH
   plan-restore --target NEW_PATH [--backup PATH] --output REQUEST.json
-  sign --request PATH --approver ID --key PATH --output SIGNED.json [--rotation-side current|next]
+  sign --request PATH --approver ID --key PATH --output SIGNED.json [--rotation-side current|next|recovery|recovery-setup]
   combine --approval PATH --approval PATH --output APPROVAL.json
   enroll --store PATH --approval PATH
   backup --store PATH --output BACKUP.json
@@ -35,6 +38,14 @@ async function main() {
     "plan-migrate": ["store", "destination-authority", "output"],
     migrate: ["store", "destination-authority", "approval"],
     "resume-migration": ["store", "destination-authority"],
+    "plan-quorum-recovery": [
+      "store",
+      "destination-authority",
+      "reason",
+      "output",
+    ],
+    "recover-quorum": ["store", "destination-authority", "approval"],
+    "resume-quorum-recovery": ["store", "destination-authority"],
     "plan-rotation": ["store", "destination-authority", "output"],
     rotate: ["store", "destination-authority", "approval"],
     "resume-rotation": ["store", "destination-authority"],
@@ -75,14 +86,22 @@ async function main() {
     if (!args[key]) throw Error("missing-governance-argument");
   const read = (file) => core.readJSON(file, 16_000_000);
   let result;
-  if (command === "plan-rotation")
+  if (command === "plan-rotation" || command === "plan-quorum-recovery")
     return g.writeJSON(
       args.output,
       await g.planRotation(
         args.store,
         args.authority,
         args["destination-authority"],
+        args.reason,
       ),
+    );
+  if (command === "recover-quorum" || command === "resume-quorum-recovery")
+    return g.recoverQuorum(
+      args.store,
+      args.authority,
+      args["destination-authority"],
+      args.approval ? read(args.approval) : undefined,
     );
   if (command === "rotate" || command === "resume-rotation")
     return g.rotate(

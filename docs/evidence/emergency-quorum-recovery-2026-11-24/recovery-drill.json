@@ -1,0 +1,28 @@
+{
+  "format": "controlled-emergency-quorum-recovery-v1",
+  "node": "v24.22.3",
+  "finishedAt": "2026-11-24T05:36:18.789Z",
+  "steps": [
+    {
+      "step": "independent-custodians-authorize-without-old-owner-security-keys",
+      "status": "passed",
+      "priorApprovals": 3
+    },
+    {
+      "step": "remote-first-cutover-fences-old-authority-after-cli-death",
+      "status": "passed",
+      "remoteSequence": 8
+    },
+    {
+      "step": "exact-resume-preserves-approval-bytes-policy-and-partial-tuf-floor",
+      "status": "passed",
+      "targetsFloor": 2
+    },
+    {
+      "step": "tuf-rollback-and-retired-keys-rejected",
+      "status": "passed",
+      "finalTargetsFloor": 3
+    }
+  ],
+  "scope": "Temporary keys, SQLite and an independent HTTPS witness. Old test private keys deleted before recovery."
+}
