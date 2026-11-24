@@ -142,10 +142,12 @@ function hasBinding(store) {
     )
     .get();
 }
+function storeVersion(store) {
+  return store.db.prepare("PRAGMA main.user_version").get().user_version;
+}
 function dump(store) {
   const value = {
-    schemaVersion: store.db.prepare("PRAGMA main.user_version").get()
-      .user_version,
+    schemaVersion: storeVersion(store),
     organizations: store.db
       .prepare("SELECT * FROM main.organizations ORDER BY id")
       .all(),
@@ -161,6 +163,10 @@ function dump(store) {
           .all()
       : [],
   };
+  assertLogicalBudget(value);
+  return clone(value);
+}
+function assertLogicalBudget(value) {
   if (
     value.organizations.length > 1 ||
     value.domains.length > 16 ||
@@ -168,7 +174,6 @@ function dump(store) {
     Buffer.byteLength(JSON.stringify(value)) > MAX
   )
     fail("governance-store-budget");
-  return clone(value);
 }
 function assertDomain(a, logical) {
   if (
@@ -253,7 +258,7 @@ function checkpoint(h) {
     previousCheckpoint: h.previousCheckpoint,
   });
 }
-function writeHead(store, c, previous, logical) {
+function makeHead(store, c, previous, logical) {
   assertDomain(c.a, logical);
   const h = {
     storeId: c.a.storeId,
@@ -266,6 +271,10 @@ function writeHead(store, c, previous, logical) {
   if (!Number.isSafeInteger(h.sequence)) fail("witness-sequence-overflow");
   h.checkpointDigest = checkpoint(h);
   h.logical = JSON.stringify(logical);
+  return h;
+}
+function writeHead(store, c, previous, logical) {
+  const h = makeHead(store, c, previous, logical);
   saveHead(store, h);
   return h;
 }
@@ -310,7 +319,7 @@ function message(request) {
     "frontend-organization-approval-v1\n" + canonical(request),
   );
 }
-function validateRequest(c, b, action) {
+function validateRequest(c, b, action, now = Date.now()) {
   if (
     !exact(b, ["request", "review", "signatures"]) ||
     !exact(b.request, [
@@ -330,13 +339,13 @@ function validateRequest(c, b, action) {
       "checkpointDigest",
       "targetRoot",
       "backupDigest",
+      "destinationAuthorityDigest",
     ]) ||
     !Array.isArray(b.signatures) ||
     b.signatures.length > 8
   )
     fail("invalid-governance-approval");
   const r = b.request,
-    now = Date.now(),
     issued = Date.parse(r.issuedAt),
     expiry = Date.parse(r.expiresAt);
   if (
@@ -363,6 +372,7 @@ function validateRequest(c, b, action) {
     enroll: ["stateDigest"],
     adopt: ["policyDigest", "policyRevision", "previousPolicyDigest"],
     restore: ["checkpointDigest", "targetRoot", "backupDigest"],
+    migrate: ["checkpointDigest", "targetRoot", "destinationAuthorityDigest"],
   }[action];
   if (
     !specific ||
@@ -409,6 +419,15 @@ function validateRequest(c, b, action) {
       (r.backupDigest !== null && !digest(r.backupDigest)))
   )
     fail("approval-review-mismatch");
+  if (
+    action === "migrate" &&
+    (c.a.remoteWitness ||
+      !digest(r.checkpointDigest) ||
+      !digest(r.destinationAuthorityDigest) ||
+      typeof r.targetRoot !== "string" ||
+      !path.isAbsolute(r.targetRoot))
+  )
+    fail("approval-migration-scope-invalid");
   if (action === "restore" && !c.a.remoteWitness) {
     const h = witness(c);
     if (
@@ -419,8 +438,8 @@ function validateRequest(c, b, action) {
   }
   return r;
 }
-function verifyApproval(c, b, action, threshold = true) {
-  const r = validateRequest(c, b, action),
+function verifyApproval(c, b, action, threshold = true, at) {
+  const r = validateRequest(c, b, action, at),
     seen = new Set(),
     roles = new Set();
   for (const s of b.signatures) {
@@ -530,6 +549,7 @@ function open(root, authorityPath) {
   const c = authority(authorityPath),
     store = core.openStore(root, false, permit());
   try {
+    if (storeVersion(store) === 4) fail("governance-migration-pending");
     if (!hasBinding(store)) fail("governance-enrollment-required");
     attach(store, c);
     store.governance = guard(store, c);
@@ -893,6 +913,12 @@ function installLogical(s, c, logical, recovering = false) {
       .prepare("INSERT INTO main.governance_receipts VALUES(?,?)")
       .run(row.requestId, row.bundle);
 }
+function replaceLogical(store, c, logical) {
+  store.db.exec(
+    "DELETE FROM main.domains; DELETE FROM main.organizations; DROP TABLE main.governance_receipts; DROP TABLE main.governance_binding;",
+  );
+  installLogical(store, c, logical);
+}
 function restore(authorityPath, target, b, file) {
   const c = authority(authorityPath);
   const r = verifyApproval(c, b, "restore");
@@ -962,10 +988,7 @@ function reconcile(root, authorityPath) {
       const before = JSON.parse(local.logical),
         next = JSON.parse(independent.logical);
       remote.preserveHistory(before, next);
-      s.db.exec(
-        "DELETE FROM main.domains; DELETE FROM main.organizations; DROP TABLE main.governance_receipts; DROP TABLE main.governance_binding;",
-      );
-      installLogical(s, c, next);
+      replaceLogical(s, c, next);
       saveHead(s, independent);
       if (hash(dump(s)) !== independent.stateDigest)
         fail("remote-witness-reconcile-state-mismatch");
@@ -978,6 +1001,222 @@ function reconcile(root, authorityPath) {
       };
     }),
   );
+}
+function migrationAuthorities(sourcePath, destinationPath) {
+  const source = authority(sourcePath),
+    destination = authority(destinationPath);
+  const { remoteWitness, ...unchanged } = destination.a;
+  if (
+    source.a.remoteWitness ||
+    !remoteWitness ||
+    canonical(source.a) !== canonical(unchanged)
+  )
+    fail("migration-authority-mismatch");
+  return { source, destination };
+}
+function migrationReview(h, logical, destination) {
+  return {
+    ...restoreReview({ ...h, logical: JSON.stringify(logical) }),
+    sourceCheckpoint: h.checkpointDigest,
+    sourceStateDigest: h.stateDigest,
+    destinationAuthorityDigest: destination.digest,
+    remoteEndpoint: destination.a.remoteWitness.url,
+    remotePublicKeyDigest: hash(destination.a.remoteWitness.publicKey),
+    priorApprovalCount: logical.receipts.length,
+    priorApprovalDigest: hash(logical.receipts),
+  };
+}
+function planMigration(root, sourcePath, destinationPath) {
+  const { source, destination } = migrationAuthorities(
+    sourcePath,
+    destinationPath,
+  );
+  const store = open(root, sourcePath);
+  return withStore(store, () =>
+    transaction(store, () => {
+      if (storeVersion(store) !== 2) fail("migration-requires-v2");
+      const head = check(store, source);
+      const logical = dump(store);
+      quiescent(logical);
+      return request(
+        source,
+        "migrate",
+        {
+          checkpointDigest: head.checkpointDigest,
+          targetRoot: store.root,
+          destinationAuthorityDigest: destination.digest,
+        },
+        migrationReview(head, logical, destination),
+      );
+    }),
+  );
+}
+function migrationCandidate(store, source, destination, intent) {
+  const { approval, sourceHead, authorizedAt } = intent;
+  if (!Number.isSafeInteger(authorizedAt) || authorizedAt < 0)
+    fail("migration-fence-invalid");
+  const r = verifyApproval(source, approval, "migrate", true, authorizedAt);
+  const logical = dump(store);
+  logical.schemaVersion = 2;
+  binding(store, source);
+  quiescent(logical);
+  if (
+    sourceHead.storeId !== source.a.storeId ||
+    sourceHead.authorityDigest !== source.digest ||
+    sourceHead.activeRoot !== store.root ||
+    sourceHead.stateDigest !== hash(logical) ||
+    checkpoint(sourceHead) !== r.checkpointDigest ||
+    sourceHead.checkpointDigest !== r.checkpointDigest ||
+    r.targetRoot !== store.root ||
+    r.destinationAuthorityDigest !== destination.digest ||
+    canonical(approval.review) !==
+      canonical(migrationReview(sourceHead, logical, destination))
+  )
+    fail("migration-source-or-approval-changed");
+  if (logical.receipts.some((row) => row.requestId === r.requestId))
+    fail("approval-already-consumed");
+
+  // Keep policy, TUF repositories, floor, tombstones and signed receipts. Reset readiness at cutover.
+  const next = clone(logical);
+  next.schemaVersion = 3;
+  next.binding[0].authorityDigest = destination.digest;
+  for (const row of next.organizations) row.generation++;
+  for (const row of next.domains) {
+    if (!row.state) continue;
+    const state = JSON.parse(row.state);
+    state.lastAttempt = {
+      status: "rejected",
+      reason: "organization-migration-needs-refresh",
+      checkedAt: new Date(authorizedAt).toISOString(),
+    };
+    row.state = JSON.stringify(state);
+  }
+  next.receipts.push({
+    requestId: r.requestId,
+    bundle: JSON.stringify(approval),
+  });
+  next.receipts.sort((a, b) =>
+    a.requestId < b.requestId ? -1 : a.requestId > b.requestId ? 1 : 0,
+  );
+  assertLogicalBudget(next);
+  remote.preserveHistory(logical, next);
+  return { head: makeHead(store, destination, null, next), logical: next };
+}
+function prepareMigration(store, source, destination, approval) {
+  if (storeVersion(store) !== 2) fail("migration-requires-v2");
+  const { logical, ...sourceHead } = check(store, source);
+  const intent = { approval, sourceHead, authorizedAt: Date.now() };
+  const next = migrationCandidate(store, source, destination, intent);
+  return { ...intent, expectedDigest: next.head.checkpointDigest };
+}
+function migrationStage(store, intent) {
+  // Removing the old head fences old v2 restore commands that can run without the main DB.
+  store.db
+    .exec(`CREATE TABLE main.governance_migration (id INTEGER PRIMARY KEY CHECK (id=1), intent TEXT NOT NULL);
+    DELETE FROM witness.head;
+    PRAGMA main.user_version=4;`);
+  store.db
+    .prepare("INSERT INTO main.governance_migration VALUES(1,?)")
+    .run(JSON.stringify(intent));
+}
+function migrationIntent(store) {
+  const row = store.db
+    .prepare("SELECT intent FROM main.governance_migration WHERE id=1")
+    .get();
+  if (!row || store.db.prepare("SELECT id FROM witness.head").get())
+    fail("migration-fence-invalid");
+  return JSON.parse(row.intent);
+}
+function migrationReceipt(store, source, destination, approval) {
+  const candidates = store.db
+    .prepare("SELECT bundle FROM main.governance_receipts")
+    .all()
+    .map((row) => JSON.parse(row.bundle));
+  const applied = candidates.find(
+    (b) =>
+      b.request.action === "migrate" &&
+      b.request.authorityDigest === source.digest &&
+      b.request.destinationAuthorityDigest === destination.digest &&
+      b.request.targetRoot === store.root,
+  );
+  if (!applied || (approval && canonical(applied) !== canonical(approval)))
+    fail("migration-receipt-mismatch");
+  return applied.request;
+}
+async function migrate(root, sourcePath, destinationPath, approval) {
+  if (approval !== undefined) approval = clone(approval);
+  const { source, destination } = migrationAuthorities(
+    sourcePath,
+    destinationPath,
+  );
+  const store = core.openStore(root, false, permit());
+  return withStore(store, async () => {
+    // Check both paths against both authority-file directories before attaching the shared witness.
+    if (
+      relation(
+        core.protectedPath(destination.a.witnessDirectory),
+        path.dirname(destination.location),
+      )
+    )
+      fail("witness-must-be-independent");
+    attach(store, source);
+    if (storeVersion(store) === 2) {
+      if (!approval) fail("migration-approved-request-required");
+      verifyApproval(source, approval, "migrate");
+      await transaction(store, async () => {
+        // Establish approval of the exact destination before reading or sending its credentials.
+        const intent = prepareMigration(store, source, destination, approval);
+        if (
+          await remote.call(destination, privateFile, undefined, {
+            writeProbe: true,
+          })
+        )
+          fail("migration-remote-already-initialized");
+        verifyApproval(source, approval, "migrate");
+        migrationStage(store, intent);
+      });
+    }
+    return transaction(store, async () => {
+      if (storeVersion(store) === 3) {
+        const local = check(store, destination);
+        const receipt = migrationReceipt(store, source, destination, approval);
+        compareRemote(local, await remoteHead(destination));
+        return {
+          status: "already-migrated",
+          sequence: local.sequence,
+          checkpointDigest: local.checkpointDigest,
+          sourceCheckpoint: receipt.checkpointDigest,
+        };
+      }
+      if (storeVersion(store) !== 4) fail("migration-requires-v2");
+      const intent = migrationIntent(store);
+      if (approval && canonical(intent.approval) !== canonical(approval))
+        fail("migration-retry-approval-mismatch");
+      // The approval was validated at the durable freeze time. A retry cannot alter that transition.
+      const { head, logical } = migrationCandidate(
+        store,
+        source,
+        destination,
+        intent,
+      );
+      if (head.checkpointDigest !== intent.expectedDigest)
+        fail("migration-candidate-changed");
+      const independent = await remote.call(destination, privateFile);
+      if (independent) compareRemote(head, independent);
+      else await remote.call(destination, privateFile, head);
+      replaceLogical(store, destination, logical);
+      saveHead(store, head);
+      if (hash(dump(store)) !== head.stateDigest)
+        fail("migration-local-state-mismatch");
+      store.db.exec("DROP TABLE main.governance_migration");
+      return {
+        status: "migrated-needs-refresh",
+        sequence: head.sequence,
+        checkpointDigest: head.checkpointDigest,
+        sourceCheckpoint: intent.sourceHead.checkpointDigest,
+      };
+    });
+  });
 }
 function inspect(authorityPath) {
   const c = authority(authorityPath);
@@ -1004,6 +1243,8 @@ module.exports = Object.freeze({
   open,
   enroll,
   planEnroll,
+  planMigration,
+  migrate,
   planAdopt,
   planRestore,
   signRequest,

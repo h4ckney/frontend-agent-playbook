@@ -32,7 +32,7 @@ async function close(server) {
   }
 }
 
-export async function remoteFixture() {
+export async function remoteFixture({ legacy = false } = {}) {
   const x = await governanceFixture();
   const removeFixture = x.cleanup;
   let service, proxy;
@@ -113,15 +113,28 @@ export async function remoteFixture() {
       upstream.end(data);
     });
     const port = await listen(proxy);
-    x.a.remoteWitness = {
-      url: `https://127.0.0.1:${port}/v1/checkpoint`,
-      publicKey: publicKey.export({ type: "spki", format: "pem" }),
-      readTokenFile,
-      writeTokenFile,
-      caFile: tlsCert,
+    const remoteAuthority = {
+      ...x.a,
+      remoteWitness: {
+        url: `https://127.0.0.1:${port}/v1/checkpoint`,
+        publicKey: publicKey.export({ type: "spki", format: "pem" }),
+        readTokenFile,
+        writeTokenFile,
+        caFile: tlsCert,
+      },
     };
-    fs.writeFileSync(x.authority, JSON.stringify(x.a));
-    const { storeId, authorityDigest } = g.authorityInfo(x.authority);
+    x.remoteAuthority = legacy
+      ? path.join(x.config, "remote-authority.json")
+      : x.authority;
+    fs.writeFileSync(x.remoteAuthority, JSON.stringify(remoteAuthority), {
+      mode: 0o600,
+    });
+    x.selectRemote = () => {
+      x.a = remoteAuthority;
+      x.authority = x.remoteAuthority;
+    };
+    if (!legacy) x.selectRemote();
+    const { storeId, authorityDigest } = g.authorityInfo(x.remoteAuthority);
     const directory = path.join(x.dir, "off-host-storage");
     const options = {
       directory,

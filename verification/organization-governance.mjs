@@ -7,6 +7,9 @@ const require = createRequire(import.meta.url),
 const usage = `Usage: node verification/organization-governance.mjs COMMAND --authority PATH
   plan-enroll --store PATH --output REQUEST.json
   plan-adopt --store PATH --policy PATH --output REQUEST.json
+  plan-migrate --store PATH --destination-authority PATH --output REQUEST.json
+  migrate --store PATH --destination-authority PATH --approval PATH
+  resume-migration --store PATH --destination-authority PATH
   plan-restore --target NEW_PATH [--backup PATH] --output REQUEST.json
   sign --request PATH --approver ID --key PATH --output SIGNED.json
   combine --approval PATH --approval PATH --output APPROVAL.json
@@ -26,6 +29,9 @@ async function main() {
   }
   const choices = {
     "plan-enroll": ["store", "output"],
+    "plan-migrate": ["store", "destination-authority", "output"],
+    migrate: ["store", "destination-authority", "approval"],
+    "resume-migration": ["store", "destination-authority"],
     "plan-adopt": ["store", "policy", "output"],
     "plan-restore": ["target", "backup", "output"],
     sign: ["request", "approver", "key", "output"],
@@ -61,6 +67,22 @@ async function main() {
     if (!args[key]) throw Error("missing-governance-argument");
   const read = (file) => core.readJSON(file, 16_000_000);
   let result;
+  if (command === "plan-migrate")
+    return g.writeJSON(
+      args.output,
+      g.planMigration(
+        args.store,
+        args.authority,
+        args["destination-authority"],
+      ),
+    );
+  if (command === "migrate" || command === "resume-migration")
+    return g.migrate(
+      args.store,
+      args.authority,
+      args["destination-authority"],
+      args.approval ? read(args.approval) : undefined,
+    );
   if (command === "plan-enroll")
     result = g.planEnroll(args.store, args.authority);
   if (command === "plan-adopt")

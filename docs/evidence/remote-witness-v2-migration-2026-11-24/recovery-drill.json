@@ -1,0 +1,30 @@
+{
+  "format": "controlled-v2-remote-witness-migration-v1",
+  "node": "v24.22.3",
+  "finishedAt": "2026-11-24T04:43:02.972Z",
+  "scope": "Synthetic approvals and TUF, temporary v2/v3 databases, independent HTTPS service and a killed migration subprocess.",
+  "steps": [
+    {
+      "step": "approved-v2-checkpoint-with-partially-advanced-tuf-floor",
+      "status": "passed",
+      "sourceSequence": 6,
+      "priorApprovals": 2
+    },
+    {
+      "step": "remote-append-survives-process-kill-and-v2-is-fenced",
+      "status": "passed",
+      "remoteSequence": 1
+    },
+    {
+      "step": "retry-keeps-approval-bytes-policy-tuf-floor-and-remote-head",
+      "status": "passed",
+      "preservedApprovals": 2,
+      "targetsFloor": 2
+    },
+    {
+      "step": "older-tuf-rejected-fresh-refresh-required-and-retry-idempotent",
+      "status": "passed",
+      "finalTargetsFloor": 3
+    }
+  ]
+}
