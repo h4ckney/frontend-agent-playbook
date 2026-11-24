@@ -1,0 +1,35 @@
+{
+  "format": "controlled-remote-witness-recovery-v1",
+  "scope": "Independent HTTPS service and temporary databases on one test host. No production rollout or physical host restore.",
+  "node": "v24.22.3",
+  "finishedAt": "2026-11-24T03:09:21.430Z",
+  "steps": [
+    {
+      "step": "published-initial-checkpoint",
+      "status": "passed"
+    },
+    {
+      "step": "lost-commit-reply-retry-preserves-rejected-metadata-floor",
+      "status": "passed",
+      "targetsFloor": 2
+    },
+    {
+      "step": "missing-response-blocked",
+      "status": "passed"
+    },
+    {
+      "step": "same-sequence-signed-conflict-blocked",
+      "status": "passed"
+    },
+    {
+      "step": "host-database-pair-rollback-blocked",
+      "status": "passed"
+    },
+    {
+      "step": "approved-restore-keeps-remote-floor-and-requires-fresh-tuf",
+      "status": "passed",
+      "restoredTargetsFloor": 3,
+      "finalTargetsFloor": 4
+    }
+  ]
+}

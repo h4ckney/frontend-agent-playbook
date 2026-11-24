@@ -69,7 +69,7 @@ Witness는 별도 private `witness.sqlite`에 최신 sequence, authority/store I
 
 [SQLite ATTACH 규약](https://www.sqlite.org/lang_attach.html)과 [multi-file atomic commit](https://www.sqlite.org/atomiccommit.html)에 따라 실제 파일 DB 둘을 연결하고 `BEGIN IMMEDIATE`, DELETE journal, 양쪽 `synchronous=FULL`로 함께 commit한다. WAL은 거절한다. SQLite lock으로 서로 다른 연결/프로세스의 쓰기와 복구를 직렬화한다. 네트워크 fetch 동안 transaction을 잡지 않고 기존 영속 refresh lease를 사용한다. macOS/Linux의 정상 locking/fsync를 제공하는 local POSIX filesystem만 검증했다. NFS, 다중 host/HA, 임의 VFS, 잘못된 시스템 시각, 실제 전원 차단·디스크 controller 거짓 flush는 검증하지 않았다.
 
-**한계:** 주 DB와 witness/authority를 함께 같은 과거 사본으로 돌리면 로컬 파일만으로 탐지할 수 없다. 이전 hash chain도 함께 돌아가므로 해결책이 아니다. 이 구현은 remote append-only/WORM/하드웨어 monotonic counter가 아니며, 같은 UID 관리자 공격·호스트 전체 snapshot rollback을 막는다고 주장하지 않는다. 실제 적용자는 witness를 독립 restore 단위로 보존하고 그 권한·복원 경계를 확인해야 한다. 원격 witness/비가역 카운터 provider는 후속이다.
+**한계:** 주 DB와 witness/authority를 함께 같은 과거 사본으로 돌리면 로컬 파일만으로 탐지할 수 없다. 이전 hash chain도 함께 돌아가므로 해결책이 아니다. 이 구현은 remote append-only/WORM/하드웨어 monotonic counter가 아니며, 같은 UID 관리자 공격·호스트 전체 snapshot rollback을 막는다고 주장하지 않는다. 실제 적용자는 witness를 독립 restore 단위로 보존하고 그 권한·복원 경계를 확인해야 한다. 이 절은 로컬 witness 모드에 적용된다. [원격 witness와 호스트 전체 롤백 복구](remote-witness-recovery.md)에서 원격 체크포인트를 고정하는 경로를 제공한다.
 
 ## 백업과 승인된 복구
 

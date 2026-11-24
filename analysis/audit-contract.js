@@ -23,7 +23,7 @@
   const AUDIT_SCHEMA_VERSION = "1";
   const PROFILE_SCHEMA_VERSION = "1";
   const TOOL_VERSION = "0.2.0-dev";
-  const DETECTOR_CATALOG_VERSION = "17";
+  const DETECTOR_CATALOG_VERSION = "18";
   const DEFAULT_CAPABILITIES = ["route-path-inference", "text-patterns"];
   const severityRank = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
   const evidenceRank = { unknown: 0, candidate: 0, inferred: 1, observed: 2 };
@@ -33,7 +33,7 @@
 
   const detectorCatalog = Object.freeze({
     ...Object.fromEntries(security.DETECTOR_IDS.map((id) => [id,
-      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-23.2")
+      detector(id, ["security-privacy.dependency-exposure"], ["text-patterns"], "2026-11-24.1")
     ])),
     "rules.package-json-invalid": detector("context.package-integrity", ["governance.codebase-context"]),
     "security.html-sink-boundary": detector("security.html-boundary", ["security-privacy.html-injection"]),
@@ -72,11 +72,11 @@
     const organizations=organizationMode && typeof module!=="undefined" && module.exports ? require("../verification/organization-trust.cjs") : null;
     if(organizationMode) {
       if(!organizations || input.trustPolicy!==undefined || input.sigstoreTrustedRoot!==undefined || input.sigstoreTufState!==undefined || !Number.isFinite(Date.parse(at)) || Math.abs(Date.now()-Date.parse(at))>30000) throw Error("organization-trust-selection-invalid");
-      organization=organizations.read(input.organizationVerification);
+      organization=await organizations.read(input.organizationVerification);
     }
     const verification=await attestations.prepare(records,organization?.trustPolicy ?? input.trustPolicy,at,{sigstoreTrustedRoot:input.sigstoreTrustedRoot,sigstoreTufState:organization?.sigstoreTufState ?? input.sigstoreTufState});
     // Policy adoption, refresh, recovery or expiry during async verification invalidates this scan.
-    if(organizationMode) organizations.read(input.organizationVerification);
+    if(organizationMode) await organizations.read(input.organizationVerification);
     const bundle=createAuditBundle({...input,now:at,scopePolicyDigest:(input.scopePolicyDigest || "static-lite-default-v1")+(organization?":organization:"+organization.scopeDigest:""),attestationVerification:verification});
     if(organization) bundle.audit.trustContext=organization.context;
     return bundle;

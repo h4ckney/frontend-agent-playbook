@@ -162,6 +162,8 @@ Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment 
 
 [Organization approval and backup/recovery rehearsal](docs/organization-approval-recovery.md) add owner/security signatures and a separate witness to detect rewinding the entire main trust DB. Recovery preserves the latest floor and requires a fresh TUF refresh. Whole-host rollback including the witness remains outside this local profile.
 
+[Remote witness and host rollback recovery](docs/remote-witness-recovery.md) add signed HTTPS checkpoints, interrupted commit reconciliation, and a rehearsal that rewinds both local databases.
+
 ### Analyzer CLI Preview
 
 Modern pnpm/Yarn Berry/Bun text locks and shared npm workspace graphs are supported within the [documented format limits and protocol priorities](docs/lock-protocol-priorities.md). The same pinned local YAML parser is bundled for the browser and CLI; [source, license and integrity](analysis/vendor/NOTICE.md) are recorded.
