@@ -8,7 +8,7 @@ Risk: Level 2 — 정책 채택·복구 권한과 DB 전체 rollback 탐지를 �
 
 운영자가 별도로 확인한 [authority 양식](../examples/organization-trust/authority.example.json)에 새 UUID의 `storeId`, 조직 ID, 독립 `witnessDirectory`, 2~8 threshold, 서로 다른 Ed25519 공개키를 등록한다. owner/security 역할이 각각 최소 하나 필요하다. 동일 키를 두 ID로 등록하거나 owner 키만으로 quorum을 만드는 경우를 거절한다. 양식의 placeholder는 의도적으로 유효한 운영 설정이 아니며 그대로 실행하면 거절한다.
 
-실제 키 소유자·역할·분리된 계정·보관 책임은 조직이 확인해야 한다. 코드는 서로 다른 키/역할을 검증하며 서로 다른 사람인지 SSO로 확인하지 않는다. authority 최초 배포는 별도 신뢰 경로이며 policy 자체가 자기 승인자를 정하지 않는다. 운영 권한 담당자가 검토한 authority를 scan 대상 밖의 private config directory에 0600으로 둔다. 키 파일도 별도의 private directory/0600을 사용한다. 공개키·threshold·witness 경로를 변경하면 digest가 바뀌어 기존 store는 거절한다. 자동 approver rotation/reset은 구현하지 않았다.
+실제 키 소유자·역할·분리된 계정·보관 책임은 조직이 확인해야 한다. 코드는 서로 다른 키/역할을 검증하며 서로 다른 사람인지 SSO로 확인하지 않는다. authority 최초 배포는 별도 신뢰 경로이며 policy 자체가 자기 승인자를 정하지 않는다. 운영 권한 담당자가 검토한 authority를 scan 대상 밖의 private config directory에 0600으로 둔다. 키 파일도 별도의 private directory/0600을 사용한다. 공개키·threshold·witness 경로를 변경하면 digest가 바뀌어 기존 store는 거절한다. 승인 키 변경에는 [owner·security 키 교체와 폐기](approval-key-rotation.md)의 양쪽 승인과 단계적 전환을 사용한다.
 
 | 단계 | 검토할 내용 | 코드가 확인하는 내용 |
 | --- | --- | --- |
@@ -100,7 +100,7 @@ node scripts/drill-organization-recovery.mjs --output NEW_REHEARSAL_RECEIPT.json
 
 이 명령은 임시 controlled owner/security 키와 TUF 서명으로 승인·백업·오래된 백업 거절·실제 주 DB 파일 전체 rollback 탐지·최신 witness 복구·fresh TUF 강제·현재 백업 복구를 수행한 뒤 임시 키/DB를 삭제한다. 실제 조직 설정은 건드리지 않는다. [이번 7단계 receipt](evidence/governance-recovery-2026-11-23/recovery-drill.json)는 controlled 관찰이며 운영 복구 RTO/RPO 측정이 아니다. SIGKILL된 attached transaction 재개방 테스트도 실제 전원 장애와 구분한다.
 
-코드 rollback은 이 PR revert로 새 경로 사용을 중단하는 것이다. enrollment된 DB/witness/approval 기록을 보존하고 낮은 revision/floor로 복원하거나 legacy 모드로 자동 우회하지 않는다. 운영 도입 전 owner가 witness 별도 복원 범위·키 분리·launcher 고정·백업 보존·실제 restore drill을 수락해야 한다. 실제 owner·운영 측정 기간은 미정이고 자동 예약을 만들지 않았다. 다음 우선순위는 원격 append-only witness/카운터, approver rotation, schema migration과 운영 환경의 power/volume failure drill이다.
+코드 rollback은 이 PR revert로 새 경로 사용을 중단하는 것이다. enrollment된 DB/witness/approval 기록을 보존하고 낮은 revision/floor로 복원하거나 legacy 모드로 자동 우회하지 않는다. 운영 도입 전 owner가 witness 별도 복원 범위·키 분리·launcher 고정·백업 보존·실제 restore drill을 수락해야 한다. 실제 owner·운영 측정 기간은 미정이고 자동 예약을 만들지 않았다. 다음 우선순위는 원격 카운터 운영, schema migration과 운영 환경의 power/volume failure drill이다.
 
 - **Why:** 승인 주체와 DB 밖 최신 상태를 연결해야 정책/DB의 과거 사본이 다시 권한을 얻지 않는다.
 - **System change:** 서명 quorum·전이 기록·연결 witness transaction·일관된 백업·승인된 새 경로 복구를 추가했다.

@@ -1,0 +1,27 @@
+{
+  "format": "controlled-approval-rotation-v1",
+  "node": "v24.22.3",
+  "finishedAt": "2026-11-24T04:55:28.082Z",
+  "steps": [
+    {
+      "step": "old-and-new-quorums-prove-key-rotation",
+      "status": "passed"
+    },
+    {
+      "step": "published-rotation-fences-old-authority-through-process-death",
+      "status": "passed",
+      "remoteSequence": 7
+    },
+    {
+      "step": "exact-retry-preserves-approval-bytes-and-tuf-floor",
+      "status": "passed",
+      "preservedApprovals": 2,
+      "targetsFloor": 2
+    },
+    {
+      "step": "revoked-private-keys-and-old-token-rejected",
+      "status": "passed"
+    }
+  ],
+  "scope": "Temporary approvals, HTTPS witness and TUF state with an interrupted rotation process."
+}

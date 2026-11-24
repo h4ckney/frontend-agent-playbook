@@ -10,8 +10,11 @@ const usage = `Usage: node verification/organization-governance.mjs COMMAND --au
   plan-migrate --store PATH --destination-authority PATH --output REQUEST.json
   migrate --store PATH --destination-authority PATH --approval PATH
   resume-migration --store PATH --destination-authority PATH
+  plan-rotation --store PATH --destination-authority PATH --output REQUEST.json
+  rotate --store PATH --destination-authority PATH --approval PATH
+  resume-rotation --store PATH --destination-authority PATH
   plan-restore --target NEW_PATH [--backup PATH] --output REQUEST.json
-  sign --request PATH --approver ID --key PATH --output SIGNED.json
+  sign --request PATH --approver ID --key PATH --output SIGNED.json [--rotation-side current|next]
   combine --approval PATH --approval PATH --output APPROVAL.json
   enroll --store PATH --approval PATH
   backup --store PATH --output BACKUP.json
@@ -32,9 +35,12 @@ async function main() {
     "plan-migrate": ["store", "destination-authority", "output"],
     migrate: ["store", "destination-authority", "approval"],
     "resume-migration": ["store", "destination-authority"],
+    "plan-rotation": ["store", "destination-authority", "output"],
+    rotate: ["store", "destination-authority", "approval"],
+    "resume-rotation": ["store", "destination-authority"],
     "plan-adopt": ["store", "policy", "output"],
     "plan-restore": ["target", "backup", "output"],
-    sign: ["request", "approver", "key", "output"],
+    sign: ["request", "approver", "key", "output", "rotation-side"],
     combine: ["approval", "output"],
     enroll: ["store", "approval"],
     backup: ["store", "output"],
@@ -63,10 +69,28 @@ async function main() {
       (args.approval ??= []).push(value);
     else args[key] = value;
   }
-  for (const key of allowed.filter((k) => k !== "backup"))
+  for (const key of allowed.filter(
+    (k) => k !== "backup" && k !== "rotation-side",
+  ))
     if (!args[key]) throw Error("missing-governance-argument");
   const read = (file) => core.readJSON(file, 16_000_000);
   let result;
+  if (command === "plan-rotation")
+    return g.writeJSON(
+      args.output,
+      await g.planRotation(
+        args.store,
+        args.authority,
+        args["destination-authority"],
+      ),
+    );
+  if (command === "rotate" || command === "resume-rotation")
+    return g.rotate(
+      args.store,
+      args.authority,
+      args["destination-authority"],
+      args.approval ? read(args.approval) : undefined,
+    );
   if (command === "plan-migrate")
     return g.writeJSON(
       args.output,
@@ -99,6 +123,7 @@ async function main() {
       read(args.request),
       args.approver,
       args.key,
+      args["rotation-side"],
     );
   if (command === "combine")
     result = g.combine(args.authority, args.approval.map(read));

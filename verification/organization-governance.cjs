@@ -39,8 +39,18 @@ function privateFile(file) {
   return fs.realpathSync(file);
 }
 function authority(file) {
-  const location = privateFile(path.resolve(file)),
-    a = core.readJSON(location);
+  const location = privateFile(path.resolve(file));
+  return { ...parseAuthority(core.readJSON(location)), location };
+}
+function keyFingerprint(publicKey) {
+  return crypto
+    .createHash("sha256")
+    .update(
+      crypto.createPublicKey(publicKey).export({ format: "der", type: "spki" }),
+    )
+    .digest("hex");
+}
+function parseAuthority(a) {
   if (
     !exact(a, [
       "schemaVersion",
@@ -50,8 +60,11 @@ function authority(file) {
       "threshold",
       "approvers",
       "remoteWitness",
+      "approverEpoch",
     ]) ||
     a.schemaVersion !== "1" ||
+    (a.approverEpoch !== undefined &&
+      (!Number.isSafeInteger(a.approverEpoch) || a.approverEpoch < 1)) ||
     !uuid(a.storeId) ||
     !slug(a.organizationId) ||
     typeof a.witnessDirectory !== "string" ||
@@ -79,10 +92,7 @@ function authority(file) {
       fail("invalid-governance-approver");
     const k = crypto.createPublicKey(r.publicKey);
     if (k.asymmetricKeyType !== "ed25519") fail("invalid-governance-key");
-    const fingerprint = crypto
-      .createHash("sha256")
-      .update(k.export({ format: "der", type: "spki" }))
-      .digest("hex");
+    const fingerprint = keyFingerprint(r.publicKey);
     if (keys.has(fingerprint)) fail("duplicate-governance-key");
     ids.add(r.id);
     keys.add(fingerprint);
@@ -90,7 +100,7 @@ function authority(file) {
   }
   if (roles.size !== 2) fail("governance-roles-required");
   if (a.remoteWitness !== undefined) remote.validateConfig(a.remoteWitness);
-  return { a, location, digest: hash(a) };
+  return { a, digest: hash(a) };
 }
 function permit() {
   const p = Object.freeze({});
@@ -373,6 +383,7 @@ function validateRequest(c, b, action, now = Date.now()) {
     adopt: ["policyDigest", "policyRevision", "previousPolicyDigest"],
     restore: ["checkpointDigest", "targetRoot", "backupDigest"],
     migrate: ["checkpointDigest", "targetRoot", "destinationAuthorityDigest"],
+    rotate: ["checkpointDigest", "targetRoot", "destinationAuthorityDigest"],
   }[action];
   if (
     !specific ||
@@ -428,6 +439,14 @@ function validateRequest(c, b, action, now = Date.now()) {
       !path.isAbsolute(r.targetRoot))
   )
     fail("approval-migration-scope-invalid");
+  if (
+    action === "rotate" &&
+    (!digest(r.checkpointDigest) ||
+      !digest(r.destinationAuthorityDigest) ||
+      typeof r.targetRoot !== "string" ||
+      !path.isAbsolute(r.targetRoot))
+  )
+    fail("approval-rotation-scope-invalid");
   if (action === "restore" && !c.a.remoteWitness) {
     const h = witness(c);
     if (
@@ -439,34 +458,40 @@ function validateRequest(c, b, action, now = Date.now()) {
   return r;
 }
 function verifyApproval(c, b, action, threshold = true, at) {
-  const r = validateRequest(c, b, action, at),
-    seen = new Set(),
+  const r = validateRequest(c, b, action, at);
+  verifySignatures(c, b.signatures, message(r), threshold);
+  return r;
+}
+function verifySignatures(c, signatures, bytes, threshold) {
+  if (!Array.isArray(signatures) || signatures.length > 8)
+    fail("invalid-governance-approval");
+  const seen = new Set(),
     roles = new Set();
-  for (const s of b.signatures) {
+  for (const signature of signatures) {
     if (
-      !exact(s, ["approverId", "signature"]) ||
-      seen.has(s.approverId) ||
-      typeof s.signature !== "string" ||
-      !/^[A-Za-z0-9+/]{86}==$/.test(s.signature)
+      !exact(signature, ["approverId", "signature"]) ||
+      seen.has(signature.approverId) ||
+      typeof signature.signature !== "string" ||
+      !/^[A-Za-z0-9+/]{86}==$/.test(signature.signature)
     )
       fail("invalid-approval-signature");
-    const approver = c.a.approvers.find((k) => k.id === s.approverId);
+    const approver = c.a.approvers.find((k) => k.id === signature.approverId);
     if (
       !approver ||
       !crypto.verify(
         null,
-        message(r),
+        bytes,
         approver.publicKey,
-        Buffer.from(s.signature, "base64"),
+        Buffer.from(signature.signature, "base64"),
       )
     )
       fail("approval-signature-rejected");
-    seen.add(s.approverId);
+    seen.add(signature.approverId);
     roles.add(approver.role);
   }
   if (threshold && (seen.size < c.a.threshold || roles.size !== 2))
     fail("approval-threshold-not-met");
-  return r;
+  return seen;
 }
 function record(store, b) {
   if (
@@ -550,6 +575,7 @@ function open(root, authorityPath) {
     store = core.openStore(root, false, permit());
   try {
     if (storeVersion(store) === 4) fail("governance-migration-pending");
+    if (storeVersion(store) === 5) fail("governance-rotation-pending");
     if (!hasBinding(store)) fail("governance-enrollment-required");
     attach(store, c);
     store.governance = guard(store, c);
@@ -677,9 +703,35 @@ function planAdopt(root, authorityPath, compiled) {
     }),
   );
 }
-function signRequest(authorityPath, b, approverId, keyFile) {
+function signRequest(authorityPath, b, approverId, keyFile, side) {
   const c = authority(authorityPath);
+  if (b.request?.action === "rotate") {
+    const { source, destination } = verifyRotationBundle(b, false);
+    if (side !== "current" && side !== "next")
+      fail("rotation-signing-side-required");
+    const selected = side === "current" ? source : destination;
+    if (selected.digest !== c.digest)
+      fail("rotation-signing-authority-mismatch");
+    const signature = signApproval(
+      c,
+      approverId,
+      keyFile,
+      side === "current" ? message(b.request) : acceptanceMessage(b.request),
+    );
+    return {
+      ...clone(b),
+      signatures: side === "current" ? [signature] : [],
+      acceptances: side === "next" ? [signature] : [],
+    };
+  }
+  if (side !== undefined) fail("rotation-signing-side-invalid");
   verifyApproval(c, b, b.request?.action, false);
+  return {
+    ...clone(b),
+    signatures: [signApproval(c, approverId, keyFile, message(b.request))],
+  };
+}
+function signApproval(c, approverId, keyFile, bytes) {
   const approver = c.a.approvers.find((r) => r.id === approverId);
   if (!approver) fail("unknown-approver");
   const fd = fs.openSync(
@@ -706,21 +758,16 @@ function signRequest(authorityPath, b, approverId, keyFile) {
   )
     fail("approval-key-mismatch");
   return {
-    ...clone(b),
-    signatures: [
-      {
-        approverId,
-        signature: crypto
-          .sign(null, message(b.request), key)
-          .toString("base64"),
-      },
-    ],
+    approverId,
+    signature: crypto.sign(null, bytes, key).toString("base64"),
   };
 }
 function combine(authorityPath, bundles) {
   const c = authority(authorityPath);
-  if (!bundles.length || bundles.length > 8) fail("invalid-approval-batch");
-  const b = clone(bundles[0]);
+  if (!bundles.length || bundles.length > 16) fail("invalid-approval-batch");
+  const b = clone(bundles[0]),
+    rotating = b.request?.action === "rotate";
+  if (!rotating && bundles.length > 8) fail("invalid-approval-batch");
   for (const other of bundles.slice(1)) {
     if (
       canonical(other.request) !== canonical(b.request) ||
@@ -728,8 +775,12 @@ function combine(authorityPath, bundles) {
     )
       fail("approval-request-mismatch");
     b.signatures.push(...other.signatures);
+    if (rotating) b.acceptances.push(...other.acceptances);
   }
-  verifyApproval(c, b, b.request?.action);
+  if (rotating) {
+    const { source } = verifyRotationBundle(b);
+    if (source.digest !== c.digest) fail("rotation-signing-authority-mismatch");
+  } else verifyApproval(c, b, b.request?.action);
   return b;
 }
 function writeJSON(file, value) {
@@ -1218,6 +1269,318 @@ async function migrate(root, sourcePath, destinationPath, approval) {
     });
   });
 }
+function acceptanceMessage(request) {
+  return Buffer.from(
+    "frontend-organization-rotation-acceptance-v1\n" + canonical(request),
+  );
+}
+function approverChanges(source, destination) {
+  const { approvers: prior, approverEpoch: epoch, ...fixed } = source.a;
+  const {
+    approvers: next,
+    approverEpoch: nextEpoch,
+    ...nextFixed
+  } = destination.a;
+  if (
+    nextEpoch !== (epoch ?? 0) + 1 ||
+    canonical(fixed) !== canonical(nextFixed)
+  )
+    fail("rotation-authority-fields-changed");
+  const describe = (rows) =>
+    rows.map(({ id, role, publicKey }) => ({
+      id,
+      role,
+      fingerprint: keyFingerprint(publicKey),
+    }));
+  const before = describe(prior),
+    after = describe(next);
+  const added = after.filter(
+    (k) => !before.some((p) => p.fingerprint === k.fingerprint),
+  );
+  const revoked = before.filter(
+    (k) => !after.some((n) => n.fingerprint === k.fingerprint),
+  );
+  for (const key of after) {
+    const prev = before.find((k) => k.fingerprint === key.fingerprint);
+    if (prev && (prev.id !== key.id || prev.role !== key.role))
+      fail("rotation-retained-key-role-or-id-changed");
+  }
+  if (!added.length && !revoked.length) fail("rotation-has-no-key-change");
+  return { added, revoked };
+}
+function rotationReview(h, source, destination) {
+  return {
+    sourceAuthority: source.a,
+    destinationAuthority: destination.a,
+    sourceSequence: h.sequence,
+    sourceStateDigest: h.stateDigest,
+    ...approverChanges(source, destination),
+  };
+}
+function verifyRotationBundle(bundle, threshold = true, at) {
+  if (!exact(bundle, ["request", "review", "signatures", "acceptances"]))
+    fail("invalid-rotation-approval");
+  const { request: r, review, signatures, acceptances } = bundle;
+  const source = parseAuthority(review?.sourceAuthority),
+    destination = parseAuthority(review?.destinationAuthority);
+  const changes = approverChanges(source, destination);
+  if (
+    r?.destinationAuthorityDigest !== destination.digest ||
+    canonical(changes.added) !== canonical(review.added) ||
+    canonical(changes.revoked) !== canonical(review.revoked)
+  )
+    fail("rotation-review-mismatch");
+  verifyApproval(
+    source,
+    { request: r, review, signatures },
+    "rotate",
+    threshold,
+    at,
+  );
+  const accepted = verifySignatures(
+    destination,
+    acceptances,
+    acceptanceMessage(r),
+    threshold,
+  );
+  if (threshold && changes.added.some((key) => !accepted.has(key.id)))
+    fail("rotation-new-key-proof-required");
+  return { source, destination };
+}
+function rotationAuthorities(sourcePath, destinationPath) {
+  const source = authority(sourcePath),
+    destination = authority(destinationPath);
+  approverChanges(source, destination);
+  return { source, destination };
+}
+function retiredKeys(logical) {
+  const retired = new Set();
+  for (const { bundle } of logical.receipts) {
+    const b = JSON.parse(bundle);
+    if (b.request.action === "rotate")
+      for (const key of b.review.revoked) retired.add(key.fingerprint);
+  }
+  return retired;
+}
+function assertUnrevoked(logical, destination) {
+  const retired = retiredKeys(logical);
+  if (
+    destination.a.approvers.some((k) =>
+      retired.has(keyFingerprint(k.publicKey)),
+    )
+  )
+    fail("rotation-revoked-key-reuse");
+}
+function planRotation(root, sourcePath, destinationPath) {
+  const { source, destination } = rotationAuthorities(
+    sourcePath,
+    destinationPath,
+  );
+  const store = open(root, sourcePath);
+  return withStore(store, () =>
+    (store.governance.run || ((fn) => transaction(store, fn)))(() => {
+      const h = check(store, source),
+        logical = dump(store);
+      quiescent(logical);
+      assertUnrevoked(logical, destination);
+      return {
+        ...request(
+          source,
+          "rotate",
+          {
+            checkpointDigest: h.checkpointDigest,
+            targetRoot: store.root,
+            destinationAuthorityDigest: destination.digest,
+          },
+          rotationReview(h, source, destination),
+        ),
+        acceptances: [],
+      };
+    }),
+  );
+}
+function rotationLogical(h, logical, bundle, at) {
+  const { source, destination } = verifyRotationBundle(bundle, true, at);
+  const r = bundle.request;
+  if (
+    h.authorityDigest !== source.digest ||
+    h.storeId !== source.a.storeId ||
+    r.targetRoot !== h.activeRoot ||
+    r.checkpointDigest !== h.checkpointDigest ||
+    canonical(bundle.review) !==
+      canonical(rotationReview(h, source, destination))
+  )
+    fail("rotation-source-or-approval-changed");
+  quiescent(logical);
+  assertUnrevoked(logical, destination);
+  if (logical.receipts.some((row) => row.requestId === r.requestId))
+    fail("approval-already-consumed");
+  const next = clone(logical);
+  next.binding[0].authorityDigest = destination.digest;
+  for (const row of next.organizations) row.generation++;
+  next.receipts.push({
+    requestId: r.requestId,
+    bundle: JSON.stringify(bundle),
+  });
+  next.receipts.sort((a, b) =>
+    a.requestId < b.requestId ? -1 : a.requestId > b.requestId ? 1 : 0,
+  );
+  assertLogicalBudget(next);
+  remote.preserveHistory(logical, next);
+  return next;
+}
+// Independently verify both quorums and the exact allowed change on the remote append authority.
+function verifyWitnessRotation(previous, next, sourceScope, destinationScope) {
+  const prior = remote.validateHead(previous, sourceScope);
+  const proposed = remote.validateHead(next, destinationScope);
+  const added = proposed.receipts.filter(
+    (row) => !prior.receipts.some((old) => old.requestId === row.requestId),
+  );
+  if (
+    added.length !== 1 ||
+    next.sequence !== previous.sequence + 1 ||
+    next.previousCheckpoint !== previous.checkpointDigest ||
+    next.activeRoot !== previous.activeRoot
+  )
+    fail("rotation-witness-transition-mismatch");
+  const bundle = JSON.parse(added[0].bundle);
+  if (
+    bundle.request.destinationAuthorityDigest !==
+      destinationScope.authorityDigest ||
+    canonical(rotationLogical(previous, prior, bundle)) !== canonical(proposed)
+  )
+    fail("rotation-witness-transition-mismatch");
+}
+function rotationCandidate(store, source, destination, intent) {
+  const logical = dump(store),
+    h = intent.sourceHead;
+  logical.schemaVersion = source.a.remoteWitness ? 3 : 2;
+  binding(store, source);
+  if (
+    !Number.isSafeInteger(intent.authorizedAt) ||
+    h.activeRoot !== store.root ||
+    h.stateDigest !== hash(logical) ||
+    h.checkpointDigest !== checkpoint(h) ||
+    intent.bundle.request.destinationAuthorityDigest !== destination.digest
+  )
+    fail("rotation-fence-invalid");
+  const next = rotationLogical(h, logical, intent.bundle, intent.authorizedAt);
+  return { head: makeHead(store, destination, h, next), logical: next };
+}
+function prepareRotation(store, source, destination, bundle) {
+  if (!bundle) fail("rotation-approved-request-required");
+  const { logical, ...sourceHead } = check(store, source);
+  const intent = { bundle, sourceHead, authorizedAt: Date.now() };
+  const next = rotationCandidate(store, source, destination, intent);
+  return { ...intent, expectedDigest: next.head.checkpointDigest };
+}
+function applyRotation(store, destination, { head, logical }) {
+  replaceLogical(store, destination, logical);
+  saveHead(store, head);
+  if (hash(dump(store)) !== head.stateDigest)
+    fail("rotation-local-state-mismatch");
+  return {
+    status: "rotated",
+    sequence: head.sequence,
+    checkpointDigest: head.checkpointDigest,
+  };
+}
+function completedRotation(store, source, destination, local, bundle) {
+  const match = dump(store)
+    .receipts.map((row) => JSON.parse(row.bundle))
+    .find(
+      (b) =>
+        b.request.action === "rotate" &&
+        b.request.authorityDigest === source.digest &&
+        b.request.destinationAuthorityDigest === destination.digest,
+    );
+  if (!match || (bundle && canonical(match) !== canonical(bundle)))
+    fail("rotation-receipt-mismatch");
+  return {
+    status: "already-rotated",
+    sequence: local.sequence,
+    checkpointDigest: local.checkpointDigest,
+  };
+}
+async function rotate(root, sourcePath, destinationPath, bundle) {
+  if (bundle !== undefined) bundle = clone(bundle);
+  const { source, destination } = rotationAuthorities(
+    sourcePath,
+    destinationPath,
+  );
+  const store = core.openStore(root, false, permit());
+  return withStore(store, async () => {
+    if (
+      relation(
+        core.protectedPath(destination.a.witnessDirectory),
+        path.dirname(destination.location),
+      )
+    )
+      fail("witness-must-be-independent");
+    attach(store, source);
+    const expectedVersion = source.a.remoteWitness ? 3 : 2;
+    const staged = await transaction(store, async () => {
+      const version = storeVersion(store);
+      if (version === 5 && source.a.remoteWitness) return true;
+      if (version !== expectedVersion) fail("rotation-store-version-mismatch");
+      const local = store.db
+        .prepare("SELECT authorityDigest FROM main.governance_binding")
+        .get();
+      if (local?.authorityDigest === destination.digest) {
+        const h = check(store, destination);
+        if (destination.a.remoteWitness)
+          compareRemote(h, await remoteHead(destination));
+        return completedRotation(store, source, destination, h, bundle);
+      }
+      const intent = prepareRotation(store, source, destination, bundle);
+      if (!source.a.remoteWitness)
+        return applyRotation(
+          store,
+          destination,
+          rotationCandidate(store, source, destination, intent),
+        );
+      compareRemote(
+        intent.sourceHead,
+        (await remote.call(source, privateFile, undefined, {
+          writeProbe: true,
+        })) ?? fail("remote-witness-checkpoint-missing"),
+      );
+      verifyRotationBundle(bundle);
+      store.db
+        .exec(`CREATE TABLE main.governance_rotation(id INTEGER PRIMARY KEY CHECK(id=1), intent TEXT NOT NULL);
+        DELETE FROM witness.head; PRAGMA main.user_version=5;`);
+      store.db
+        .prepare("INSERT INTO main.governance_rotation VALUES(1,?)")
+        .run(JSON.stringify(intent));
+      return true;
+    });
+    if (staged !== true) return staged;
+    return transaction(store, async () => {
+      // Another process may have completed exactly this transition before this retry acquired the lock.
+      if (storeVersion(store) === 3) {
+        const h = check(store, destination);
+        compareRemote(h, await remoteHead(destination));
+        return completedRotation(store, source, destination, h, bundle);
+      }
+      if (storeVersion(store) !== 5) fail("rotation-store-version-mismatch");
+      const row = store.db
+        .prepare("SELECT intent FROM main.governance_rotation WHERE id=1")
+        .get();
+      if (!row || store.db.prepare("SELECT id FROM witness.head").get())
+        fail("rotation-fence-invalid");
+      const intent = JSON.parse(row.intent);
+      if (bundle && canonical(bundle) !== canonical(intent.bundle))
+        fail("rotation-retry-approval-mismatch");
+      const next = rotationCandidate(store, source, destination, intent);
+      if (next.head.checkpointDigest !== intent.expectedDigest)
+        fail("rotation-candidate-changed");
+      await remote.call(source, privateFile, next.head, { rotation: true });
+      const result = applyRotation(store, destination, next);
+      store.db.exec("DROP TABLE main.governance_rotation");
+      return result;
+    });
+  });
+}
 function inspect(authorityPath) {
   const c = authority(authorityPath);
   return then(authoritativeHead(c), (h) => ({
@@ -1244,6 +1607,9 @@ module.exports = Object.freeze({
   enroll,
   planEnroll,
   planMigration,
+  planRotation,
+  rotate,
+  verifyWitnessRotation,
   migrate,
   planAdopt,
   planRestore,
