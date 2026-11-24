@@ -18,7 +18,7 @@ Risk: Level 2 — 조직 신뢰 상태를 별도 서버의 최신 체크포인�
 
 클라이언트는 HTTPS 서버 인증과 authority에 고정한 Ed25519 서명을 확인한다. 요청마다 새 nonce를 사용해 과거 응답 재사용을 차단한다. 서명은 store ID, authority digest, nonce와 체크포인트를 묶는다. 보고서에는 `trustContext.governance.mode = remote-witness`, 순번, digest를 넣는다. 이 필드는 자체 서명된 영수증의 역할을 하지 않으므로 운영 게이트는 도구의 종료 코드도 확인한다. [Node HTTPS API](https://nodejs.org/api/https.html)
 
-쓰기 순서는 **로컬 transaction에서 다음 상태 계산 → 원격 CAS와 서명 응답 확인 → 로컬 commit**이다. 서버는 직전 digest와 순번이 일치할 때 새 항목을 추가하며, 같은 체크포인트를 다시 보내면 같은 결과를 반환한다. 정책 revision이나 TUF 하한을 낮추거나 이전 승인 기록과 domain 이력을 지우는 전이도 거절한다. 원격 요청 하나에는 5초 제한이 있으며 로컬 쓰기 잠금은 확인 동안 유지된다. 이 모드의 스캔에는 네트워크가 필요하다. [SQLite transaction 규약](https://www.sqlite.org/lang_transaction.html)
+쓰기 순서는 **로컬 transaction에서 다음 상태 계산 → 원격 CAS와 서명 응답 확인 → 로컬 commit**이다. 서버는 직전 digest와 순번이 일치할 때 새 항목을 추가하며, 같은 체크포인트를 다시 보내면 같은 결과를 반환한다. [정책 채택과 복구 승인 검증 및 독립 체크포인트 운영](witness-checkpoint-recovery.md)도 적용할 수 있다. 정책 revision이나 TUF 하한을 낮추거나 이전 승인 기록과 domain 이력을 지우는 전이도 거절한다. 원격 요청 하나에는 5초 제한이 있으며 로컬 쓰기 잠금은 확인 동안 유지된다. 이 모드의 스캔에는 네트워크가 필요하다. [SQLite transaction 규약](https://www.sqlite.org/lang_transaction.html)
 
 ## 서비스 설정
 
@@ -57,7 +57,7 @@ Risk: Level 2 — 조직 신뢰 상태를 별도 서버의 최신 체크포인�
 
 3. 데이터 경로를 최초 준비할 때만 `node verification/remote-witness-server.mjs SERVICE.json --initialize`를 실행한다. 운영에서는 listener의 접근을 관리하고, witness 디스크와 권한을 분석 호스트의 백업 및 복원 정책에서 분리한다. remote authority로 [기존 이중 승인 순서](organization-approval-recovery.md#승인-요청서명적용)에 따라 등록·정책 채택을 수행한다. 이미 v2로 등록한 조직은 [v2 승인 이관](remote-witness-v2-migration.md)으로 같은 저장소의 정책·승인·TUF 하한을 이어받는다.
 
-이 서비스는 인증된 각 요청에서 24MB까지 수신하며 신뢰 상태 전체를 저장한다. 운영자가 변경 권한을 가진 원격 서버 자체, 디스크를 포함한 동시 rollback, 쓰기 토큰 또는 원격 서명 키 유출은 별도 신뢰 경계다. 정책·승인 기록 및 경로가 포함되므로 조직 전용 접근과 백업을 적용한다. 애플리케이션 API에서 과거 항목 삭제나 리셋을 제공하지 않는다. 용량 감시와 서버 보호는 운영 범위에 포함한다.
+이 서비스는 인증된 각 요청에서 24MB까지 수신하며 신뢰 상태 전체를 저장한다. 독립 체크포인트를 사용하면 원격 이력 DB의 롤백도 감지한다. 쓰기 토큰이 유출되어도 정책과 복구 경로 변경에는 유효한 승인 서명이 필요하다. 원격 서명 키 유출, 서버 관리 권한, 독립 체크포인트까지 포함한 동시 롤백은 해당 제어의 운영 신뢰 경계에 있다. 정책·승인 기록 및 경로가 포함되므로 조직 전용 접근과 백업을 적용한다. 애플리케이션 API에서 과거 항목 삭제나 리셋을 제공하지 않는다. 용량 감시와 서버 보호는 운영 범위에 포함한다.
 
 ## 중단과 복구
 

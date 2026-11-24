@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import https from "node:https";
 import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, fork } from "node:child_process";
 import { once } from "node:events";
 import { createRequire } from "node:module";
 import {
@@ -18,6 +18,18 @@ const require = createRequire(import.meta.url);
 const tuf = require("../../verification/sigstore-tuf.cjs");
 const protocol = require("../../verification/remote-witness.cjs");
 
+if (process.send) {
+  process.once("message", async ({ options }) => {
+    try {
+      const server = createWitness(options);
+      process.send({ port: await listen(server) });
+    } catch (error) {
+      process.send({ error: error.message }, () => process.exit(1));
+    }
+  });
+  process.once("disconnect", () => process.exit());
+}
+
 async function listen(server) {
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -32,13 +44,25 @@ async function close(server) {
   }
 }
 
-export async function remoteFixture({ legacy = false } = {}) {
+export async function remoteFixture({
+  legacy = false,
+  subprocess = false,
+  anchored = false,
+} = {}) {
   const x = await governanceFixture();
   const removeFixture = x.cleanup;
-  let service, proxy;
+  let service, worker, proxy;
+  const stopService = async () => {
+    await close(service);
+    if (worker?.exitCode === null && worker.signalCode === null) {
+      const stopped = once(worker, "exit");
+      worker.kill();
+      await stopped;
+    }
+  };
   const cleanup = async () => {
     await close(proxy);
-    await close(service);
+    await stopService();
     removeFixture();
   };
   try {
@@ -142,14 +166,38 @@ export async function remoteFixture({ legacy = false } = {}) {
       readToken,
       writeToken,
       signingKey,
+      ...(anchored
+        ? { checkpointDirectory: path.join(x.dir, "independent-checkpoint") }
+        : {}),
       tls,
     };
-    service = createWitness({ ...options, initialize: true });
-    servicePort = await listen(service);
+    x.witnessOptions = options;
+    x.stopService = stopService;
+    x.startService = async (overrides) => {
+      const config = { ...options, ...overrides };
+      if (subprocess) {
+        worker = fork(new URL(import.meta.url), [], {
+          serialization: "advanced",
+          execArgv: [],
+          stdio: ["ignore", "ignore", "ignore", "ipc"],
+        });
+        const result = Promise.race([
+          once(worker, "message").then(([message]) => message),
+          once(worker, "exit").then(() => ({ error: "witness-worker-exited" })),
+        ]);
+        worker.send({ options: config });
+        const { port, error } = await result;
+        if (error) throw Error(error);
+        servicePort = port;
+      } else {
+        service = createWitness(config);
+        servicePort = await listen(service);
+      }
+    };
+    await x.startService({ initialize: true });
     x.restart = async () => {
-      await close(service);
-      service = createWitness(options);
-      servicePort = await listen(service);
+      await stopService();
+      await x.startService();
     };
     x.withStore = async (fn) => {
       const s = g.open(x.root, x.authority);
@@ -219,6 +267,13 @@ export async function remoteFixture({ legacy = false } = {}) {
     x.status = () =>
       x.withStore((s) => core.status(s, x.compiled, x.a.organizationId));
     x.inspect = () => g.inspect(x.authority);
+    x.sendCheckpoint = (head, options) =>
+      protocol.call(
+        { a: x.a, digest: g.authorityInfo(x.authority).authorityDigest },
+        (file) => file,
+        head,
+        options
+      );
     x.reconcile = () => g.reconcile(x.root, x.authority);
     x.restore = async (target) => {
       const planned = await g.planRestore(x.authority, target);

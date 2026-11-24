@@ -242,6 +242,11 @@ function protectedPath(input, initialize = false) {
   }
   return root;
 }
+function initTrustTables(db) {
+  db.exec(
+    "CREATE TABLE organizations(id TEXT PRIMARY KEY, revision INTEGER NOT NULL, digest TEXT NOT NULL, policy TEXT NOT NULL, generation INTEGER NOT NULL); CREATE TABLE domains(org TEXT NOT NULL, id TEXT NOT NULL, anchor TEXT NOT NULL, state TEXT, checkpoint TEXT NOT NULL, lease TEXT, PRIMARY KEY(org,id), FOREIGN KEY(org) REFERENCES organizations(id));"
+  );
+}
 function openStore(input, initialize = false, permit) {
   const root = protectedPath(input, initialize),
     file = path.join(root, "trust-store.sqlite");
@@ -275,8 +280,9 @@ function openStore(input, initialize = false, permit) {
   try {
     if (initialize) {
       db.exec(
-        "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; CREATE TABLE marker(value TEXT NOT NULL); INSERT INTO marker VALUES('frontend-organization-trust-v1'); CREATE TABLE organizations(id TEXT PRIMARY KEY, revision INTEGER NOT NULL, digest TEXT NOT NULL, policy TEXT NOT NULL, generation INTEGER NOT NULL); CREATE TABLE domains(org TEXT NOT NULL, id TEXT NOT NULL, anchor TEXT NOT NULL, state TEXT, checkpoint TEXT NOT NULL, lease TEXT, PRIMARY KEY(org,id), FOREIGN KEY(org) REFERENCES organizations(id)); PRAGMA user_version=1;",
+        "PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; CREATE TABLE marker(value TEXT NOT NULL); INSERT INTO marker VALUES('frontend-organization-trust-v1'); PRAGMA user_version=1;"
       );
+      initTrustTables(db);
     }
     const storeVersion = db.prepare("PRAGMA user_version").get().user_version;
     if (
@@ -713,6 +719,7 @@ module.exports = Object.freeze({
   readJSON,
   compilePolicy,
   openStore,
+  initTrustTables,
   adopt,
   beginRefresh,
   finishRefresh,

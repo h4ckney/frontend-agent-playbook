@@ -6,11 +6,15 @@ import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { openCheckpoint, sameCheckpoint } from "./witness-checkpoint.mjs";
 
 const require = createRequire(import.meta.url);
 const protocol = require("./remote-witness.cjs");
 const core = require("./organization-trust.cjs");
-const { verifyWitnessRotation } = require("./organization-governance.cjs");
+const {
+  verifyWitnessRotation,
+  verifyWitnessWrite,
+} = require("./organization-governance.cjs");
 
 // An instance serves one preconfigured store and never resets its append history.
 export function createWitness({
@@ -21,6 +25,9 @@ export function createWitness({
   signingKey,
   tls,
   initialize = false,
+  checkpointDirectory,
+  bindCheckpoint,
+  repairCheckpoint = false,
 }) {
   if (
     !protocol.uuid(scope.storeId) ||
@@ -28,6 +35,13 @@ export function createWitness({
     !protocol.credential(readToken) ||
     !protocol.credential(writeToken) ||
     readToken === writeToken ||
+    (checkpointDirectory !== undefined &&
+      (typeof checkpointDirectory !== "string" ||
+        !path.isAbsolute(checkpointDirectory))) ||
+    ((bindCheckpoint !== undefined || repairCheckpoint) &&
+      (!checkpointDirectory || initialize)) ||
+    (bindCheckpoint !== undefined &&
+      (!protocol.digest(bindCheckpoint) || repairCheckpoint)) ||
     crypto.createPrivateKey(signingKey).asymmetricKeyType !== "ed25519"
   )
     throw Error("invalid-witness-service-config");
@@ -43,6 +57,7 @@ export function createWitness({
   )
     throw Error("invalid-witness-service-storage");
   const db = new DatabaseSync(file, { allowExtension: false });
+  let checkpoint;
   try {
     db.exec(
       "PRAGMA synchronous=FULL; PRAGMA trusted_schema=OFF; PRAGMA busy_timeout=3000;",
@@ -64,52 +79,139 @@ export function createWitness({
     )
       throw Error("witness-service-scope-mismatch");
     const latest = db.prepare(
-      "SELECT body FROM history ORDER BY sequence DESC LIMIT 1",
+      "SELECT sequence, body FROM history ORDER BY sequence DESC LIMIT 1"
     );
     const insert = db.prepare("INSERT INTO history VALUES(?,?)");
-    const current = () => JSON.parse(latest.get()?.body ?? "null");
+    const local = () => {
+      const row = latest.get();
+      if (!row) return null;
+      const head = JSON.parse(row.body);
+      if (head?.sequence !== row.sequence)
+        throw Error("witness-history-sequence-mismatch");
+      return head;
+    };
+    const checkpointRequired = () =>
+      !!db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE name='independent_checkpoint'"
+        )
+        .get();
+    if (checkpointRequired() && !checkpointDirectory)
+      throw Error("witness-checkpoint-config-required");
+    if (checkpointDirectory) {
+      db.exec("BEGIN IMMEDIATE");
+      const previous = local();
+      if (
+        bindCheckpoint !== undefined &&
+        previous?.checkpointDigest !== bindCheckpoint
+      )
+        throw Error("witness-checkpoint-bind-head-mismatch");
+      if (previous)
+        protocol.validateHead(previous, {
+          storeId: scope.storeId,
+          authorityDigest: previous.authorityDigest,
+        });
+      if (bindCheckpoint !== undefined) {
+        // An interrupted bind can resume against the existing, already initialized anchor.
+        const missing = !fs.existsSync(
+          path.join(checkpointDirectory, "checkpoint.sqlite")
+        );
+        if (missing && checkpointRequired())
+          throw Error("witness-checkpoint-missing");
+        checkpoint = openCheckpoint(checkpointDirectory, root, scope, {
+          initialize: missing,
+          seed: previous,
+        });
+      } else {
+        checkpoint = openCheckpoint(checkpointDirectory, root, scope, {
+          initialize,
+        });
+      }
+      const pinned = checkpoint.current();
+      if (!sameCheckpoint(previous, pinned)) {
+        if (
+          !repairCheckpoint ||
+          !pinned ||
+          pinned.sequence !== (previous?.sequence ?? 0) + 1 ||
+          pinned.previousCheckpoint !== (previous?.checkpointDigest ?? null)
+        )
+          throw Error("witness-checkpoint-history-mismatch");
+        insert.run(pinned.sequence, JSON.stringify(pinned));
+      }
+      db.exec(
+        "CREATE TABLE IF NOT EXISTS independent_checkpoint(required INTEGER)"
+      );
+      db.exec("COMMIT");
+    }
+    const current = () => {
+      const head = local();
+      if (checkpoint && !sameCheckpoint(head, checkpoint.current()))
+        throw Error("witness-checkpoint-history-mismatch");
+      if (head)
+        protocol.validateHead(head, {
+          storeId: scope.storeId,
+          authorityDigest: head.authorityDigest,
+        });
+      return head;
+    };
 
-    function append(next, requestedScope, rotation) {
+    async function append(
+      next,
+      requestedScope,
+      { rotation, authority, migration }
+    ) {
       const targetScope = rotation
         ? { ...requestedScope, authorityDigest: next.authorityDigest }
         : requestedScope;
       const state = protocol.validateHead(next, targetScope);
+      const old = current();
+      const active = old?.authorityDigest ?? scope.authorityDigest;
+      if (rotation && old?.checkpointDigest === next.checkpointDigest) {
+        // A lost response may be retried with the old authority only for this exact transition.
+        const applied = state.receipts.some((row) => {
+          const b = JSON.parse(row.bundle);
+          return (
+            ["rotate", "recover-quorum"].includes(b.request.action) &&
+            b.request.authorityDigest === requestedScope.authorityDigest &&
+            b.request.destinationAuthorityDigest === active &&
+            b.request.checkpointDigest === next.previousCheckpoint
+          );
+        });
+        if (!applied) throw Error("witness-conflict");
+        return old;
+      }
+      if (requestedScope.authorityDigest !== active)
+        throw Error("witness-conflict");
+      if (old?.checkpointDigest === next.checkpointDigest) return old;
+      if (
+        next.sequence !== (old?.sequence ?? 0) + 1 ||
+        next.previousCheckpoint !== (old?.checkpointDigest ?? null)
+      )
+        throw Error("witness-conflict");
+      if (rotation) {
+        if (!old || targetScope.authorityDigest === active)
+          throw Error("witness-conflict");
+        verifyWitnessRotation(old, next, requestedScope, targetScope);
+      } else {
+        await verifyWitnessWrite(
+          old,
+          next,
+          requestedScope,
+          state,
+          authority,
+          migration
+        );
+      }
       db.exec("BEGIN IMMEDIATE");
       try {
-        const old = current();
-        const active = old?.authorityDigest ?? scope.authorityDigest;
-        if (rotation && old?.checkpointDigest === next.checkpointDigest) {
-          // A lost response may be retried with the old authority only for this exact transition.
-          const applied = state.receipts.some((row) => {
-            const b = JSON.parse(row.bundle);
-            return (
-              ["rotate", "recover-quorum"].includes(b.request.action) &&
-              b.request.authorityDigest === requestedScope.authorityDigest &&
-              b.request.destinationAuthorityDigest === active &&
-              b.request.checkpointDigest === next.previousCheckpoint
-            );
-          });
-          if (!applied) throw Error("witness-conflict");
-        } else {
-          if (requestedScope.authorityDigest !== active)
+        const live = current();
+        if (live?.checkpointDigest !== old?.checkpointDigest) {
+          if (live?.checkpointDigest !== next.checkpointDigest)
             throw Error("witness-conflict");
-          if (old?.checkpointDigest !== next.checkpointDigest) {
-            if (
-              next.sequence !== (old?.sequence ?? 0) + 1 ||
-              next.previousCheckpoint !== (old?.checkpointDigest ?? null)
-            )
-              throw Error("witness-conflict");
-            if (rotation) {
-              if (!old || targetScope.authorityDigest === active)
-                throw Error("witness-conflict");
-              verifyWitnessRotation(old, next, requestedScope, targetScope);
-            } else if (old)
-              protocol.preserveHistory(
-                protocol.validateHead(old, requestedScope),
-                state,
-              );
-            insert.run(next.sequence, JSON.stringify(next));
-          }
+        } else {
+          insert.run(next.sequence, JSON.stringify(next));
+          // Keep the independently durable checkpoint ahead if the history commit is interrupted.
+          checkpoint?.advance(live, next);
         }
         db.exec("COMMIT");
         return next;
@@ -164,6 +266,7 @@ export function createWitness({
           const write = Object.hasOwn(body, "next");
           const probe = Object.hasOwn(body, "writeProbe");
           const rotation = Object.hasOwn(body, "rotation");
+          const migration = Object.hasOwn(body, "migration");
           if (
             !protocol.exact(body, [
               "storeId",
@@ -172,10 +275,13 @@ export function createWitness({
               ...(write ? ["next"] : []),
               ...(probe ? ["writeProbe"] : []),
               ...(rotation ? ["rotation"] : []),
+              ...(write && !rotation ? ["authority"] : []),
+              ...(migration ? ["migration"] : []),
             ]) ||
             body.storeId !== scope.storeId ||
             !protocol.digest(body.authorityDigest) ||
             (rotation && (!write || body.rotation !== true)) ||
+            (migration && (!write || rotation || body.next?.sequence !== 1)) ||
             typeof body.nonce !== "string" ||
             !/^[a-f0-9]{64}$/.test(body.nonce) ||
             (probe && (write || body.writeProbe !== true)) ||
@@ -189,7 +295,7 @@ export function createWitness({
             authorityDigest: body.authorityDigest,
           };
           const head = write
-            ? append(body.next, requestedScope, rotation)
+            ? await append(body.next, requestedScope, body)
             : current();
           if (
             !write &&
@@ -215,6 +321,7 @@ export function createWitness({
           res
             .writeHead(
               error.message === "witness-conflict" ||
+                error.message === "witness-checkpoint-history-mismatch" ||
                 error.message === "remote-witness-history-regression"
                 ? 409
                 : 400,
@@ -224,9 +331,13 @@ export function createWitness({
       },
     );
     server.setTimeout(8000, (socket) => socket.destroy());
-    server.once("close", () => db.close());
+    server.once("close", () => {
+      checkpoint?.close();
+      db.close();
+    });
     return server;
   } catch (error) {
+    checkpoint?.close();
     db.close();
     throw error;
   }
@@ -240,11 +351,19 @@ if (
     const [file, ...flags] = process.argv.slice(2);
     if (
       !file ||
-      flags.length > 1 ||
-      (flags.length && flags[0] !== "--initialize")
+      (flags.length !== 0 &&
+        !(
+          flags.length === 1 &&
+          ["--initialize", "--repair-checkpoint"].includes(flags[0])
+        ) &&
+        !(
+          flags.length === 2 &&
+          flags[0] === "--bind-checkpoint" &&
+          protocol.digest(flags[1])
+        ))
     )
       throw Error(
-        "usage: remote-witness-server.mjs CONFIG.json [--initialize]",
+        "usage: remote-witness-server.mjs CONFIG.json [--initialize | --bind-checkpoint DIGEST | --repair-checkpoint]"
       );
     const read = (p) => {
       const full = path.resolve(p);
@@ -283,7 +402,10 @@ if (
       writeToken: read(c.writeTokenFile).toString().trim(),
       signingKey: read(c.signingKeyFile),
       tls: { key: read(c.tlsKeyFile), cert: read(c.tlsCertificateFile) },
-      initialize: flags.length === 1,
+      checkpointDirectory: c.checkpointDirectory,
+      initialize: flags[0] === "--initialize",
+      bindCheckpoint: flags[0] === "--bind-checkpoint" ? flags[1] : undefined,
+      repairCheckpoint: flags[0] === "--repair-checkpoint",
     });
     server.on("error", () => {
       process.stderr.write("Witness listener failed.\n");
@@ -293,8 +415,11 @@ if (
       process.stdout.write("Remote witness ready.\n"),
     );
   } catch (error) {
+    const reason = /^witness-checkpoint-[a-z-]+$/.test(error.message)
+      ? ` (${error.message})`
+      : "";
     process.stderr.write(
-      "Remote witness startup rejected. Check configuration and private storage.\n",
+      `Remote witness startup rejected${reason}. Check configuration and private storage.\n`
     );
     process.exitCode = 2;
   }

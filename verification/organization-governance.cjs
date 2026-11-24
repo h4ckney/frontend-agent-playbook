@@ -402,7 +402,7 @@ function validateRequest(c, b, action, now = Date.now()) {
   )
     fail("approval-scope-or-time-rejected");
   const specific = {
-    enroll: ["stateDigest"],
+    enroll: ["stateDigest", ...(c.a.remoteWitness ? ["targetRoot"] : [])],
     adopt: ["policyDigest", "policyRevision", "previousPolicyDigest"],
     restore: ["checkpointDigest", "targetRoot", "backupDigest"],
     migrate: ["checkpointDigest", "targetRoot", "destinationAuthorityDigest"],
@@ -435,7 +435,10 @@ function validateRequest(c, b, action, now = Date.now()) {
     fail("invalid-approval-action");
   if (
     action === "enroll" &&
-    (!digest(r.stateDigest) || hash(b.review?.state) !== r.stateDigest)
+    (!digest(r.stateDigest) ||
+      hash(b.review?.state) !== r.stateDigest ||
+      (c.a.remoteWitness &&
+        (typeof r.targetRoot !== "string" || !path.isAbsolute(r.targetRoot))))
   )
     fail("approval-review-mismatch");
   if (
@@ -639,7 +642,10 @@ function enroll(root, authorityPath, b) {
       assertDomain(c.a, logical);
       quiescent(logical);
       const r = verifyApproval(c, b, "enroll");
-      if (r.stateDigest !== hash(logical))
+      if (
+        r.stateDigest !== hash(logical) ||
+        (c.a.remoteWitness && r.targetRoot !== store.root)
+      )
         fail("approval-enrollment-state-changed");
       store.db.exec(headSchema);
       initBinding(store, c);
@@ -699,7 +705,15 @@ function planEnroll(root, authorityPath) {
       const state = dump(s);
       assertDomain(c.a, state);
       quiescent(state);
-      return request(c, "enroll", { stateDigest: hash(state) }, { state });
+      return request(
+        c,
+        "enroll",
+        {
+          stateDigest: hash(state),
+          ...(c.a.remoteWitness ? { targetRoot: s.root } : {}),
+        },
+        { state }
+      );
     });
   } finally {
     s.close();
@@ -979,36 +993,46 @@ function witnessPath(c) {
     ? core.protectedPath(c.a.witnessDirectory)
     : targetPath(c.a.witnessDirectory);
 }
-function installLogical(s, c, logical, recovering = false) {
+function needsRefresh(logical, action, checkedAt) {
+  const next = clone(logical);
+  for (const row of next.organizations) row.generation++;
+  for (const row of next.domains) {
+    row.lease = null;
+    if (!row.state) continue;
+    const state = JSON.parse(row.state);
+    state.lastAttempt = {
+      status: "rejected",
+      reason: `organization-${action}-needs-refresh`,
+      checkedAt,
+    };
+    row.state = JSON.stringify(state);
+  }
+  return next;
+}
+function addReceipt(logical, bundle) {
+  if (
+    logical.receipts.some((row) => row.requestId === bundle.request.requestId)
+  )
+    fail("approval-already-consumed");
+  logical.receipts.push({
+    requestId: bundle.request.requestId,
+    bundle: JSON.stringify(bundle),
+  });
+  logical.receipts.sort((a, b) =>
+    a.requestId < b.requestId ? -1 : a.requestId > b.requestId ? 1 : 0
+  );
+  return logical;
+}
+function installLogical(s, c, logical) {
   assertDomain(c.a, logical);
   for (const row of logical.organizations)
     s.db
       .prepare("INSERT INTO main.organizations VALUES(?,?,?,?,?)")
-      .run(
-        row.id,
-        row.revision,
-        row.digest,
-        row.policy,
-        row.generation + (recovering ? 1 : 0),
-      );
+      .run(row.id, row.revision, row.digest, row.policy, row.generation);
   for (const row of logical.domains) {
-    const state = row.state ? JSON.parse(row.state) : null;
-    if (state && recovering)
-      state.lastAttempt = {
-        status: "rejected",
-        reason: "organization-restore-needs-refresh",
-        checkedAt: new Date().toISOString(),
-      };
     s.db
       .prepare("INSERT INTO main.domains VALUES(?,?,?,?,?,?)")
-      .run(
-        row.org,
-        row.id,
-        row.anchor,
-        recovering && state ? JSON.stringify(state) : row.state,
-        row.checkpoint,
-        recovering ? null : row.lease,
-      );
+      .run(row.org, row.id, row.anchor, row.state, row.checkpoint, row.lease);
   }
   initBinding(s, c);
   for (const row of logical.receipts)
@@ -1053,7 +1077,11 @@ function restore(authorityPath, target, b, file) {
         if (h.checkpointDigest !== r.checkpointDigest)
           fail("restore-approval-state-changed");
         s.db.exec(headSchema);
-        installLogical(s, c, source.logical, true);
+        installLogical(
+          s,
+          c,
+          needsRefresh(source.logical, "restore", new Date().toISOString())
+        );
         record(s, b);
         const next = writeHead(s, c, h, dump(s));
         const result = {
@@ -1154,56 +1182,63 @@ function planMigration(root, sourcePath, destinationPath) {
     }),
   );
 }
-function migrationCandidate(store, source, destination, intent) {
-  const { approval, sourceHead, authorizedAt } = intent;
+function migrationLogical(
+  source,
+  destination,
+  logical,
+  { approval, sourceHead, authorizedAt }
+) {
   if (!Number.isSafeInteger(authorizedAt) || authorizedAt < 0)
     fail("migration-fence-invalid");
   const r = verifyApproval(source, approval, "migrate", true, authorizedAt);
-  const logical = dump(store);
-  logical.schemaVersion = 2;
-  binding(store, source);
+  assertDomain(source.a, logical);
   quiescent(logical);
   if (
     sourceHead.storeId !== source.a.storeId ||
     sourceHead.authorityDigest !== source.digest ||
-    sourceHead.activeRoot !== store.root ||
+    sourceHead.activeRoot !== r.targetRoot ||
     sourceHead.stateDigest !== hash(logical) ||
     checkpoint(sourceHead) !== r.checkpointDigest ||
     sourceHead.checkpointDigest !== r.checkpointDigest ||
-    r.targetRoot !== store.root ||
     r.destinationAuthorityDigest !== destination.digest ||
     canonical(approval.review) !==
       canonical(migrationReview(sourceHead, logical, destination))
   )
     fail("migration-source-or-approval-changed");
-  if (logical.receipts.some((row) => row.requestId === r.requestId))
-    fail("approval-already-consumed");
-
-  // Keep policy, TUF repositories, floor, tombstones and signed receipts. Reset readiness at cutover.
-  const next = clone(logical);
+  const next = needsRefresh(
+    logical,
+    "migration",
+    new Date(authorizedAt).toISOString()
+  );
   next.schemaVersion = 3;
   next.binding[0].authorityDigest = destination.digest;
-  for (const row of next.organizations) row.generation++;
-  for (const row of next.domains) {
-    if (!row.state) continue;
-    const state = JSON.parse(row.state);
-    state.lastAttempt = {
-      status: "rejected",
-      reason: "organization-migration-needs-refresh",
-      checkedAt: new Date(authorizedAt).toISOString(),
-    };
-    row.state = JSON.stringify(state);
-  }
-  next.receipts.push({
-    requestId: r.requestId,
-    bundle: JSON.stringify(approval),
-  });
-  next.receipts.sort((a, b) =>
-    a.requestId < b.requestId ? -1 : a.requestId > b.requestId ? 1 : 0,
-  );
+  addReceipt(next, approval);
   assertLogicalBudget(next);
   remote.preserveHistory(logical, next);
-  return { head: makeHead(store, destination, null, next), logical: next };
+  return next;
+}
+function migrationCandidate(store, source, destination, intent) {
+  const logical = dump(store);
+  logical.schemaVersion = 2;
+  binding(store, source);
+  if (intent.sourceHead.activeRoot !== store.root)
+    fail("migration-source-or-approval-changed");
+  const next = migrationLogical(source, destination, logical, intent);
+  const migration = {
+    sourceHead: intent.sourceHead,
+    authorizedAt: intent.authorizedAt,
+    priorAttempts: logical.domains
+      .filter((row) => row.state)
+      .map((row) => {
+        const state = JSON.parse(row.state);
+        return Object.hasOwn(state, "lastAttempt") ? [state.lastAttempt] : [];
+      }),
+  };
+  return {
+    head: makeHead(store, destination, null, next),
+    logical: next,
+    migration,
+  };
 }
 function prepareMigration(store, source, destination, approval) {
   if (storeVersion(store) !== 2) fail("migration-requires-v2");
@@ -1296,7 +1331,7 @@ async function migrate(root, sourcePath, destinationPath, approval) {
       if (approval && canonical(intent.approval) !== canonical(approval))
         fail("migration-retry-approval-mismatch");
       // The approval was validated at the durable freeze time. A retry cannot alter that transition.
-      const { head, logical } = migrationCandidate(
+      const { head, logical, migration } = migrationCandidate(
         store,
         source,
         destination,
@@ -1306,7 +1341,7 @@ async function migrate(root, sourcePath, destinationPath, approval) {
         fail("migration-candidate-changed");
       const independent = await remote.call(destination, privateFile);
       if (independent) compareRemote(head, independent);
-      else await remote.call(destination, privateFile, head);
+      else await remote.call(destination, privateFile, head, { migration });
       replaceLogical(store, destination, logical);
       saveHead(store, head);
       if (hash(dump(store)) !== head.stateDigest)
@@ -1596,6 +1631,185 @@ function rotationLogical(h, logical, bundle, at) {
   remote.preserveHistory(logical, next);
   return next;
 }
+function witnessBootstrap(c, next, proposed, added, migration) {
+  if (!migration) {
+    const r = verifyApproval(c, added, "enroll");
+    const before = added.review.state;
+    if (
+      c.a.recovery ||
+      r.targetRoot !== next.activeRoot ||
+      before.schemaVersion !== 1 ||
+      before.binding.length ||
+      before.receipts.length
+    )
+      fail("witness-enrollment-mismatch");
+    quiescent(before);
+    return addReceipt(
+      {
+        ...clone(before),
+        schemaVersion: 3,
+        binding: [{ storeId: c.a.storeId, authorityDigest: c.digest }],
+      },
+      added
+    );
+  }
+  const { remoteWitness, ...localAuthority } = c.a;
+  const source = parseAuthority(localAuthority);
+  const { sourceHead, authorizedAt, priorAttempts } = migration;
+  if (
+    !remote.exact(migration, ["sourceHead", "authorizedAt", "priorAttempts"]) ||
+    !Array.isArray(priorAttempts) ||
+    next.activeRoot !== sourceHead?.activeRoot ||
+    !Number.isSafeInteger(authorizedAt) ||
+    authorizedAt > Date.now() + 30000
+  )
+    fail("witness-migration-mismatch");
+  // Reconstruct the signed v2 snapshot without transmitting TUF repositories twice.
+  const before = clone(proposed);
+  before.schemaVersion = 2;
+  before.binding[0].authorityDigest = source.digest;
+  before.receipts = before.receipts.filter(
+    (row) => row.requestId !== added.request.requestId
+  );
+  for (const row of before.organizations) row.generation--;
+  let index = 0;
+  for (const row of before.domains) {
+    if (!row.state) continue;
+    const state = JSON.parse(row.state);
+    const attempt = priorAttempts[index++];
+    if (!Array.isArray(attempt) || attempt.length > 1)
+      fail("witness-migration-mismatch");
+    if (attempt.length === 0) delete state.lastAttempt;
+    else state.lastAttempt = attempt[0];
+    row.state = JSON.stringify(state);
+  }
+  if (index !== priorAttempts.length) fail("witness-migration-mismatch");
+  return migrationLogical(source, c, before, {
+    sourceHead,
+    authorizedAt,
+    approval: added,
+  });
+}
+
+async function witnessAdopt(c, prior, bundle) {
+  const r = verifyApproval(c, bundle, "adopt");
+  const compiled = await core.compilePolicy(bundle.review.policy);
+  const old = prior.organizations[0];
+  if (
+    r.policyDigest !== compiled.digest ||
+    r.policyRevision !== compiled.policy.revision ||
+    r.previousPolicyDigest !== (old?.digest ?? null) ||
+    compiled.policy.organizationId !== c.a.organizationId
+  )
+    fail("approval-policy-transition-mismatch");
+  // Execute the same policy transition as the CLI without touching managed state.
+  const db = new DatabaseSync(":memory:", { allowExtension: false });
+  try {
+    const store = { db };
+    core.initTrustTables(db);
+    installLogical(store, c, prior);
+    if (core.adopt(store, compiled, c.a.organizationId).status !== "adopted")
+      fail("approval-policy-transition-mismatch");
+    return addReceipt(dump(store), bundle);
+  } finally {
+    db.close();
+  }
+}
+
+async function verifyWitnessWrite(
+  previous,
+  next,
+  scope,
+  proposed,
+  rawAuthority,
+  migration
+) {
+  // The configured digest pins this document even when it is sent by the writer.
+  const c = parseAuthority(rawAuthority);
+  if (
+    !c.a.remoteWitness ||
+    c.digest !== scope.authorityDigest ||
+    c.a.storeId !== scope.storeId ||
+    (previous && migration)
+  )
+    fail("witness-authority-mismatch");
+  assertDomain(c.a, proposed);
+  const prior = previous && remote.validateHead(previous, scope);
+  if (prior) remote.preserveHistory(prior, proposed);
+  const added = proposed.receipts.filter(
+    (row) => !prior?.receipts.some((old) => old.requestId === row.requestId)
+  );
+  if (prior && added.length === 0) {
+    // Refresh can update existing domains and advance the generation fence only.
+    const previousOrg = prior.organizations[0];
+    const nextOrg = proposed.organizations[0];
+    if (
+      previous.activeRoot !== next.activeRoot ||
+      canonical(prior.binding) !== canonical(proposed.binding) ||
+      canonical(prior.receipts) !== canonical(proposed.receipts) ||
+      canonical(prior.domains.map(({ org, id }) => [org, id])) !==
+        canonical(proposed.domains.map(({ org, id }) => [org, id])) ||
+      !previousOrg ||
+      !nextOrg ||
+      nextOrg.generation !== previousOrg.generation + 1 ||
+      prior.domains.filter(
+        (row, index) => canonical(row) !== canonical(proposed.domains[index])
+      ).length !== 1 ||
+      canonical(previousOrg) !==
+        canonical({ ...nextOrg, generation: previousOrg.generation })
+    )
+      fail("witness-refresh-transition-mismatch");
+    return;
+  }
+  // A v2 bootstrap contains all its old receipts, but exactly one matching migration approval.
+  const candidates = migration
+    ? added.filter((row) => {
+        const r = JSON.parse(row.bundle).request;
+        return (
+          r?.action === "migrate" && r.destinationAuthorityDigest === c.digest
+        );
+      })
+    : added;
+  if (candidates.length !== 1) fail("witness-approval-required");
+  const bundle = JSON.parse(candidates[0].bundle);
+  let expected;
+  if (!previous) {
+    expected = witnessBootstrap(c, next, proposed, bundle, migration);
+  } else if (
+    bundle.request.action === "adopt" &&
+    next.activeRoot === previous.activeRoot
+  ) {
+    expected = await witnessAdopt(c, prior, bundle);
+  } else if (bundle.request.action === "restore") {
+    const r = verifyApproval(c, bundle, "restore");
+    if (
+      r.checkpointDigest !== previous.checkpointDigest ||
+      r.targetRoot !== next.activeRoot ||
+      relation(next.activeRoot, previous.activeRoot) ||
+      relation(next.activeRoot, c.a.witnessDirectory) ||
+      canonical(bundle.review) !== canonical(restoreReview(previous))
+    )
+      fail("witness-restore-transition-mismatch");
+    const domainIndex = prior.domains.findIndex((row) => row.state);
+    let checkedAt;
+    if (domainIndex !== -1) {
+      checkedAt = JSON.parse(proposed.domains[domainIndex]?.state ?? "null")
+        ?.lastAttempt?.checkedAt;
+      const at = Date.parse(checkedAt);
+      if (
+        !Number.isFinite(at) ||
+        new Date(at).toISOString() !== checkedAt ||
+        at < Date.parse(r.issuedAt) - 30000 ||
+        at > Date.now() + 30000
+      )
+        fail("witness-restore-time-invalid");
+    }
+    expected = addReceipt(needsRefresh(prior, "restore", checkedAt), bundle);
+  }
+  if (!expected || canonical(expected) !== canonical(proposed))
+    fail("witness-approval-transition-mismatch");
+}
+
 // Independently verify both quorums and the exact allowed change on the remote append authority.
 function verifyWitnessRotation(previous, next, sourceScope, destinationScope) {
   const prior = remote.validateHead(previous, sourceScope);
@@ -1904,6 +2118,7 @@ module.exports = Object.freeze({
   recoverQuorum,
   rotate,
   verifyWitnessRotation,
+  verifyWitnessWrite,
   migrate,
   planAdopt,
   planRestore,

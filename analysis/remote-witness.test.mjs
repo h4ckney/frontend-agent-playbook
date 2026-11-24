@@ -243,3 +243,186 @@ test("normal scanner and refresh CLI use the HTTPS witness and produce no report
       /remote-witness-response-missing/.test(e.stderr),
   );
 });
+
+test("ordinary policy adoption requires the approved policy, the old policy and a fresh quorum at the witness", async (t) => {
+  const x = await fixture(t);
+  const { approve } = await import("./fixtures/governance-evidence.mjs");
+  const compiled = await core.compilePolicy({ ...x.policy, revision: 2 });
+  const approved = approve(x, await g.planAdopt(x.root, x.authority, compiled));
+  let candidate;
+  x.intercept = ({ request, stage, res }) => {
+    if (stage !== "before" || !request.next) return false;
+    candidate = request.next;
+    res.destroy();
+    return true;
+  };
+  await assert.rejects(
+    x.withStore((s) => core.adopt(s, compiled, x.a.organizationId, approved))
+  );
+  x.intercept = null;
+  const before = await x.sendCheckpoint();
+  for (const update of [
+    (state) => {
+      state.receipts = JSON.parse(before.logical).receipts;
+    },
+    (state) => {
+      const receipt = state.receipts.find(
+        (row) => row.requestId === approved.request.requestId
+      );
+      receipt.bundle = JSON.stringify({ ...approved, signatures: [] });
+    },
+    (state) => {
+      const receipt = state.receipts.find(
+        (row) => row.requestId === approved.request.requestId
+      );
+      receipt.bundle = JSON.stringify({
+        ...approved,
+        signatures: [approved.signatures[0]],
+      });
+    },
+    (state) => {
+      state.organizations[0].policy = JSON.stringify(x.compiled.policy);
+    },
+  ]) {
+    const logical = JSON.parse(candidate.logical);
+    update(logical);
+    await assert.rejects(
+      x.sendCheckpoint(await reseal(candidate, logical)),
+      /remote-witness/
+    );
+  }
+  assert.deepEqual(await x.sendCheckpoint(), before);
+  assert.equal(
+    (
+      await x.withStore((s) =>
+        core.adopt(s, compiled, x.a.organizationId, approved)
+      )
+    ).status,
+    "adopted"
+  );
+  const applied = await x.sendCheckpoint();
+  assert.deepEqual(await x.sendCheckpoint(candidate), applied);
+  const replay = await reseal(
+    {
+      ...applied,
+      sequence: applied.sequence + 1,
+      previousCheckpoint: applied.checkpointDigest,
+      activeRoot: applied.activeRoot + "-other",
+    },
+    JSON.parse(applied.logical)
+  );
+  await assert.rejects(x.sendCheckpoint(replay), /remote-witness/);
+  assert.deepEqual(await x.sendCheckpoint(), applied);
+});
+
+test("witness restore requires approval of the current checkpoint and exact target", async (t) => {
+  const x = await fixture(t);
+  const before = await x.sendCheckpoint();
+  const target = path.join(x.dir, "new-host");
+  let candidate;
+  x.intercept = ({ request, stage, res }) => {
+    if (stage !== "before" || !request.next) return false;
+    candidate = request.next;
+    res.destroy();
+    return true;
+  };
+  await assert.rejects(x.restore(target));
+  x.intercept = null;
+  const state = JSON.parse(candidate.logical);
+  await assert.rejects(
+    x.sendCheckpoint(
+      await reseal({ ...candidate, activeRoot: target + "-different" }, state)
+    ),
+    /remote-witness/
+  );
+  await assert.rejects(
+    x.sendCheckpoint(await reseal(candidate, JSON.parse(before.logical))),
+    /remote-witness/
+  );
+  assert.deepEqual(await x.sendCheckpoint(), before);
+  await x.refresh(x.f.make({ version: 2 }));
+  const live = await x.sendCheckpoint();
+  const stale = await reseal(
+    {
+      ...candidate,
+      sequence: live.sequence + 1,
+      previousCheckpoint: live.checkpointDigest,
+    },
+    { ...JSON.parse(live.logical), receipts: state.receipts }
+  );
+  await assert.rejects(x.sendCheckpoint(stale), /remote-witness/);
+  assert.deepEqual(await x.sendCheckpoint(), live);
+  assert.equal(
+    (await x.restore(target + "-approved")).status,
+    "restored-needs-refresh"
+  );
+});
+
+async function reseal(head, logical) {
+  const { createHash } = await import("node:crypto");
+  const digest = (value) =>
+    "sha256:" +
+    createHash("sha256").update(core.canonical(value)).digest("hex");
+  const { checkpointDigest, logical: prior, ...header } = head;
+  header.stateDigest = digest(logical);
+  return {
+    ...header,
+    checkpointDigest: digest(header),
+    logical: JSON.stringify(logical),
+  };
+}
+
+test("host loss and independent witness checkpoint drills retain policy, past approvals and TUF floors", async () => {
+  const { drillHostLoss, drillWitnessRollback } = await import(
+    "../scripts/drill-witness-recovery.mjs"
+  );
+  const host = await drillHostLoss();
+  assert.equal(host.priorApprovalCount, 2);
+  assert.equal(host.restoredTargetsFloor, 2);
+  const witness = await drillWitnessRollback();
+  assert.equal(witness.coordinatedRollbackOfAnalysisAndWitnessBlocked, true);
+  assert.equal(witness.historyCommitInterruptionRepaired, true);
+  assert.equal(witness.finalTargetsFloor, 4);
+});
+
+test("an existing witness binds only to the independently recorded head and rejects a same-sequence fork on restart", async (t) => {
+  const x = await fixture(t);
+  const { DatabaseSync } = await import("node:sqlite");
+  const head = await x.sendCheckpoint();
+  const checkpointDirectory = path.join(x.dir, "checkpoint");
+  await x.stopService();
+  await assert.rejects(
+    x.startService({
+      checkpointDirectory,
+      bindCheckpoint: "sha256:" + "0".repeat(64),
+    }),
+    /witness-checkpoint-bind-head-mismatch/
+  );
+  assert.ok(!fs.existsSync(checkpointDirectory));
+  const bind = { checkpointDirectory, bindCheckpoint: head.checkpointDigest };
+  await x.startService(bind);
+  assert.deepEqual(await x.sendCheckpoint(), head);
+  await x.stopService();
+  await x.startService(bind);
+  assert.deepEqual(await x.sendCheckpoint(), head);
+  await x.stopService();
+  const db = new DatabaseSync(
+    path.join(x.witnessOptions.directory, "history.sqlite")
+  );
+  try {
+    const fork = await reseal(
+      { ...head, activeRoot: head.activeRoot + "-fork" },
+      JSON.parse(head.logical)
+    );
+    db.prepare("UPDATE history SET body=? WHERE sequence=?").run(
+      JSON.stringify(fork),
+      head.sequence
+    );
+  } finally {
+    db.close();
+  }
+  await assert.rejects(
+    x.startService({ checkpointDirectory, repairCheckpoint: true }),
+    /witness-checkpoint-history-mismatch/
+  );
+});

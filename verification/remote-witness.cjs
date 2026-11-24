@@ -110,6 +110,13 @@ function validateHead(head, scope) {
   const { checkpointDigest, logical, ...header } = head;
   const state = JSON.parse(logical);
   if (
+    !exact(state, [
+      "schemaVersion",
+      "organizations",
+      "domains",
+      "binding",
+      "receipts",
+    ]) ||
     hash(header) !== checkpointDigest ||
     hash(state) !== head.stateDigest ||
     state.schemaVersion !== 3 ||
@@ -236,7 +243,7 @@ async function call(
   c,
   privateFile,
   next,
-  { writeProbe = false, rotation = false } = {},
+  { writeProbe = false, rotation = false, migration } = {}
 ) {
   const config = c.a.remoteWitness;
   const file =
@@ -255,6 +262,8 @@ async function call(
       ...scope,
       nonce,
       ...(next ? { next } : {}),
+      ...(next && !rotation ? { authority: c.a } : {}),
+      ...(migration ? { migration } : {}),
       ...(writeProbe ? { writeProbe: true } : {}),
       ...(rotation ? { rotation: true } : {}),
     });
