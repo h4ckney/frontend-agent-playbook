@@ -162,7 +162,7 @@ Selected npm/Composer installation reports, CycloneDX/SPDX SBOMs and deployment 
 
 [Organization approval and backup/recovery rehearsal](docs/organization-approval-recovery.md) add owner/security signatures and a separate witness to detect rewinding the entire main trust DB. Recovery preserves the latest floor and requires a fresh TUF refresh. Whole-host rollback including the witness remains outside this local profile.
 
-[Remote witness and host rollback recovery](docs/remote-witness-recovery.md) add signed HTTPS checkpoints, interrupted commit reconciliation, and a rehearsal that rewinds both local databases. An [approved v2 migration](docs/remote-witness-v2-migration.md) preserves the adopted policy, approval history, and TUF floors. [Approval key rotation](docs/approval-key-rotation.md) adds signed owner/security replacement and revocation for v2 and v3. [Emergency quorum recovery](docs/emergency-quorum-recovery.md) restores lost approval quorum using separately enrolled keys.
+[Remote witness and host rollback recovery](docs/remote-witness-recovery.md) add signed HTTPS checkpoints, interrupted commit reconciliation, and a rehearsal that rewinds both local databases. An [approved v2 migration](docs/remote-witness-v2-migration.md) preserves the adopted policy, approval history, and TUF floors. [Approval key rotation](docs/approval-key-rotation.md) adds signed owner/security replacement and revocation for v2 and v3. [Emergency quorum recovery](docs/emergency-quorum-recovery.md) restores lost approval quorum using separately enrolled keys. [Independent witness checkpoints and recovery drills](docs/witness-checkpoint-recovery.md) cover ordinary approval verification and rollback of the witness history.
 
 ### Analyzer CLI Preview
 

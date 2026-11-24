@@ -1,0 +1,23 @@
+{
+  "format": "controlled-witness-recovery-v1",
+  "scope": "One test host, separate TLS witness process and temporary directory boundaries. No external staging or physical host loss.",
+  "node": "v24.22.3",
+  "hostLoss": {
+    "witnessOutageBlocked": true,
+    "bothLocalDirectoriesRemoved": true,
+    "policyDigestPreserved": true,
+    "priorApprovalCount": 2,
+    "restoredTargetsFloor": 2,
+    "finalTargetsFloor": 3,
+    "simulatedRecoveryMilliseconds": 306
+  },
+  "witnessRollback": {
+    "independentCheckpointRequired": true,
+    "coordinatedRollbackOfAnalysisAndWitnessBlocked": true,
+    "matchedBackupRestored": true,
+    "historyCommitInterruptionRepaired": true,
+    "olderTufRejectedAfterRetry": true,
+    "finalTargetsFloor": 4
+  },
+  "completedAt": "2026-11-24T14:31:17.636Z"
+}
